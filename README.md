@@ -194,3 +194,116 @@ npm run build
 The landing page and its navigation work without game services. API-dependent game actions display
 “Game services are not connected yet.” until an API is configured. No Firebase configuration is required
 for this static deployment.
+
+## Firebase Setup
+
+The Firebase Web SDK is already a frontend dependency. The Firebase service files are scaffolds only:
+the current UI still uses the Express API, no Firebase project values are checked in, and missing values
+leave the landing page and GitHub Pages build working.
+
+### 1. Firebase Console settings
+
+In the existing Firebase project:
+
+1. In **Project settings → General → Your apps**, register a Web app if one does not already exist.
+2. In **Authentication → Sign-in method**, enable **Anonymous** when you are ready to test that flow.
+   The app does not assume this provider is enabled.
+3. Create a **Cloud Firestore** database and choose its production region. Keep the supplied
+   `firestore.rules` default-deny until the authentication and team-ownership model has been reviewed.
+4. Firebase Storage is not used by this scaffold; do not enable it just for this migration step.
+
+### 2. Get the Web App configuration
+
+Open **Project settings → General → Your apps → [your Web app] → SDK setup and configuration** and select
+the Firebase configuration snippet. Copy the corresponding values; do not invent, commit, or paste them
+into source files:
+
+| Firebase Web App field | Environment variable |
+| --- | --- |
+| `apiKey` | `VITE_FIREBASE_API_KEY` |
+| `authDomain` | `VITE_FIREBASE_AUTH_DOMAIN` |
+| `projectId` | `VITE_FIREBASE_PROJECT_ID` |
+| `storageBucket` | `VITE_FIREBASE_STORAGE_BUCKET` |
+| `messagingSenderId` | `VITE_FIREBASE_MESSAGING_SENDER_ID` |
+| `appId` | `VITE_FIREBASE_APP_ID` |
+
+### 3. Local environment
+
+Copy `frontend/.env.example` to `frontend/.env` and replace each placeholder with the matching Web App
+value. Vite reads these values while running/building the frontend. `.env`, `.env.local`, and
+`.env.production.local` are ignored; `.env.example` is intentionally tracked.
+
+```text
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_AUTH_DOMAIN=...
+VITE_FIREBASE_PROJECT_ID=...
+VITE_FIREBASE_STORAGE_BUCKET=...
+VITE_FIREBASE_MESSAGING_SENDER_ID=...
+VITE_FIREBASE_APP_ID=...
+```
+
+### 4–5. GitHub Pages production build variables
+
+The Pages workflow reads the six `VITE_FIREBASE_*` values from GitHub Actions repository **Secrets**.
+Create a repository secret for each exact name in the table above under
+**Settings → Secrets and variables → Actions → Secrets**. The workflow references secret names only; do
+not put real values in the workflow or README. Vite embeds these `VITE_*` values in the public browser
+bundle, so GitHub Secrets protects them only before/during the build, not after deployment. Restrict the
+Firebase API key to the APIs and referrers the app needs, including the GitHub Pages origin and local
+development origin.
+
+The variables are optional for the present scaffold. If unset, Firebase stays uninitialized, the build
+still succeeds, and Firebase-dependent service calls return “Game services are not connected yet.”
+Never put server credentials or private game data in `VITE_*` variables.
+
+### 6. Verify Firebase connectivity
+
+After setting local values, run `npm run dev:frontend`. The exported
+`firebaseInitializationStatus` should be `ready`; this confirms SDK initialization, not network
+connectivity or authorization. The first real network check is a successful Anonymous Authentication
+request (step 8 below). Firebase-dependent UI calls are not connected yet.
+
+### 7. Verify Firestore connectivity
+
+Firestore rules currently deny every client read and write, and no production documents are seeded.
+Use the Firebase Console Rules Playground to test access after the team/auth rules are finalized. A
+client read of `gameConfig/main` is expected to be denied until an explicit narrow read rule and the real
+configuration document exist. Do not loosen rules or create placeholder production data just to make a
+connectivity check pass.
+
+### 8. Verify Anonymous Authentication
+
+Enable the Anonymous provider, invoke `signInPlayerAnonymously()` from a local test harness, and confirm
+the returned user's `isAnonymous` value is `true`. A successful call verifies that the app can reach
+Firebase Authentication. The service is not wired to the player UI yet; sign-in is never started
+automatically.
+
+The planned Firestore paths are:
+
+| Path | Intended contents and access boundary |
+| --- | --- |
+| `gameConfig/main` | Public game configuration and schedule; no secrets |
+| `teams/{teamId}` | Team identity and anonymous UID association; never expose raw game keys |
+| `teams/{teamId}/progress/{puzzleId}` | That team's status, hints used, and timestamps |
+| `puzzles/{puzzleId}` | Player-facing puzzle content only; never canonical answers or private codes |
+| `submissions/{submissionId}` | Private submission metadata scoped to its owning team |
+| `checkpoints/{checkpointId}` | Checkpoint metadata; validation codes must not be readable by all players |
+
+`firestore.rules` is deliberately default-deny. Final rules must bind authenticated UIDs to team
+ownership and prevent cross-team reads. Puzzle answers, game-key validation, rate limits, and other
+trusted decisions must not move into publicly readable client data. Cloud Functions are not configured;
+keep those operations in the existing Express backend until a secure replacement is selected.
+
+### Migration map
+
+| Express/SQLite component | Firebase replacement | Status |
+| --- | --- | --- |
+| Vite Firebase configuration | `frontend/src/services/firebase.ts` and environment variables | READY FOR CONFIG |
+| Express route/UI API calls | `gameService.ts`, `puzzleService.ts`, and `teamService.ts` boundary | SCAFFOLDED |
+| Team game-key login and Express key middleware | Anonymous Auth plus trusted team-key validation | SCAFFOLDED |
+| SQLite `teams`, `puzzles`, `hints`, and `team_progress` | `teams/{teamId}`, team progress subcollection, and `puzzles/{puzzleId}` | SCAFFOLDED |
+| SQLite submissions and checkpoint visits | `submissions/{submissionId}` and `checkpoints/{checkpointId}` | SCAFFOLDED |
+| SQLite convergence tables, protected answers, admin operations, and seed/migration tooling | Additional secure model and trusted operations | NOT STARTED |
+| Frontend cutover from Express/SQLite | Use Firebase services in the UI after the vertical slice is verified | NOT STARTED |
+
+No component is marked `MIGRATED`. The Express + SQLite backend remains intact and operational.

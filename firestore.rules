@@ -1,0 +1,12 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny until the anonymous-auth identity and team membership model are finalized.
+    // Add narrowly scoped reads/writes only after the data model and threat model are reviewed.
+    // Never allow players to read another team's game keys, answers, submissions, or progress.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
