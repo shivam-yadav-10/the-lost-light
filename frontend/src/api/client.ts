@@ -6,7 +6,6 @@ import type {
   PuzzleDetail,
   SealResult,
   SubmitResult,
-  TeamProgress,
 } from './types';
 
 // Empty by default so the Vite dev proxy handles /api. Set VITE_API_BASE for GitHub Pages builds.
@@ -65,7 +64,6 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
 
 export const api = {
   status: () => request<{ name: string; serverTime: string; eventDate: string }>('/game/status'),
-  progress: (gameKey: string) => request<TeamProgress>('/team/progress', { gameKey }),
   puzzle: (gameKey: string, id: number) => request<PuzzleDetail>(`/puzzles/${id}`, { gameKey }),
   submit: (gameKey: string, id: number, answer: string, proof?: string) =>
     request<SubmitResult>(`/puzzles/${id}/submit`, { method: 'POST', body: { answer, proof }, gameKey }),

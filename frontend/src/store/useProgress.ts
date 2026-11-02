@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, ApiError } from '../api/client';
+import { getTeamProgress } from '../services/progressService';
+import { TeamLoginError } from '../services/teamService';
 import type { TeamProgress } from '../api/types';
 import { useTeam } from './team';
 
@@ -13,10 +14,10 @@ export function useProgress() {
     if (!session) return;
     setLoading(true);
     try {
-      setProgress(await api.progress(session.gameKey));
+      setProgress(await getTeamProgress(session.teamDocId, session.teamId));
       setError(null);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 401) signOut();
+      if (err instanceof TeamLoginError) signOut();
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setLoading(false);
