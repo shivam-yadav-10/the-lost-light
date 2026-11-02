@@ -1,8 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { api, ApiError } from '../api/client';
 import { Diya } from '../components/Diya';
 import { Layout } from '../components/Layout';
+import { GameServicesUnavailableError } from '../services/firebase';
+import { runFirebaseConnectivityDiagnostic } from '../services/firebaseDiagnostics';
+import { TeamLoginError, validateTeamGameKey } from '../services/teamService';
 import { useTeam } from '../store/team';
 
 export function LoginPage() {
@@ -21,12 +23,17 @@ export function LoginPage() {
     setBusy(true);
     setError(null);
     try {
-      const team = await api.login(gameKey);
-      signIn({ gameKey, teamId: team.teamId, teamName: team.teamName });
+      const team = await validateTeamGameKey(gameKey);
+      if (import.meta.env.DEV) await runFirebaseConnectivityDiagnostic();
+      signIn({ gameKey, teamId: team.teamNumber, teamDocId: team.teamId, teamName: team.teamName });
       if (team.introSeen) navigate('/dashboard', { replace: true });
       else navigate('/story', { replace: true, state: { first: true } });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Something went wrong.');
+      setError(
+        err instanceof TeamLoginError || err instanceof GameServicesUnavailableError
+          ? err.message
+          : 'Something went wrong.',
+      );
     } finally {
       setBusy(false);
     }

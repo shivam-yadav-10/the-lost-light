@@ -2,9 +2,82 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default deny until the anonymous-auth identity and team membership model are finalized.
-    // Add narrowly scoped reads/writes only after the data model and threat model are reviewed.
-    // Never allow players to read another team's game keys, answers, submissions, or progress.
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function ownsTeam(teamId) {
+      return signedIn()
+        && get(/databases/$(database)/documents/teams/$(teamId)).data.assignedUid == request.auth.uid;
+    }
+
+    match /admins/{uid} {
+      allow get: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow list: if isAdmin();
+      // Manage the allowlist through the Firebase Console, not from the player application.
+      allow write: if false;
+    }
+
+    match /gameConfig/{configId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /puzzles/{puzzleId} {
+      // Only player-facing content belongs here. Client-shipped answers are not confidential.
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /checkpoints/{checkpointId} {
+      // Do not store checkpoint codes or code hashes in these readable documents.
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /teams/{teamId} {
+      // Login queries gameKeyHash across teams, so every authenticated player can read team metadata.
+      // This exposes hashes and is not a trusted game-key validation mechanism.
+      allow get, list: if signedIn() || isAdmin();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin()
+        || (
+          signedIn()
+          && resource.data.active == true
+          && (resource.data.assignedUid == null || resource.data.assignedUid == request.auth.uid)
+          && request.resource.data.assignedUid == request.auth.uid
+          && request.resource.data.teamName == resource.data.teamName
+          && request.resource.data.gameKeyHash == resource.data.gameKeyHash
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['assignedUid', 'lastSeenAt', 'introSeenAt', 'shardType'])
+        );
+
+      match /progress/{puzzleId} {
+        allow read, create, update: if isAdmin() || ownsTeam(teamId);
+        allow delete: if isAdmin();
+      }
+
+      match /submissions/{submissionId} {
+        allow read, create: if isAdmin() || ownsTeam(teamId);
+        allow update, delete: if isAdmin();
+      }
+
+      match /checkpointVisits/{checkpointId} {
+        allow read, create: if isAdmin() || ownsTeam(teamId);
+        allow update, delete: if isAdmin();
+      }
+
+      match /verifiedShards/{shardType} {
+        allow read, create: if isAdmin() || ownsTeam(teamId);
+        allow update, delete: if isAdmin();
+      }
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

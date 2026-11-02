@@ -5,6 +5,7 @@ const STORAGE_KEY = 'lostlight.session';
 interface Session {
   gameKey: string;
   teamId: number;
+  teamDocId: string;
   teamName: string;
 }
 
@@ -21,7 +22,14 @@ function readStored(): Session | null {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<Session>;
-    if (typeof parsed.gameKey !== 'string' || typeof parsed.teamName !== 'string') return null;
+    if (
+      typeof parsed.gameKey !== 'string' ||
+      typeof parsed.teamId !== 'number' ||
+      typeof parsed.teamDocId !== 'string' ||
+      typeof parsed.teamName !== 'string'
+    ) {
+      return null;
+    }
     return parsed as Session;
   } catch {
     return null;

@@ -10,6 +10,7 @@
     "content:apply": "npm run content:apply --prefix backend",
     "content:check": "npm run content:check --prefix backend",
     "answer-key": "npm run answer-key --prefix backend",
+    "firestore:seed": "npm run firestore:seed --prefix backend --",
     "progress:reset": "npm run progress:reset --prefix backend",
     "dev": "concurrently -k -n api,web -c yellow,cyan \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
     "dev:backend": "npm run dev --prefix backend",

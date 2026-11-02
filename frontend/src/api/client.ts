@@ -64,8 +64,6 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
 }
 
 export const api = {
-  login: (gameKey: string) =>
-    request<{ teamId: number; teamName: string; introSeen: boolean }>('/team/login', { method: 'POST', body: { gameKey } }),
   markIntroSeen: (gameKey: string) => request<{ introSeen: true }>('/team/intro-seen', { method: 'POST', gameKey }),
   status: () => request<{ name: string; serverTime: string; eventDate: string }>('/game/status'),
   progress: (gameKey: string) => request<TeamProgress>('/team/progress', { gameKey }),

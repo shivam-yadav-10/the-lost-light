@@ -12,6 +12,7 @@
     "content:apply": "tsx --env-file-if-exists=.env src/db/init.ts",
     "content:check": "tsx --env-file-if-exists=.env src/content/check.ts",
     "answer-key": "tsx --env-file-if-exists=.env src/content/answer-key.ts",
+    "firestore:seed": "tsx --env-file-if-exists=../frontend/.env src/scripts/seed-firestore.ts",
     "progress:reset": "tsx --env-file-if-exists=.env src/db/reset-progress.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
