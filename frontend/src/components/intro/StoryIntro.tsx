@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { api } from '../../api/client';
+import { markTeamIntroSeen } from '../../services/teamService';
 import { useTeam } from '../../store/team';
 import { CHIME_NOTES, TeaserAudio } from '../../story/teaserAudio';
 import { Flame } from './Flame';
@@ -84,7 +84,7 @@ export function StoryIntro() {
     audio.stop(EXIT_MS / 1000);
     let recorded = true;
     try {
-      await Promise.all([api.markIntroSeen(session.gameKey), wait(EXIT_MS)]);
+      await Promise.all([markTeamIntroSeen(session.teamDocId), wait(EXIT_MS)]);
     } catch (err) {
       // Let them in anyway; without this flag the dashboard would send them straight back here.
       console.warn('Could not record that the story was seen:', err);

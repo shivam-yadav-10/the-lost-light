@@ -1,5 +1,5 @@
 import { FirebaseError } from 'firebase/app';
-import { collection, getDocs, query, runTransaction, serverTimestamp, where } from 'firebase/firestore';
+import { collection, doc, getDocs, query, runTransaction, serverTimestamp, where } from 'firebase/firestore';
 import { initializeSession } from './authService';
 import { GameServicesUnavailableError, requireFirebaseServices } from './firebase';
 
@@ -80,6 +80,33 @@ export async function validateTeamGameKey(rawGameKey: string): Promise<TeamIdent
     });
   } catch (error) {
     if (error instanceof TeamLoginError) throw error;
+    if (error instanceof FirebaseError) throw new GameServicesUnavailableError();
+    throw error;
+  }
+}
+
+export async function markTeamIntroSeen(teamDocId: string): Promise<void> {
+  if (!teamDocId.trim()) throw new GameServicesUnavailableError();
+
+  const { firestore } = requireFirebaseServices();
+  const user = await initializeSession();
+  const teamRef = doc(firestore, 'teams', teamDocId);
+
+  try {
+    await runTransaction(firestore, async (transaction) => {
+      const teamSnapshot = await transaction.get(teamRef);
+      if (!teamSnapshot.exists()) throw new GameServicesUnavailableError();
+
+      const team = teamSnapshot.data();
+      if (team.active !== true || team.assignedUid !== user.uid) {
+        throw new GameServicesUnavailableError();
+      }
+
+      if (team.introSeenAt == null) {
+        transaction.update(teamRef, { introSeenAt: serverTimestamp() });
+      }
+    });
+  } catch (error) {
     if (error instanceof FirebaseError) throw new GameServicesUnavailableError();
     throw error;
   }
