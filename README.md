@@ -181,7 +181,8 @@ configured with the `/the-lost-light/` base path, including for built assets and
 
 Push to the `main` branch to run `.github/workflows/deploy-pages.yml`. The workflow builds only
 `frontend/` and deploys `frontend/dist`; it does not deploy or configure the local backend. In the GitHub
-repository settings, set **Pages → Build and deployment → Source** to **GitHub Actions**.
+repository settings, **Pages → Build and deployment → Source** should be **GitHub Actions**; the workflow
+enables Pages if it has not already been enabled.
 
 To install and build locally from the repository root:
 
