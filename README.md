@@ -180,9 +180,9 @@ hash-based routes (for example, `/#/login`) so refreshing a nested route works o
 configured with the `/the-lost-light/` base path, including for built assets and fonts.
 
 Push to the `main` branch to run `.github/workflows/deploy-pages.yml`. The workflow builds only
-`frontend/` and deploys `frontend/dist`; it does not deploy or configure the local backend. In the GitHub
-repository settings, **Pages → Build and deployment → Source** should be **GitHub Actions**; the workflow
-enables Pages if it has not already been enabled.
+`frontend/` and deploys `frontend/dist`; it does not deploy or configure the local backend. Before the
+first deployment, enable Pages in the GitHub repository settings and set **Pages → Build and deployment
+→ Source** to **GitHub Actions**. The workflow token cannot enable Pages for the repository.
 
 To install and build locally from the repository root:
 
