@@ -4,20 +4,8 @@ A local-first Diwali scavenger hunt for the GTCI event on **10 November**.
 10–15 teams, 3–5 people each, playing asynchronously through the working day:
 six core "fragments", then two endgame puzzles (one of which needs cross-team collaboration).
 
-This repository contains the full game: eight puzzles, the cross-team Convergence, the Final Vault and an
-organiser view. **Design documents (organiser-only, they contain every answer) live in [`docs/`](docs/):**
-
-| Doc | What it covers |
-| --- | --- |
-| [`final-story.md`](docs/final-story.md) | Narrative arc, twist, key lines, tone rules |
-| [`puzzle-design.md`](docs/puzzle-design.md) | Exact design of all eight puzzles: clues, logic, answers, hints, messages, fallbacks |
-| [`puzzle-dependency-map.md`](docs/puzzle-dependency-map.md) | Unlock graph, schedule, fragment metadata matrix, extraction tables |
-| [`physical-materials.md`](docs/physical-materials.md) | What to print, exact text/values, where to place it |
-| [`organizer-runbook.md`](docs/organizer-runbook.md) | Day-before checklist, timeline, emergency fallbacks |
-| [`testing-guide.md`](docs/testing-guide.md) | Automated checks, `FAKE_NOW` walkthrough, consistency review |
-
-> Keep this repository private, or move `docs/` out before publishing. GitHub Pages only deploys
-> `frontend/dist`, which contains no answers.
+This repository contains the game frontend and local development backend. Organiser-only design documents
+are kept in the local `docs/` directory and excluded from Git.
 
 ## Prerequisites
 
@@ -185,7 +173,23 @@ Edit `backend/src/content/public.ts` (player text, unlock times) and `protected.
 metadata, codes). Then run `npm run content:check` and `npm run content:apply`. Replace the
 `[LOCATION_…]` placeholders with real places before the event.
 
-## GitHub Pages (later)
+## GitHub Pages
 
-Build the frontend with `VITE_BASE_PATH=/<repo>/ VITE_API_BASE=https://<your-api-host>` and host the
-backend wherever the API will live. Routing is hash-based so no server rewrites are needed.
+The frontend is deployed at **https://shivam-yadav-10.github.io/the-lost-light/**. The project uses
+hash-based routes (for example, `/#/login`) so refreshing a nested route works on GitHub Pages. Vite is
+configured with the `/the-lost-light/` base path, including for built assets and fonts.
+
+Push to the `main` branch to run `.github/workflows/deploy-pages.yml`. The workflow builds only
+`frontend/` and deploys `frontend/dist`; it does not deploy or configure the local backend. In the GitHub
+repository settings, set **Pages → Build and deployment → Source** to **GitHub Actions**.
+
+To install and build locally from the repository root:
+
+```bash
+npm install
+npm run build
+```
+
+The landing page and its navigation work without game services. API-dependent game actions display
+“Game services are not connected yet.” until an API is configured. No Firebase configuration is required
+for this static deployment.

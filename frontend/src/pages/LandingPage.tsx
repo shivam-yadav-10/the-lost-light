@@ -1,11 +1,10 @@
-import { Link, Navigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { DiyaLamp } from '../components/DiyaLamp';
 import { Layout } from '../components/Layout';
 import { useTeam } from '../store/team';
 
 export function LandingPage() {
   const { session } = useTeam();
-  if (session) return <Navigate to="/dashboard" replace />;
 
   return (
     <Layout bare>
@@ -36,8 +35,8 @@ export function LandingPage() {
         </p>
 
         <div className="mt-16 animate-rise" style={{ animationDelay: '480ms' }}>
-          <Link to="/login" className="btn-ember">
-            Enter with your team key
+          <Link to={session ? '/dashboard' : '/login'} className="btn-ember">
+            {session ? 'Continue with your team' : 'Enter with your team key'}
           </Link>
         </div>
       </section>

@@ -12,6 +12,7 @@ import type {
 // Empty by default so the Vite dev proxy handles /api. Set VITE_API_BASE for GitHub Pages builds.
 const API_BASE = import.meta.env.VITE_API_BASE ?? '';
 const REQUEST_TIMEOUT_MS = 10_000;
+const GAME_SERVICES_UNAVAILABLE = 'Game services are not connected yet.';
 
 export class ApiError extends Error {
   constructor(
@@ -30,6 +31,10 @@ interface RequestOptions {
 }
 
 async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
+  if (!import.meta.env.DEV && !API_BASE) {
+    throw new ApiError(503, GAME_SERVICES_UNAVAILABLE);
+  }
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   const headers: Record<string, string> = { Accept: 'application/json' };
