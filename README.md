@@ -175,7 +175,7 @@ metadata, codes). Then run `npm run content:check` and `npm run content:apply`. 
 
 ## GitHub Pages
 
-The frontend is deployed at **https://shivam-yadav-10.github.io/the-lost-light/**. The project uses
+The expected project-site URL is **https://shivam-yadav-10.github.io/the-lost-light/**. The project uses
 hash-based routes (for example, `/#/login`) so refreshing a nested route works on GitHub Pages. Vite is
 configured with the `/the-lost-light/` base path, including for built assets and fonts.
 
