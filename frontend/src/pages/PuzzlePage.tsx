@@ -83,8 +83,8 @@ export function PuzzlePage() {
   const proseBlocks = puzzle.blocks.filter((b) => !VISUAL_BLOCKS.has(b.type));
   const hasCourtyard = puzzle.blocks.some((block) => block.type === 'courtyard');
   const hasVisual = visualBlocks.length > 0 || hasCourtyard;
-  // The street scene is a hidden-object picture, so it gets 70% of the width; other visuals split ~55/45.
-  const columns = visualBlocks.some((b) => b.type === 'street')
+  // The street scene and courtyard board need 70% of the desktop width.
+  const columns = hasCourtyard || visualBlocks.some((b) => b.type === 'street')
     ? 'lg:grid-cols-[minmax(0,7fr)_minmax(0,3fr)] lg:gap-x-10'
     : 'lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-x-16';
 
