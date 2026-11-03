@@ -269,7 +269,7 @@ export const PUBLIC_PUZZLES: PublicPuzzle[] = [
     blocks: [
       {
         type: 'note',
-        text: 'Everything you need is on this page. Click each numbered gate to cycle from empty through the five lantern symbols. Use every symbol once. The clues refer to gate numbers, not screen positions. Turn mirrors A to J so the light visits all five gates and all ten mirrors before reaching the beacon. Beware false branches: a wrong turn can return to an earlier mirror or lead to a dark dead end. No timer or move limit.',
+        text: 'Everything you need is on this page. Click each numbered gate to cycle from empty through the five lantern symbols. Use every symbol once. The clues refer to gate numbers, not screen positions. Turn mirrors A to T so the light visits all five gates and all twenty mirrors before reaching the beacon. Scroll the courtyard sideways to explore both halves. Beware false branches: a wrong turn can return to an earlier mirror or lead to a dark dead end. No timer or move limit.',
       },
       {
         type: 'courtyard',

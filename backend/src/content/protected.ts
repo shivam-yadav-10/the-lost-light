@@ -154,7 +154,7 @@ export const PROTECTED_PUZZLES: ProtectedPuzzle[] = [
   },
   {
     id: 6,
-    answers: ['courtyard-v2 leaf moon lotus bell star slash backslash slash slash backslash backslash slash slash backslash backslash'],
+    answers: ['courtyard-v3 leaf moon lotus bell star sbssbbssbbssbbssbbbb'],
     nearMisses: [],
     incorrectMessage: 'The courtyard is not ready yet. Check the gate-number clues and the path through all five lanterns.',
     completionMessage:
@@ -162,7 +162,7 @@ export const PROTECTED_PUZZLES: ProtectedPuzzle[] = [
     hints: corePenalties(
       'Use the gate-number clues first. Leaf and Lotus have one gate between them, Bell is immediately before Star, and Moon is not at either end. Follow the actual beam, not the faded branches.',
       'Place Leaf at gate 1 and Lotus at gate 3; that leaves Moon, Bell, Star at gates 2, 4, 5. From the diya turn north at A, west at B, south at C, then west at D. The eastward branch at F sends you back to C.',
-      'Gates 1 to 5: Leaf, Moon, Lotus, Bell, Star. Mirrors A to J: /, \\, /, /, \\, \\, /, /, \\, \\. The correct beam visits every mirror in alphabetical order before reaching the beacon.',
+      'Gates 1 to 5: Leaf, Moon, Lotus, Bell, Star. Mirrors A to J: /, \\, /, /, \\, \\, /, /, \\, \\. Mirrors K to T: /, /, \\, \\, /, /, \\, \\, \\, \\. The correct beam visits all twenty mirrors in alphabetical order before reaching the beacon.',
     ),
     rateLimit: CORE_LIMIT,
     fragment: { symbol: 'spiral', number: 2, direction: 'S', keyword: 'RETURN', colour: 'Blue' },

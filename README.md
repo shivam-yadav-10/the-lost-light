@@ -15,9 +15,10 @@ The frontend enforces this order even against older Firebase puzzle metadata, wi
 Question VI is the Lantern Courtyard: teams deduce a five-lantern arrangement, then rotate mirrors to guide
 the diya's beam through the gates to its beacon. Its clues and controls are self-contained on the puzzle page.
 The board animates the beam, mirrors, lantern glow and rangoli, respecting reduced-motion preferences.
-The wider v2 courtyard has ten rotating mirrors and decoy branches that can return light to earlier mirrors
+The wider v3 courtyard has twenty rotating mirrors (A to T) and decoy branches that can return light to earlier mirrors
 or dark dead ends. Numbered gates start empty and cycle through all five symbols on click, tap, Enter or Space;
-there are no dropdowns. All ten mirrors and all five gates must be visited. Old v1 browser drafts are ignored,
+there are no dropdowns. Scroll sideways to explore both halves. All twenty mirrors and all five gates must be visited.
+The answer uses a compact orientation code to stay within the submission limit. Old v1/v2 browser drafts are ignored,
 while completed team progress and the fragment reward are preserved.
 
 Question V requires checking all five day answers before submitting the final word. Changing an answer

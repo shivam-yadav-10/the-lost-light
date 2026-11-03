@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   courtyardAnswer,
+  BOARD_COLUMNS,
+  BOARD_ROWS,
   GATES,
   INITIAL_MIRRORS,
   MIRRORS,
@@ -10,14 +12,15 @@ import {
 } from '../src/services/courtyard.ts';
 
 const SOLVED_LANTERNS = ['leaf', 'moon', 'lotus', 'bell', 'star'];
-const SOLVED_MIRRORS = ['slash', 'backslash', 'slash', 'slash', 'backslash', 'backslash', 'slash', 'slash', 'backslash', 'backslash'];
+const SOLVED_MIRRORS = [...'sbssbbssbbssbbssbbbb'].map((value) => value === 's' ? 'slash' : 'backslash');
 
 test('solved mirror arrangement visits all five gates in order and reaches the beacon', () => {
   const result = traceCourtyard(SOLVED_MIRRORS);
   assert.equal(result.reachedBeacon, true);
   assert.deepEqual(result.gates, [0, 1, 2, 3, 4]);
   assert.deepEqual(result.path.at(-1), { x: 0, y: 1 });
-  assert.deepEqual(result.mirrorsVisited, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  assert.equal(MIRRORS.length, 20);
+  assert.deepEqual(result.mirrorsVisited, MIRRORS.map((_, index) => index));
   assert.equal(GATES.length, 5);
 });
 
@@ -30,23 +33,24 @@ test('starting mirror arrangement does not accidentally reveal a solved path', (
 test('only a complete, unique lantern arrangement and connected beam can be submitted', () => {
   assert.equal(
     courtyardAnswer(SOLVED_LANTERNS, SOLVED_MIRRORS),
-    'courtyard-v2 leaf moon lotus bell star slash backslash slash slash backslash backslash slash slash backslash backslash',
+    'courtyard-v3 leaf moon lotus bell star sbssbbssbbssbbssbbbb',
   );
+  assert.ok(courtyardAnswer(SOLVED_LANTERNS, SOLVED_MIRRORS).length <= 200);
   assert.throws(() => courtyardAnswer(['leaf', 'leaf', 'lotus', 'bell', 'star'], SOLVED_MIRRORS), /exactly once/);
   assert.throws(() => courtyardAnswer(['leaf', '', 'lotus', 'bell', 'star'], SOLVED_MIRRORS), /each of the five/);
   assert.throws(() => courtyardAnswer(SOLVED_LANTERNS, INITIAL_MIRRORS), /visits all five gates/);
   assert.throws(() => traceCourtyard(['slash']), /valid orientation/);
 });
 
-test('all 1024 mirror arrangements have exactly one full solution, with real decoy routes', () => {
+test('all 1,048,576 mirror arrangements have exactly one full solution, with real decoy routes', () => {
   const winners = [];
   let decoyRoutes = 0;
   for (let bits = 0; bits < 2 ** MIRRORS.length; bits++) {
     const mirrors = MIRRORS.map((_, index) => (bits >> index) & 1 ? 'slash' : 'backslash');
     const beam = traceCourtyard(mirrors);
-    if (beam.reachedBeacon && new Set(beam.gates).size === 5 && new Set(beam.mirrorsVisited).size === 10) winners.push(mirrors);
+    if (beam.reachedBeacon && new Set(beam.gates).size === 5 && new Set(beam.mirrorsVisited).size === MIRRORS.length) winners.push(mirrors);
     if (beam.mirrorsVisited.some((id, index, visited) => index > 0 && id < visited[index - 1])) decoyRoutes++;
-    assert.ok(beam.path.length < 13 * 11 * 4 + 2, 'trace terminates even for bad paths');
+    assert.ok(beam.path.length < BOARD_COLUMNS * BOARD_ROWS * 4 + 2, 'trace terminates even for bad paths');
   }
   assert.deepEqual(winners, [SOLVED_MIRRORS]);
   assert.ok(decoyRoutes > 0, 'wrong turns can feed into earlier mirrors rather than only exit');

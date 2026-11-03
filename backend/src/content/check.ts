@@ -123,7 +123,7 @@ check('Courtyard clues have one unique lantern arrangement',
   arrangements.length === 1 && arrangements[0].join(' ') === 'leaf moon lotus bell star',
   arrangements.map((gates) => gates.join(' ')).join('; '));
 check('Courtyard answer key matches the solved lantern and mirror arrangement',
-  canonical(6) === 'courtyard-v2 leaf moon lotus bell star slash backslash slash slash backslash backslash slash slash backslash backslash', canonical(6));
+  canonical(6) === 'courtyard-v3 leaf moon lotus bell star sbssbbssbbssbbssbbbb', canonical(6));
 check('Rangoli has 8 spokes × 5 rings', STREET_RANGOLI.length === 40);
 
 // ---------- The False Flame's metadata is a coherent reflection ----------

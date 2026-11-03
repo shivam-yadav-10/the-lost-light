@@ -2,21 +2,25 @@ export const LANTERNS = ['lotus', 'star', 'leaf', 'bell', 'moon'] as const;
 export type Lantern = typeof LANTERNS[number];
 export type Mirror = 'slash' | 'backslash';
 export interface Point { x: number; y: number }
-export const COURTYARD_VERSION = 'courtyard-v2';
-export const BOARD_COLUMNS = 13;
+export const COURTYARD_VERSION = 'courtyard-v3';
+export const BOARD_COLUMNS = 25;
 export const BOARD_ROWS = 11;
-export const SOURCE: Point = { x: 1, y: 9 };
+export const SOURCE: Point = { x: 13, y: 9 };
 export const BEACON: Point = { x: 0, y: 1 };
 export const GATES: readonly Point[] = [
-  { x: 6, y: 9 }, { x: 11, y: 5 }, { x: 9, y: 4 }, { x: 7, y: 5 }, { x: 3, y: 2 },
+  { x: 18, y: 9 }, { x: 23, y: 5 }, { x: 21, y: 4 }, { x: 19, y: 5 }, { x: 5, y: 2 },
 ];
 export const MIRRORS: readonly Point[] = [
-  { x: 11, y: 9 }, { x: 11, y: 1 }, { x: 9, y: 1 }, { x: 9, y: 7 }, { x: 7, y: 7 },
-  { x: 7, y: 1 }, { x: 5, y: 1 }, { x: 5, y: 5 }, { x: 3, y: 5 }, { x: 3, y: 1 },
+  { x: 23, y: 9 }, { x: 23, y: 1 }, { x: 21, y: 1 }, { x: 21, y: 7 }, { x: 19, y: 7 },
+  { x: 19, y: 1 }, { x: 17, y: 1 }, { x: 17, y: 5 }, { x: 15, y: 5 }, { x: 15, y: 1 },
+  { x: 13, y: 1 }, { x: 13, y: 7 }, { x: 11, y: 7 }, { x: 11, y: 3 }, { x: 9, y: 3 },
+  { x: 9, y: 7 }, { x: 7, y: 7 }, { x: 7, y: 3 }, { x: 5, y: 3 }, { x: 5, y: 1 },
 ];
 export const INITIAL_MIRRORS: Mirror[] = [
   'backslash', 'slash', 'slash', 'slash', 'backslash',
   'slash', 'slash', 'slash', 'backslash', 'slash',
+  'slash', 'backslash', 'slash', 'slash', 'backslash',
+  'slash', 'slash', 'backslash', 'slash', 'slash',
 ];
 
 export function nextLantern(current: string): string {
@@ -27,7 +31,7 @@ export function nextLantern(current: string): string {
 /** Traces the diya's beam until it exits the courtyard or reaches the beacon. */
 export function traceCourtyard(mirrors: readonly Mirror[]): { path: Point[]; gates: number[]; mirrorsVisited: number[]; reachedBeacon: boolean } {
   if (mirrors.length !== MIRRORS.length || mirrors.some((mirror) => mirror !== 'slash' && mirror !== 'backslash')) {
-    throw new Error('Choose a valid orientation for all ten mirrors.');
+    throw new Error('Choose a valid orientation for all twenty mirrors.');
   }
   const path = [{ ...SOURCE }];
   const gates: number[] = [];
@@ -63,7 +67,7 @@ export function courtyardAnswer(lanterns: readonly string[], mirrors: readonly M
   if (new Set(lanterns).size !== 5) throw new Error('Use each lantern exactly once.');
   const beam = traceCourtyard(mirrors);
   if (!beam.reachedBeacon || new Set(beam.gates).size !== 5 || new Set(beam.mirrorsVisited).size !== MIRRORS.length) {
-    throw new Error('Turn the mirrors so the light visits all five gates, all ten mirrors and reaches the beacon.');
+    throw new Error('Turn the mirrors so the light visits all five gates, all twenty mirrors and reaches the beacon.');
   }
-  return [COURTYARD_VERSION, ...lanterns, ...mirrors].join(' ');
+  return [COURTYARD_VERSION, ...lanterns, mirrors.map((mirror) => mirror === 'slash' ? 's' : 'b').join('')].join(' ');
 }

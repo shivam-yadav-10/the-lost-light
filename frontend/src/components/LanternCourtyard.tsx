@@ -83,29 +83,29 @@ export function LanternCourtyard({ teamDocId, busy, solved, feedback, onSubmit }
         <>
           <p className="mt-3 text-sm text-parchment/70">
             Tap a numbered gate to cycle its symbol: empty, Lotus, Star, Leaf, Bell, Moon, then empty.
-            Use each symbol once. Tap mirrors A to J to turn them. The beam must visit all five gates
-            and all ten mirrors before reaching the beacon. The diya sends light to the right.
+            Use each symbol once. Tap mirrors A to T to turn them. The beam must visit all five gates
+            and all twenty mirrors before reaching the beacon. The diya sends light to the right.
             Some wrong turns feed back into earlier mirrors; faded branches can lead to dark dead ends.
           </p>
           <div className="my-6 overflow-x-auto rounded-2xl border border-ember/20">
-          <div className="courtyard-board relative w-full min-w-[660px] bg-black/20" style={{ aspectRatio: `${WIDTH} / ${HEIGHT}` }}>
+          <div className="courtyard-board relative w-full min-w-[1120px] bg-black/20" style={{ aspectRatio: `${WIDTH} / ${HEIGHT}` }}>
             <svg viewBox={`-20 -20 ${WIDTH} ${HEIGHT}`} className="h-full w-full" role="img" aria-labelledby="courtyard-map-title courtyard-map-description">
               <title id="courtyard-map-title">Courtyard light-path preview</title>
-              <desc id="courtyard-map-description">The diya starts near the bottom left, pointing east. Ten mirrors form a winding path across the courtyard to the top-left beacon. Use the labelled mirror and gate buttons to explore the live light path.</desc>
+              <desc id="courtyard-map-description">The diya starts near the bottom centre, pointing east. Twenty mirrors form a winding path across the courtyard to the top-left beacon. Use the labelled mirror and gate buttons to explore the live light path.</desc>
               <g stroke="#f59e0b" fill="none" opacity="0.12">
                 {Array.from({ length: BOARD_COLUMNS }, (_, i) => <path key={`v${i}`} d={`M${position(i)} 40V${position(BOARD_ROWS - 1)}`} />)}
                 {Array.from({ length: BOARD_ROWS }, (_, i) => <path key={`h${i}`} d={`M40 ${position(i)}H${position(BOARD_COLUMNS - 1)}`} />)}
               </g>
               <g fill="none" stroke="#ad8051" strokeWidth="7" strokeDasharray="5 13" opacity="0.22" aria-hidden="true">
-                <path d={`M${position(3)} ${position(1)}H${position(12)} M${position(3)} ${position(5)}H${position(12)} M${position(3)} ${position(5)}V${position(10)} M${position(9)} ${position(7)}H${position(12)}`} />
+                <path d={`M${position(5)} ${position(1)}H${position(24)} M${position(15)} ${position(5)}H${position(24)} M${position(15)} ${position(5)}V${position(10)} M${position(21)} ${position(7)}H${position(24)} M${position(5)} ${position(3)}H${position(12)}`} />
               </g>
               <g stroke="#806440" strokeWidth="3" opacity="0.55" aria-hidden="true">
-                {[{ x: 12, y: 1 }, { x: 12, y: 5 }, { x: 12, y: 7 }, { x: 3, y: 10 }].map((point) => (
+                {[{ x: 24, y: 1 }, { x: 24, y: 5 }, { x: 24, y: 7 }, { x: 15, y: 10 }, { x: 12, y: 3 }].map((point) => (
                   <path key={`${point.x}-${point.y}`}
                     d={`M${position(point.x) - 9} ${position(point.y) - 9}l18 18m0 -18l-18 18`} />
                 ))}
               </g>
-              <g transform="translate(240 120)">
+              <g transform="translate(720 120)">
               <g className="courtyard-rangoli" stroke="#f59e0b" fill="none">
                 <circle cx="280" cy="280" r="115" strokeDasharray="3 9" />
                 <circle cx="280" cy="280" r="100" opacity="0.5" />
@@ -140,7 +140,7 @@ export function LanternCourtyard({ teamDocId, busy, solved, feedback, onSubmit }
                   setLanterns((current) => current.map((value, i) => i === index ? nextLantern(value) : value));
                 }}
                 className={`absolute flex min-h-11 min-w-11 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-xl border bg-night text-ember-glow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ember-glow disabled:opacity-50 ${litGates.has(index) && lanterns[index] ? 'courtyard-lantern-lit border-ember-glow' : 'border-ember/40'}`}
-                style={{ left: left(gate.x), top: top(gate.y), width: '6%', aspectRatio: '1' }}>
+                style={{ left: left(gate.x), top: top(gate.y), width: '3%', aspectRatio: '1' }}>
                 {lanterns[index] && <span className="w-7 sm:w-8"><LanternMark name={lanterns[index]} /></span>}
                 <span className="text-xs leading-none">{index + 1}</span>
               </button>
@@ -148,10 +148,10 @@ export function LanternCourtyard({ teamDocId, busy, solved, feedback, onSubmit }
             {MIRRORS.map((mirror, index) => (
               <button key={index} type="button" disabled={disabled}
                 onClick={() => { setError(null); setMirrors((current) => current.map((value, i) => i === index ? value === 'slash' ? 'backslash' : 'slash' : value)); }}
-                aria-label={`Rotate mirror ${'ABCDEFGHIJ'[index]}, currently ${mirrors[index] === 'slash' ? 'forward slash' : 'backslash'}`}
+                aria-label={`Rotate mirror ${'ABCDEFGHIJKLMNOPQRST'[index]}, currently ${mirrors[index] === 'slash' ? 'forward slash' : 'backslash'}`}
                 className="absolute flex min-h-11 min-w-11 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-lg border border-ember/70 bg-night text-ember-glow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ember-glow disabled:opacity-50"
-                style={{ left: left(mirror.x), top: top(mirror.y), width: '5.5%', aspectRatio: '1' }}>
-                <span className="text-[10px] leading-none">{'ABCDEFGHIJ'[index]}</span>
+                style={{ left: left(mirror.x), top: top(mirror.y), width: '2.8%', aspectRatio: '1' }}>
+                <span className="text-[10px] leading-none">{'ABCDEFGHIJKLMNOPQRST'[index]}</span>
                 <span aria-hidden="true" className="courtyard-mirror font-code text-2xl leading-none"
                   style={{ transform: `rotate(${mirrors[index] === 'slash' ? 0 : 90}deg)` }}>/</span>
               </button>
@@ -159,7 +159,7 @@ export function LanternCourtyard({ teamDocId, busy, solved, feedback, onSubmit }
           </div>
           </div>
           <p role="status" className="text-sm text-parchment/70">
-            {ready ? 'Light path connected. Check your lantern order against all four clues before submitting.' : `Light reaches ${litGates.size} of 5 gates and ${new Set(beam.mirrorsVisited).size} of 10 mirrors. Keep turning to reach the beacon.`}
+            {ready ? 'Light path connected. Check your lantern order against all four clues before submitting.' : `Light reaches ${litGates.size} of 5 gates and ${new Set(beam.mirrorsVisited).size} of ${MIRRORS.length} mirrors. Keep turning to reach the beacon.`}
           </p>
           <div className="mt-4 flex flex-wrap gap-3" aria-label="Lantern symbol legend">
             {LANTERNS.map((id) => <span key={id} className="flex items-center gap-1 text-xs text-parchment/70"><span className="w-6"><LanternMark name={id} /></span>{LABELS[id]}</span>)}
@@ -174,7 +174,7 @@ export function LanternCourtyard({ teamDocId, busy, solved, feedback, onSubmit }
               Reset board
             </button>
           </div>
-          {!canSubmit && <p className="mt-3 text-xs text-parchment/60">Use each symbol once and connect all ten mirrors to enable submission.</p>}
+          {!canSubmit && <p className="mt-3 text-xs text-parchment/60">Use each symbol once and connect all twenty mirrors to enable submission.</p>}
         </>
       )}
       {storageError && <p role="alert" className="mt-4 text-sm text-marigold">{storageError}</p>}
