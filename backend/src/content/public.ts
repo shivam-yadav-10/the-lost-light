@@ -11,7 +11,7 @@ import { SPOKES } from './types.js';
 
 // ---------- I. The Festival Street ----------
 
-// The great rangoli in the street's square. Its letters look like decoration in I; The Echo (VI) reads them.
+// Decorative lettering on the great rangoli in the street's square.
 // Letters per ring (1 = nearest the heart), spokes in order N, NE, E, SE, S, SW, W, NW.
 const RANGOLI_LETTERS = ['TKEOAMLU', 'DPGIWHCM', 'FOYNBATL', 'SJUEZKRV', 'AXHQODRI'];
 
@@ -258,24 +258,26 @@ export const PUBLIC_PUZZLES: PublicPuzzle[] = [
   },
   {
     id: 6,
-    slug: 'the-echo',
-    title: 'The Echo',
-    fragmentName: 'Fragment of the Echo',
+    slug: 'the-lantern-courtyard',
+    title: 'The Lantern Courtyard',
+    fragmentName: 'Fragment of the Courtyard',
     kind: 'core',
     sortOrder: 6,
     unlockAt: '2026-11-10T09:30:00.000Z',
     requires: [1, 2, 3, 4, 5],
-    intro: 'There is no new clue here. Only what you already carry.',
+    intro: 'The Diwali courtyard has gone dark. Five lanterns wait beside a rangoli, and one diya still burns at its heart. Restore their places, then carry its light to the waiting beacon.',
     blocks: [
       {
-        type: 'verse',
-        lines: [
-          'Go back to where the light was first found.',
-          'Every fragment you carry remembers where it fell:',
-          'its direction is the road it took from the heart,',
-          'its number is how far it travelled.',
-          'Visit them in the order they are numbered, I to V,',
-          'and listen to what each one says.',
+        type: 'note',
+        text: 'Everything you need is on this page. Use each lantern exactly once at gates 1 to 5. The clues refer to gate numbers, not left-to-right screen positions. Then turn the three mirrors so the light visits all five gates and reaches the beacon. No timer or move limit.',
+      },
+      {
+        type: 'courtyard',
+        clues: [
+          'The Lotus lantern is exactly two gate numbers after the Leaf lantern.',
+          'The Bell lantern is immediately before the Star lantern.',
+          'The Moon lantern is at neither the first nor the last gate.',
+          'The Moon lantern comes before the Bell lantern.',
         ],
       },
     ],

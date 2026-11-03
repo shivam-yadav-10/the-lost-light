@@ -5,6 +5,7 @@ import type { ContentBlock } from '../api/types';
 import { DiyaLamp } from '../components/DiyaLamp';
 import { FragmentCard } from '../components/FragmentCard';
 import { HintSection } from '../components/HintSection';
+import { LanternCourtyard } from '../components/LanternCourtyard';
 import { Layout } from '../components/Layout';
 import { PuzzleBlocks } from '../components/PuzzleBlocks';
 import { SparkBurst } from '../components/SparkBurst';
@@ -25,13 +26,12 @@ export function PuzzlePage() {
   const [celebrate, setCelebrate] = useState(false);
   const closeCelebration = useCallback(() => setCelebrate(false), []);
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (!session || !puzzle || answer.trim().length === 0) return;
+  async function submitAnswer(value: string) {
+    if (!session || !puzzle || value.trim().length === 0) return;
     setBusy(true);
     setFeedback(null);
     try {
-      const result = await api.submit(puzzle.id, session.teamDocId, session.teamId, answer.trim());
+      const result = await api.submit(puzzle.id, session.teamDocId, session.teamId, value.trim());
       setFeedback({ ok: result.correct, text: result.message });
       if (result.correct) {
         setCelebrate(true);
@@ -48,6 +48,11 @@ export function PuzzlePage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    void submitAnswer(answer);
   }
 
   if (loadError) {
@@ -76,7 +81,8 @@ export function PuzzlePage() {
   // Visual blocks (rangoli, cipher, table, lamps) get their own column; prose sits with the story.
   const visualBlocks = puzzle.blocks.filter((b) => VISUAL_BLOCKS.has(b.type));
   const proseBlocks = puzzle.blocks.filter((b) => !VISUAL_BLOCKS.has(b.type));
-  const hasVisual = visualBlocks.length > 0;
+  const hasCourtyard = puzzle.blocks.some((block) => block.type === 'courtyard');
+  const hasVisual = visualBlocks.length > 0 || hasCourtyard;
   // The street scene is a hidden-object picture, so it gets 70% of the width; other visuals split ~55/45.
   const columns = visualBlocks.some((b) => b.type === 'street')
     ? 'lg:grid-cols-[minmax(0,7fr)_minmax(0,3fr)] lg:gap-x-10'
@@ -113,7 +119,7 @@ export function PuzzlePage() {
     </div>
   ) : (
     <div className="space-y-8">
-      <form onSubmit={onSubmit} className="card space-y-4 !p-6" noValidate>
+      {!hasCourtyard && <form onSubmit={onSubmit} className="card space-y-4 !p-6" noValidate>
         <label htmlFor="answer" className="eyebrow block">
           Your answer
         </label>
@@ -135,7 +141,7 @@ export function PuzzlePage() {
             {feedback.text}
           </p>
         )}
-      </form>
+      </form>}
       <HintSection
         puzzleId={puzzle.id}
         maxHints={puzzle.maxHints}
@@ -166,6 +172,10 @@ export function PuzzlePage() {
         <article className={`mt-8 grid items-start gap-10 animate-rise lg:gap-y-10 ${columns}`}>
           <div className="lg:col-start-2 lg:row-start-1">{intro}</div>
           <div className="lg:sticky lg:top-8 lg:col-start-1 lg:row-span-2 lg:row-start-1">
+            {hasCourtyard && session && (
+              <LanternCourtyard key={`${session.teamDocId}-${puzzle.id}`} teamDocId={session.teamDocId}
+                busy={busy} solved={solved} feedback={feedback} onSubmit={submitAnswer} />
+            )}
             <PuzzleBlocks blocks={visualBlocks} />
           </div>
           <div className="lg:col-start-2 lg:row-start-2">{action}</div>

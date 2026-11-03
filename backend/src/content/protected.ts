@@ -153,18 +153,15 @@ export const PROTECTED_PUZZLES: ProtectedPuzzle[] = [
   },
   {
     id: 6,
-    answers: ['prism', 'a prism'],
-    nearMisses: [
-      { answers: ['msirp'], message: 'Read from I to V.' },
-      { answers: ['jcedd'], message: 'Count from the heart, not from the edge.' },
-    ],
-    incorrectMessage: 'Only silence answers. Go back to the beginning.',
+    answers: ['courtyard-v1 leaf moon lotus bell star slash backslash slash'],
+    nearMisses: [],
+    incorrectMessage: 'The courtyard is not ready yet. Check the gate-number clues and the path through all five lanterns.',
     completionMessage:
-      'A prism! Light, split into its colours. Your fragments were never just decorations. Look at their colours again.',
+      'One small diya lights the whole courtyard. The sixth fragment is yours. Carry its light into the Convergence.',
     hints: corePenalties(
-      '"Where the light was first found" is the festival street from fragment I. Its great rangoli is still there.',
-      "Each fragment's direction is a spoke of that rangoli. Its number is a ring, counted outward from the centre.",
-      'Fragment I points to ring 2 on the north-east spoke. Read one letter for each fragment, I to V.',
+      'Start with the paired clues: Leaf and Lotus have exactly one gate between them; Bell and Star must occupy neighbouring gates in that order. Moon cannot be at either end.',
+      'If Leaf were at gate 2 or 3, there would be no place left for both the Bell-Star pair and a Moon before Bell. Place Leaf at gate 1 and Lotus at gate 3.',
+      'From gate 1 to 5: Leaf, Moon, Lotus, Bell, Star. Set mirror A to forward slash (/), B to backslash (\\), and C to forward slash (/). The beam travels east, north, west, then south to the beacon.',
     ),
     rateLimit: CORE_LIMIT,
     fragment: { symbol: 'spiral', number: 2, direction: 'S', keyword: 'RETURN', colour: 'Blue' },

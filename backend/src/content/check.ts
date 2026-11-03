@@ -18,7 +18,6 @@ import {
   protectedPuzzle,
   riddleSet,
 } from './protected.js';
-import type { Spoke } from './types.js';
 import {
   MIRROR_EAST_WEST,
   buildLantern,
@@ -39,8 +38,6 @@ function check(label: string, ok: boolean, detail = ''): void {
 }
 
 const canonical = (id: number) => normaliseAnswer(protectedPuzzle(id).answers[0]);
-const fragment = (id: number) => protectedPuzzle(id).fragment!;
-const rangoliCell = (spoke: Spoke, ring: number) => STREET_RANGOLI.find((c) => c.spoke === spoke && c.ring === ring)!;
 const nearMissFor = (id: number, answer: string) =>
   protectedPuzzle(id).nearMisses.some(
     (n) => n.answers?.some((a) => normaliseAnswer(a) === answer) || n.containsAny?.some((w) => answer.includes(normaliseAnswer(w))),
@@ -108,11 +105,25 @@ check('15 teams spread evenly across riddle sets', Math.max(...setCounts) - Math
 check('Typing a single day answer gets the "marked letters" nudge', nearMissFor(5, 'narakasura') && nearMissFor(5, 'bhai dooj'));
 check('No final word is also a single day answer', finals.every((f) => !FIVE_DAWNS_SETS.some((s) => s.lines.includes(f))));
 
-// ---------- VI. The Echo ----------
-const echoWord = [1, 2, 3, 4, 5].map((id) => rangoliCell(fragment(id).direction, fragment(id).number).letter).join('');
-check('Echo cells in the street rangoli spell the answer', echoWord.toLowerCase() === canonical(6), echoWord);
-const rimWord = [1, 2, 3, 4, 5].map((id) => rangoliCell(fragment(id).direction, 6 - fragment(id).number).letter).join('');
-check('Echo rim-counted misreading is matched by a near miss', nearMissFor(6, rimWord.toLowerCase()), rimWord);
+// ---------- VI. The Lantern Courtyard ----------
+function permutations<T>(values: T[]): T[][] {
+  if (values.length === 0) return [[]];
+  return values.flatMap((value, index) =>
+    permutations(values.filter((_, candidate) => candidate !== index)).map((tail) => [value, ...tail]),
+  );
+}
+const arrangements = permutations(['lotus', 'star', 'leaf', 'bell', 'moon']).filter((gates) => {
+  const at = (lantern: string) => gates.indexOf(lantern);
+  return at('lotus') === at('leaf') + 2
+    && at('star') === at('bell') + 1
+    && at('moon') > 0 && at('moon') < 4
+    && at('moon') < at('bell');
+});
+check('Courtyard clues have one unique lantern arrangement',
+  arrangements.length === 1 && arrangements[0].join(' ') === 'leaf moon lotus bell star',
+  arrangements.map((gates) => gates.join(' ')).join('; '));
+check('Courtyard answer key matches the solved lantern and mirror arrangement',
+  canonical(6) === 'courtyard-v1 leaf moon lotus bell star slash backslash slash', canonical(6));
 check('Rangoli has 8 spokes × 5 rings', STREET_RANGOLI.length === 40);
 
 // ---------- The False Flame's metadata is a coherent reflection ----------

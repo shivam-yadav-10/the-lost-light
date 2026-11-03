@@ -114,7 +114,7 @@ try {
   const perTeam = teams.map((t) => {
     const key = teamKey(t.id);
     const dawns = FIVE_DAWNS_SETS.find((s) => s.group === riddleSet(t.id))!;
-    return `| ${t.name} | ${code(t.game_key)} | ${upper(protectedPuzzle(1).answers[0])} | ${protectedPuzzle(2).answersByGroup![errandGroup(t.id)][0]} (${errandGroup(t.id)}) | ${upper(protectedPuzzle(3).answers[0])} | ${upper(protectedPuzzle(4).answers[0])} | ${dawns.final} (${dawns.group}) | ${upper(protectedPuzzle(6).answers[0])} | ${key} | SHARED + ${key} |`;
+    return `| ${t.name} | ${code(t.game_key)} | ${upper(protectedPuzzle(1).answers[0])} | ${protectedPuzzle(2).answersByGroup![errandGroup(t.id)][0]} (${errandGroup(t.id)}) | ${upper(protectedPuzzle(3).answers[0])} | ${upper(protectedPuzzle(4).answers[0])} | ${dawns.final} (${dawns.group}) | Leaf → Moon → Lotus → Bell → Star; mirrors /, \\, / | ${key} | SHARED + ${key} |`;
   });
 
   const markdown = [
@@ -134,7 +134,7 @@ try {
     '',
     '## Every team at a glance',
     '',
-    '| Team | Login key | I Street | II Errand | III Darkest Day | IV Plain Sight | V Five Dawns | VI Echo | VII Convergence | VIII Vault |',
+    '| Team | Login key | I Street | II Errand | III Darkest Day | IV Plain Sight | V Five Dawns | VI Lantern Courtyard | VII Convergence | VIII Vault |',
     '|---|---|---|---|---|---|---|---|---|---|',
     ...perTeam,
     '',

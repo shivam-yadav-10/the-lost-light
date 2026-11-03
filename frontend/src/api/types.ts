@@ -50,6 +50,7 @@ export type ContentBlock =
   | { type: 'note'; text: string }
   | { type: 'list'; title: string; items: string[] }
   | { type: 'riddles'; items: RiddleLine[] }
+  | { type: 'courtyard'; clues: string[] }
   | { type: 'street'; caption: string; rangoli: MandalaCell[]; lamps: SceneLamp[] };
 
 export interface FragmentMeta {

@@ -20,7 +20,7 @@ for (const id of PUZZLE_IDS.slice(1)) {
   });
 }
 
-test('Echo retains its five prerequisites without duplicating its predecessor', () => {
+test('question six retains its five prerequisites without duplicating its predecessor', () => {
   assert.deepEqual(puzzleRequirements(6, [1, 2, 3, 4, 5]), [1, 2, 3, 4, 5]);
 });
 

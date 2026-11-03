@@ -33,6 +33,15 @@ function Block({ block }: { block: ContentBlock }) {
       return <StreetScene caption={block.caption} rangoli={block.rangoli} lamps={block.lamps} />;
     case 'riddles':
       return <RiddleSet items={block.items} />;
+    case 'courtyard':
+      return (
+        <section className="card !p-6" aria-labelledby="courtyard-clues">
+          <h2 id="courtyard-clues" className="eyebrow">The Keeper's four clues</h2>
+          <ol className="mt-4 list-decimal space-y-4 pl-5 text-parchment/85">
+            {block.clues.map((clue) => <li key={clue}>{clue}</li>)}
+          </ol>
+        </section>
+      );
     case 'list':
       return (
         <section className="card !p-6">

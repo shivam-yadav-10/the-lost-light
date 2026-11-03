@@ -12,6 +12,8 @@ are kept in the local `docs/` directory and excluded from Git.
 Questions must be completed in order, from I through VIII. A release-time override does not bypass
 the preceding question or any additional prerequisites. Existing solved questions remain solved.
 The frontend enforces this order even against older Firebase puzzle metadata, without reseeding progress.
+Question VI is the Lantern Courtyard: teams deduce a five-lantern arrangement, then rotate mirrors to guide
+the diya's beam through the gates to its beacon. Its clues and controls are self-contained on the puzzle page.
 
 Each team shares **12 hints across the entire game**, including Convergence and the Final Vault.
 A question allows at most **3 hints** (or fewer if fewer are provisioned). Previously used hints count
@@ -86,7 +88,7 @@ Pages:
 | `/#/`                    | Landing                                              |
 | `/#/login`               | Enter team key (stored in `localStorage`)            |
 | `/#/dashboard`           | Six diyas, light %, recovered fragment cards, code entry |
-| `/#/puzzle/:id`          | Puzzle, hints, answer submission, fragment card on solve |
+| `/#/puzzle/:id`          | Puzzle, hints, answer submission (including the interactive Lantern Courtyard), fragment card on solve |
 | `/#/checkpoint[/:code]`  | Redeem a physical marker code (QR can deep-link)     |
 | `/#/convergence`         | Team lantern, shard + seal, seal verification, key   |
 | `/#/vault`               | Final word + proof code                              |
