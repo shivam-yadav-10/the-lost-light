@@ -191,8 +191,8 @@ export function AdminPage() {
               ))}
           </div>
           <p className="mt-2 text-xs text-parchment/40">
-            Overrides the scheduled release time for every team at once. Does not affect Convergence or the Vault, which
-            unlock only once a team's own prerequisites are solved.
+            Overrides the scheduled release time for every team at once, not question prerequisites. Each team must
+            solve the preceding question before moving on, including Convergence and the Vault.
           </p>
         </section>
       )}

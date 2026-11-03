@@ -10,6 +10,7 @@ import type { EarnedFragment, FragmentMeta, FragmentState, PuzzleKind, PuzzleSum
 import { initializeSession } from './authService';
 import { GameServicesUnavailableError, requireFirebaseServices } from './firebase';
 import { TeamLoginError } from './teamService';
+import { puzzleHintLimit, puzzleRequirements } from './gameRules';
 
 const ROMAN_NUMERALS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
 const PUZZLE_KINDS: PuzzleKind[] = ['core', 'convergence', 'vault'];
@@ -106,8 +107,8 @@ function parsePuzzle(documentId: string, rawData: unknown): PuzzleRecord {
     unlockAt,
     solvedAt: null,
     hintsUsed: 0,
-    maxHints: requiredInteger(data, 'maxHints'),
-    requires,
+    maxHints: puzzleHintLimit(requiredInteger(data, 'maxHints')),
+    requires: puzzleRequirements(id, requires),
   };
 }
 

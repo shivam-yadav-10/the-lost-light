@@ -124,6 +124,7 @@ export interface SealResult {
 
 export interface HintResult {
   hintsUsed: number;
+  teamHintsUsed: number;
   maxHints: number;
   hints: string[];
 }

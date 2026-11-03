@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { HashRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom';
+import { restrictInspection } from './services/browserRestrictions';
 import { AdminPage } from './pages/AdminPage';
 import { CheckpointPage } from './pages/CheckpointPage';
 import { ConvergencePage } from './pages/ConvergencePage';
@@ -18,6 +20,7 @@ function RequireTeam() {
 
 // HashRouter so deep links work on GitHub Pages without server-side rewrites.
 export function App() {
+  useEffect(() => restrictInspection(document), []);
   return (
     <TeamProvider>
       <HashRouter>

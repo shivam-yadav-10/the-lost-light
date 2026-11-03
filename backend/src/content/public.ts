@@ -136,7 +136,7 @@ export const PUBLIC_PUZZLES: PublicPuzzle[] = [
     kind: 'core',
     sortOrder: 2,
     unlockAt: '2026-11-10T05:00:00.000Z',
-    requires: [],
+    requires: [1],
     intro:
       'A fragment has been tucked beside something you use every day. The Keeper has written your team a riddle. Other teams were sent somewhere else.',
     blocks: [
@@ -189,7 +189,7 @@ export const PUBLIC_PUZZLES: PublicPuzzle[] = [
     kind: 'core',
     sortOrder: 3,
     unlockAt: '2026-11-10T06:00:00.000Z',
-    requires: [],
+    requires: [2],
     intro: 'Some puzzles are not about what you see, but about what you assume.',
     blocks: [
       {
@@ -213,7 +213,7 @@ export const PUBLIC_PUZZLES: PublicPuzzle[] = [
     kind: 'core',
     sortOrder: 4,
     unlockAt: '2026-11-10T07:30:00.000Z',
-    requires: [],
+    requires: [3],
     intro:
       'Six small posters have appeared around the office. Each carries a QR code, and each code opens a picture with a word hidden inside it.',
     blocks: [
@@ -244,7 +244,7 @@ export const PUBLIC_PUZZLES: PublicPuzzle[] = [
     kind: 'core',
     sortOrder: 5,
     unlockAt: '2026-11-10T08:30:00.000Z',
-    requires: [],
+    requires: [4],
     intro: 'The festival lasts five days, and each day has kept a secret. Your team has been given its own five riddles.',
     blocks: [
       {

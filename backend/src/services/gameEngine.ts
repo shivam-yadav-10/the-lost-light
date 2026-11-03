@@ -33,6 +33,8 @@ import { normaliseAnswer } from './normalise.js';
 
 const MAX_ANSWER_LENGTH = 200;
 const MAX_CHECKPOINT_CODE_LENGTH = 64;
+const MAX_TEAM_HINTS = 12;
+const MAX_PUZZLE_HINTS = 3;
 const NOW_SQL = "strftime('%Y-%m-%dT%H:%M:%fZ','now')";
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
 
@@ -69,6 +71,7 @@ function requirementsOf(puzzle: PuzzleRow): number[] {
   const parsed: unknown = JSON.parse(puzzle.requires_json || '[]');
   const ids = Array.isArray(parsed) ? parsed.filter((n): n is number => typeof n === 'number') : [];
   if (puzzle.requires_puzzle_id) ids.push(puzzle.requires_puzzle_id);
+  if (puzzle.id > 1) ids.push(puzzle.id - 1);
   return ids;
 }
 
@@ -101,7 +104,7 @@ function toSummary(puzzle: PuzzleRow, progress: Map<number, ProgressRow>): Puzzl
     unlockAt: puzzle.unlock_at,
     solvedAt: p?.solved_at ?? null,
     hintsUsed: p?.hints_used ?? 0,
-    maxHints: puzzle.max_hints,
+    maxHints: Math.min(MAX_PUZZLE_HINTS, puzzle.max_hints),
   };
 }
 
@@ -324,21 +327,21 @@ export function submitAnswer(teamId: number, puzzleId: number, rawAnswer: string
 export function requestHint(teamId: number, puzzleId: number) {
   const db = getDb();
   const puzzle = getPuzzle(puzzleId);
-  const progress = progressMap(teamId);
-  assertPlayable(puzzle, progress);
-
-  const used = progress.get(puzzleId)?.hints_used ?? 0;
-  if (used >= puzzle.max_hints) throw new HttpError(409, 'No more hints remain for this fragment.');
-
-  transaction(db, () => {
+  const maxHints = Math.min(MAX_PUZZLE_HINTS, puzzle.max_hints);
+  return transaction(db, () => {
+    const progress = progressMap(teamId);
+    assertPlayable(puzzle, progress);
+    const used = progress.get(puzzleId)?.hints_used ?? 0;
+    const totalUsed = [...progress.values()].reduce((sum, row) => sum + row.hints_used, 0);
+    if (used >= maxHints) throw new HttpError(409, 'No more hints remain for this fragment.');
+    if (totalUsed >= MAX_TEAM_HINTS) throw new HttpError(409, 'Your team has used all 12 hints for this game.');
     ensureProgressRow(teamId, puzzleId);
     db.prepare('UPDATE team_progress SET hints_used = hints_used + 1 WHERE team_id = ? AND puzzle_id = ?').run(
       teamId,
       puzzleId,
     );
+    return { hintsUsed: used + 1, teamHintsUsed: totalUsed + 1, maxHints, hints: revealedHints(puzzleId, used + 1) };
   });
-
-  return { hintsUsed: used + 1, maxHints: puzzle.max_hints, hints: revealedHints(puzzleId, used + 1) };
 }
 
 export function visitCheckpoint(teamId: number, rawCode: string) {

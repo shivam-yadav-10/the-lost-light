@@ -7,6 +7,25 @@ six core "fragments", then two endgame puzzles (one of which needs cross-team co
 This repository contains the game frontend and local development backend. Organiser-only design documents
 are kept in the local `docs/` directory and excluded from Git.
 
+## Gameplay rules
+
+Questions must be completed in order, from I through VIII. A release-time override does not bypass
+the preceding question or any additional prerequisites. Existing solved questions remain solved.
+The frontend enforces this order even against older Firebase puzzle metadata, without reseeding progress.
+
+Each team shares **12 hints across the entire game**, including Convergence and the Final Vault.
+A question allows at most **3 hints** (or fewer if fewer are provisioned). Previously used hints count
+toward both limits; refreshing, switching devices, and solving a question do not replenish them.
+Firestore hint transactions read all eight progress records so simultaneous requests on different
+questions cannot overspend the shared allowance.
+
+The page suppresses right-click menus and common inspection shortcuts (including Ctrl+Shift+I and F12).
+This is only a casual deterrent: it cannot disable browser tab menus, browser-menu DevTools, extensions,
+already-open tools, or direct database access. Client-side rules are not an anti-cheating security boundary.
+
+Frontend rule and interaction tests: `npm test --prefix frontend`.
+Local backend rule tests use an isolated in-memory database: `npm test --prefix backend`.
+
 ## Prerequisites
 
 - **Node.js ≥ 22.13** (tested on 24). The backend uses Node's built-in `node:sqlite`, so there are no native

@@ -4,6 +4,7 @@ import { Timestamp, collection, doc, getCountFromServer, getDoc, getDocs, query,
 import type { DocumentData, Firestore, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { AdminOverview, FragmentState, PuzzleKind } from '../api/types';
 import { requireAdminFirebaseServices } from './firebase';
+import { puzzleRequirements } from './gameRules';
 
 const SHARD_TYPES = ['A', 'B', 'C', 'D'] as const;
 const PUZZLE_KINDS: PuzzleKind[] = ['core', 'convergence', 'vault'];
@@ -104,7 +105,7 @@ function parsePuzzle(snapshot: QueryDocumentSnapshot<DocumentData>): AdminPuzzle
     fragmentName: requiredString(data, 'fragmentName'),
     kind: kind as PuzzleKind,
     sortOrder: requiredInteger(data, 'sortOrder', 1),
-    requires,
+    requires: puzzleRequirements(id, requires),
     unlockAt: timestampToIso(data.unlockAt),
     hintPenalties,
   };

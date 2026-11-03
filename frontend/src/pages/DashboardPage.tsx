@@ -6,6 +6,7 @@ import { Layout } from '../components/Layout';
 import { useProgress } from '../store/useProgress';
 import { useTeam } from '../store/team';
 import { FragmentLedger } from './EndgamePages';
+import { MAX_TEAM_HINTS } from '../services/gameRules';
 
 export function DashboardPage() {
   const { session } = useTeam();
@@ -38,6 +39,9 @@ export function DashboardPage() {
                 {progress.coreTotal} diyas lit
                 <span className="mx-3 text-parchment/30">·</span>
                 Light restored <span className="font-display text-2xl text-ember-glow">{progress.lightPercent}%</span>
+              </p>
+              <p className="mt-2 text-sm text-parchment/60">
+                {Math.max(0, MAX_TEAM_HINTS - progress.puzzles.reduce((sum, puzzle) => sum + puzzle.hintsUsed, 0))} of 12 team hints remain. Maximum 3 per question. Complete each question before the next.
               </p>
               <div className="mt-4 h-1 w-full max-w-sm overflow-hidden rounded-full bg-white/5" aria-hidden="true">
                 <div
