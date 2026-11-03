@@ -26,6 +26,21 @@ export function useProgress() {
 
   useEffect(() => {
     void refresh();
+    let lastAutoRefreshAt = Date.now();
+    const refreshWhenActive = () => {
+      if (document.visibilityState !== 'visible') return;
+      const now = Date.now();
+      if (now - lastAutoRefreshAt < 1_000) return;
+      lastAutoRefreshAt = now;
+      void refresh();
+    };
+
+    document.addEventListener('visibilitychange', refreshWhenActive);
+    window.addEventListener('focus', refreshWhenActive);
+    return () => {
+      document.removeEventListener('visibilitychange', refreshWhenActive);
+      window.removeEventListener('focus', refreshWhenActive);
+    };
   }, [refresh]);
 
   return { progress, error, loading, refresh };
