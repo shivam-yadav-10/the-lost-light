@@ -88,8 +88,8 @@ export function LanternCourtyard({ teamDocId, busy, solved, feedback, onSubmit }
             Some wrong turns feed back into earlier mirrors; faded branches can lead to dark dead ends.
           </p>
           <div className="my-6 overflow-x-auto rounded-2xl border border-ember/20">
-          <div className="courtyard-board relative w-full min-w-[1120px] bg-black/20" style={{ aspectRatio: `${WIDTH} / ${HEIGHT}` }}>
-            <svg viewBox={`-20 -20 ${WIDTH} ${HEIGHT}`} className="h-full w-full" role="img" aria-labelledby="courtyard-map-title courtyard-map-description">
+          <div className="courtyard-board relative min-h-[540px] w-full min-w-[660px] bg-black/20 lg:min-w-0" style={{ aspectRatio: `${WIDTH} / ${HEIGHT}` }}>
+            <svg viewBox={`-20 -20 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="none" className="absolute inset-0 h-full w-full" role="img" aria-labelledby="courtyard-map-title courtyard-map-description">
               <title id="courtyard-map-title">Courtyard light-path preview</title>
               <desc id="courtyard-map-description">The diya starts near the bottom centre, pointing east. Twenty mirrors form a winding path across the courtyard to the top-left beacon. Use the labelled mirror and gate buttons to explore the live light path.</desc>
               <g stroke="#f59e0b" fill="none" opacity="0.12">
@@ -164,7 +164,7 @@ export function LanternCourtyard({ teamDocId, busy, solved, feedback, onSubmit }
           <div className="mt-4 flex flex-wrap gap-3" aria-label="Lantern symbol legend">
             {LANTERNS.map((id) => <span key={id} className="flex items-center gap-1 text-xs text-parchment/70"><span className="w-6"><LanternMark name={id} /></span>{LABELS[id]}</span>)}
           </div>
-          <p className="mt-3 text-xs text-parchment/50">Click a gate or focus it and press Space/Enter to cycle. Duplicate symbols must be changed before submission. The courtyard uses the full page width; on narrower screens, scroll the board sideways. Drafts stay in this browser.</p>
+          <p className="mt-3 text-xs text-parchment/50">Click a gate or focus it and press Space/Enter to cycle. Duplicate symbols must be changed before submission. The courtyard fits the left column on desktop; on small screens, scroll the board sideways. Drafts stay in this browser.</p>
           <div className="mt-6 flex flex-wrap gap-3">
             <button type="button" className="btn-ember" onClick={() => void offer()} disabled={disabled || !canSubmit}>
               {busy ? 'Lighting...' : 'Light the courtyard'}

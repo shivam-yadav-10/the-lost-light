@@ -17,8 +17,9 @@ the diya's beam through the gates to its beacon. Its clues and controls are self
 The board animates the beam, mirrors, lantern glow and rangoli, respecting reduced-motion preferences.
 The wider v3 courtyard has twenty rotating mirrors (A to T) and decoy branches that can return light to earlier mirrors
 or dark dead ends. Numbered gates start empty and cycle through all five symbols on click, tap, Enter or Space;
-there are no dropdowns. The courtyard uses the full page width, with clues and hints below it; narrower screens
-can scroll sideways to keep the controls usable. All twenty mirrors and all five gates must be visited.
+there are no dropdowns. The desktop layout uses a 70/30 split: the board fits the left column without horizontal
+scrolling, with clues and hints on the right. Extra board height keeps controls separated; small screens can
+scroll sideways to keep the controls usable. All twenty mirrors and all five gates must be visited.
 The answer uses a compact orientation code to stay within the submission limit. Old v1/v2 browser drafts are ignored,
 while completed team progress and the fragment reward are preserved.
 
