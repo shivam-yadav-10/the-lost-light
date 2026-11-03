@@ -81,7 +81,3 @@ export function requireAdminFirebaseServices(): { auth: Auth; firestore: Firesto
   if (!adminFirebaseAuth || !adminFirestore) throw new GameServicesUnavailableError();
   return { auth: adminFirebaseAuth, firestore: adminFirestore };
 }
-
-export function firebaseOperationNotReady(): never {
-  throw new GameServicesUnavailableError();
-}

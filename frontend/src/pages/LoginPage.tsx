@@ -25,7 +25,7 @@ export function LoginPage() {
     try {
       const team = await validateTeamGameKey(gameKey);
       if (import.meta.env.DEV) await runFirebaseConnectivityDiagnostic();
-      signIn({ gameKey, teamId: team.teamNumber, teamDocId: team.teamId, teamName: team.teamName });
+      signIn({ teamId: team.teamNumber, teamDocId: team.teamId, teamName: team.teamName });
       if (team.introSeen) navigate('/dashboard', { replace: true });
       else navigate('/story', { replace: true, state: { first: true } });
     } catch (err) {

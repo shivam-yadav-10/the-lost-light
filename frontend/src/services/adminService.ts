@@ -84,7 +84,7 @@ function parsePuzzle(snapshot: QueryDocumentSnapshot<DocumentData>): AdminPuzzle
   const id = Number(snapshot.id);
   const kind = data.kind;
   const requires = data.requires;
-  const hints = data.hints;
+  const hintPenalties = data.hintPenalties;
   if (
     !Number.isInteger(id) ||
     requiredInteger(data, 'id', 1) !== id ||
@@ -92,12 +92,12 @@ function parsePuzzle(snapshot: QueryDocumentSnapshot<DocumentData>): AdminPuzzle
     !PUZZLE_KINDS.includes(kind as PuzzleKind) ||
     !Array.isArray(requires) ||
     !requires.every((value) => typeof value === 'number' && Number.isInteger(value) && value > 0) ||
-    !Array.isArray(hints)
+    !Array.isArray(hintPenalties) ||
+    !hintPenalties.every((value) => typeof value === 'number' && Number.isInteger(value) && value >= 0)
   ) {
     throw new AdminServiceError('Organiser data in Firebase is incomplete.');
   }
 
-  const hintPenalties = hints.map((hint) => requiredInteger(asRecord(hint), 'penaltyMinutes'));
   return {
     id,
     title: requiredString(data, 'title'),

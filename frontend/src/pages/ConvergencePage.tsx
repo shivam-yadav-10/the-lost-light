@@ -58,7 +58,7 @@ function ConvergenceOpen({ puzzleId, fragments }: { puzzleId: number; fragments:
   const loadState = useCallback(async () => {
     if (!session) return;
     try {
-      setState(await api.convergence(session.gameKey));
+      setState(await api.convergence(session.teamDocId));
     } catch (err) {
       setStateError(err instanceof ApiError ? err.message : 'The lantern will not light.');
     }
@@ -229,7 +229,7 @@ function SealForm({ onVerified }: { onVerified: () => void }) {
     setBusy(true);
     setMessage(null);
     try {
-      const result = await api.verifySeal(session.gameKey, seal.trim());
+      const result = await api.verifySeal(session.teamDocId, seal.trim());
       setMessage({
         ok: true,
         text: result.alreadyHeld ? `You already hold shard ${result.shard.type}.` : `Shard ${result.shard.type} is true.`,
@@ -285,7 +285,7 @@ function KeyForm({ puzzleId, onSolved }: { puzzleId: number; onSolved: (message:
     setBusy(true);
     setFeedback(null);
     try {
-      const result = await api.submit(session.gameKey, puzzleId, key.trim());
+      const result = await api.submit(puzzleId, session.teamDocId, session.teamId, key.trim());
       if (result.correct) {
         setBurst(true);
         onSolved(result.message, result.puzzle.solvedAt);

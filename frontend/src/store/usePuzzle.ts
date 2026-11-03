@@ -13,7 +13,7 @@ export function usePuzzle(puzzleId: number) {
     if (!session || !Number.isInteger(puzzleId)) return;
     let cancelled = false;
     api
-      .puzzle(session.gameKey, puzzleId)
+    .puzzle(puzzleId, session.teamDocId, session.teamId)
       .then((p) => {
         if (!cancelled) setPuzzle(p);
       })

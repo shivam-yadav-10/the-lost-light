@@ -31,7 +31,7 @@ export function PuzzlePage() {
     setBusy(true);
     setFeedback(null);
     try {
-      const result = await api.submit(session.gameKey, puzzle.id, answer.trim());
+      const result = await api.submit(puzzle.id, session.teamDocId, session.teamId, answer.trim());
       setFeedback({ ok: result.correct, text: result.message });
       if (result.correct) {
         setCelebrate(true);

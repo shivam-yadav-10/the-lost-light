@@ -2,7 +2,7 @@
   "name": "the-lost-light",
   "version": "0.1.0",
   "private": true,
-  "description": "The Lost Light — GTCI Diwali scavenger hunt (local-first)",
+  "description": "The Lost Light — Firebase-backed GTCI Diwali scavenger hunt",
   "scripts": {
     "install:all": "npm install --prefix backend && npm install --prefix frontend",
     "db:init": "npm run db:init --prefix backend",
@@ -12,7 +12,7 @@
     "answer-key": "npm run answer-key --prefix backend",
     "firestore:seed": "npm run firestore:seed --prefix backend --",
     "progress:reset": "npm run progress:reset --prefix backend",
-    "dev": "concurrently -k -n api,web -c yellow,cyan \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
+    "dev": "npm run dev --prefix frontend",
     "dev:backend": "npm run dev --prefix backend",
     "dev:frontend": "npm run dev --prefix frontend",
     "dev:test": "node scripts/test-server.mjs",

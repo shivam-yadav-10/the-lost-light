@@ -22,7 +22,7 @@ export function HintSection({ puzzleId, maxHints, hintsUsed, revealedHints, onHi
     setBusy(true);
     setError(null);
     try {
-      const result = await api.hint(session.gameKey, puzzleId);
+      const result = await api.hint(puzzleId, session.teamDocId);
       onHints(result.hints, result.hintsUsed);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'No hint came.');

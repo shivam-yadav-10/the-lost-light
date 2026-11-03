@@ -35,7 +35,7 @@ export function CheckpointForm({
     setBusy(true);
     setError(null);
     try {
-      const res = await api.checkpoint(session.gameKey, value.trim());
+      const res = await api.checkpoint(session.teamDocId, value.trim());
       setResult(res);
       setCode('');
       onRedeemed?.(res);

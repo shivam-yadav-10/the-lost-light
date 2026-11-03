@@ -12,15 +12,142 @@ service cloud.firestore {
     }
 
     function ownsTeam(teamId) {
+      let teamPath = /databases/$(database)/documents/teams/$(teamId);
       return signedIn()
-        && get(/databases/$(database)/documents/teams/$(teamId)).data.assignedUid == request.auth.uid;
+        && get(teamPath).data.active == true
+        && get(teamPath).data.assignedUid == request.auth.uid;
+    }
+
+    function progressPath(teamId, puzzleId) {
+      return /databases/$(database)/documents/teams/$(teamId)/progress/$(puzzleId);
+    }
+
+    function puzzlePath(puzzleId) {
+      return /databases/$(database)/documents/privatePuzzles/$(puzzleId);
+    }
+
+    function solved(teamId, puzzleId) {
+      let path = progressPath(teamId, puzzleId);
+      return get(path).data.status == 'solved';
+    }
+
+    function prerequisitesSolved(teamId, puzzleId) {
+      return puzzleId == '6'
+          ? solved(teamId, '1') && solved(teamId, '2') && solved(teamId, '3')
+            && solved(teamId, '4') && solved(teamId, '5')
+        : puzzleId == '7'
+          ? solved(teamId, '1') && solved(teamId, '2') && solved(teamId, '3')
+            && solved(teamId, '4') && solved(teamId, '5') && solved(teamId, '6')
+        : puzzleId == '8'
+          ? solved(teamId, '7')
+          : true;
+    }
+
+    function puzzleIsOpen(teamId, puzzleId) {
+      let secretPath = puzzlePath(puzzleId);
+      let configPath = /databases/$(database)/documents/gameConfig/main;
+      let puzzle = get(secretPath).data;
+      let config = get(configPath).data;
+      let overrides = config.unlockOverrides;
+      let override = overrides == null || !overrides.keys().hasAny([puzzleId])
+        ? null
+        : overrides[puzzleId];
+      let released = override is timestamp
+        ? override <= request.time
+        : puzzle.unlockAt == null || puzzle.unlockAt <= request.time;
+      return released
+        && prerequisitesSolved(teamId, puzzleId);
+    }
+
+    function correctAnswer(teamId, puzzleId) {
+      let secret = get(puzzlePath(puzzleId)).data;
+      let team = get(/databases/$(database)/documents/teams/$(teamId)).data;
+      let answer = request.resource.data.answer;
+      return puzzleId == '7'
+          ? answer == get(/databases/$(database)/documents/privateTeamData/$(teamId)).data.lanternKey
+        : puzzleId == '8'
+          ? secret.acceptedAnswers.hasAny([answer])
+            && request.resource.data.proof == get(/databases/$(database)/documents/privateTeamData/$(teamId)).data.lanternKey
+        : puzzleId == '2'
+          ? secret.acceptedAnswersByGroup[team.errandGroup].hasAny([answer])
+        : puzzleId == '5'
+          ? secret.acceptedAnswersByGroup[team.riddleSet].hasAny([answer])
+        : secret.acceptedAnswers.hasAny([answer]);
+    }
+
+    function validSolve(teamId, puzzleId) {
+      return request.resource.data.status == 'solved'
+        && request.resource.data.answer is string
+        && request.resource.data.answer.size() > 0
+        && request.resource.data.solvedAt == request.time
+        && correctAnswer(teamId, puzzleId);
+    }
+
+    function validHintCreate(puzzleId) {
+      let puzzle = get(puzzlePath(puzzleId)).data;
+      return request.resource.data.keys().hasOnly(['status', 'hintsUsed', 'startedAt', 'solvedAt'])
+        && request.resource.data.status == 'in_progress'
+        && request.resource.data.hintsUsed == 1
+        && request.resource.data.hintsUsed <= puzzle.maxHints
+        && request.resource.data.startedAt == request.time
+        && request.resource.data.solvedAt == null;
+    }
+
+    function validHintUpdate(puzzleId) {
+      let puzzle = get(puzzlePath(puzzleId)).data;
+      return resource.data.status == 'in_progress'
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'hintsUsed', 'startedAt', 'solvedAt'])
+        && request.resource.data.status == 'in_progress'
+        && request.resource.data.hintsUsed == resource.data.hintsUsed + 1
+        && request.resource.data.hintsUsed <= puzzle.maxHints
+        && request.resource.data.startedAt == resource.data.startedAt
+        && request.resource.data.solvedAt == null;
+    }
+
+    function validClaim(claimHash, teamId) {
+      let claimPath = /databases/$(database)/documents/teamKeyClaims/$(claimHash);
+      return signedIn()
+        && resource.data.assignedUid == null
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['assignedUid', 'lastSeenAt'])
+        && request.resource.data.assignedUid == request.auth.uid
+        && request.resource.data.lastSeenAt == request.time
+        && getAfter(claimPath).data.teamId == teamId
+        && getAfter(claimPath).data.assignedUid == request.auth.uid;
+    }
+
+    function validClaimRecord(claimHash) {
+      let teamId = resource.data.teamId;
+      let teamPath = /databases/$(database)/documents/teams/$(teamId);
+      return signedIn()
+        && resource.data.assignedUid == null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['assignedUid'])
+        && request.resource.data.assignedUid == request.auth.uid
+        && exists(teamPath)
+        && get(teamPath).data.gameKeyHash == claimHash
+        && get(teamPath).data.active == true
+        && getAfter(teamPath).data.assignedUid == request.auth.uid;
+    }
+
+    function validSealLookup(sealHash, shardType) {
+      let lookup = get(/databases/$(database)/documents/sealLookups/$(sealHash)).data;
+      return lookup.type == shardType
+        && lookup.name == request.resource.data.name
+        && lookup.text == request.resource.data.text;
     }
 
     match /admins/{uid} {
       allow get: if signedIn() && (request.auth.uid == uid || isAdmin());
       allow list: if isAdmin();
-      // Manage the allowlist through the Firebase Console, not from the player application.
       allow write: if false;
+    }
+
+    match /teamKeyClaims/{claimHash} {
+      allow get: if signedIn();
+      allow list: if isAdmin();
+      allow update: if validClaimRecord(claimHash);
+      allow create, delete: if false;
     }
 
     match /adminTeamData/{teamId} {
@@ -33,58 +160,142 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /teamGameData/{teamId} {
+      allow get: if isAdmin() || (ownsTeam(teamId) && puzzleIsOpen(teamId, '7'));
+      allow list, write: if false;
+    }
+
+    match /privateTeamData/{teamId} {
+      allow get: if isAdmin() || (ownsTeam(teamId) && solved(teamId, '7'));
+      allow list, write: if false;
+    }
+
+    match /sealLookups/{sealHash} {
+      allow get: if signedIn();
+      allow list, write: if false;
+    }
+
     match /gameConfig/{configId} {
       allow read: if signedIn();
       allow write: if isAdmin();
     }
 
     match /puzzles/{puzzleId} {
-      // Only player-facing content belongs here. Client-shipped answers are not confidential.
       allow read: if signedIn();
-      allow write: if isAdmin();
+      allow write: if false;
     }
 
-    match /checkpoints/{checkpointId} {
-      // Do not store checkpoint codes or code hashes in these readable documents.
-      allow read: if signedIn();
-      allow write: if isAdmin();
+    match /teamPuzzleContent/{contentId} {
+      allow get: if isAdmin()
+        || (
+          ownsTeam(resource.data.teamId)
+          && puzzleIsOpen(resource.data.teamId, resource.data.puzzleId)
+        );
+      allow list, write: if false;
+    }
+
+    match /privatePuzzles/{puzzleId} {
+      allow read, write: if false;
+    }
+
+    match /checkpoints/{checkpointHash} {
+      allow get: if signedIn();
+      allow list, write: if false;
     }
 
     match /teams/{teamId} {
-      // Login queries gameKeyHash across teams, so every authenticated player can read team metadata.
-      // This exposes hashes and is not a trusted game-key validation mechanism.
-      allow get, list: if signedIn() || isAdmin();
-      allow create, delete: if isAdmin();
+      allow get: if isAdmin() || (signedIn() && resource.data.assignedUid == request.auth.uid);
+      allow list: if isAdmin();
       allow update: if isAdmin()
+        || validClaim(resource.data.gameKeyHash, teamId)
         || (
-          signedIn()
-          && resource.data.active == true
-          && (resource.data.assignedUid == null || resource.data.assignedUid == request.auth.uid)
-          && request.resource.data.assignedUid == request.auth.uid
-          && request.resource.data.teamName == resource.data.teamName
-          && request.resource.data.gameKeyHash == resource.data.gameKeyHash
-          && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['assignedUid', 'lastSeenAt', 'introSeenAt', 'shardType'])
+          ownsTeam(teamId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['introSeenAt'])
+          && request.resource.data.introSeenAt == request.time
         );
+      allow create, delete: if isAdmin();
 
       match /progress/{puzzleId} {
-        allow read, create, update: if isAdmin() || ownsTeam(teamId);
-        allow delete: if isAdmin();
+        allow read: if isAdmin() || ownsTeam(teamId);
+        allow create: if ownsTeam(teamId)
+          && puzzleIsOpen(teamId, puzzleId)
+          && request.resource.data.keys().hasOnly(['status', 'hintsUsed', 'startedAt', 'solvedAt', 'answer', 'proof'])
+          && request.resource.data.hintsUsed is int
+          && (
+            (
+              validSolve(teamId, puzzleId)
+              && request.resource.data.hintsUsed == 0
+              && request.resource.data.startedAt == request.time
+            )
+            || validHintCreate(puzzleId)
+          );
+        allow update: if ownsTeam(teamId)
+          && puzzleIsOpen(teamId, puzzleId)
+          && (
+            (
+              resource.data.status == 'in_progress'
+              && request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['status', 'solvedAt', 'answer', 'proof'])
+              && request.resource.data.status == 'solved'
+              && request.resource.data.hintsUsed == resource.data.hintsUsed
+              && request.resource.data.startedAt == resource.data.startedAt
+              && validSolve(teamId, puzzleId)
+            )
+            || validHintUpdate(puzzleId)
+          );
+        allow delete: if false;
       }
 
       match /submissions/{submissionId} {
-        allow read, create: if isAdmin() || ownsTeam(teamId);
-        allow update, delete: if isAdmin();
+        allow read: if isAdmin();
+        allow write: if false;
       }
 
-      match /checkpointVisits/{checkpointId} {
-        allow read, create: if isAdmin() || ownsTeam(teamId);
-        allow update, delete: if isAdmin();
+      match /checkpointVisits/{checkpointHash} {
+        allow read: if isAdmin() || ownsTeam(teamId);
+        allow create: if ownsTeam(teamId)
+          && exists(/databases/$(database)/documents/checkpoints/$(checkpointHash))
+          && request.resource.data.keys().hasOnly(['code', 'title', 'visitedAt'])
+          && request.resource.data.code is string
+          && request.resource.data.title
+            == get(/databases/$(database)/documents/checkpoints/$(checkpointHash)).data.title
+          && request.resource.data.visitedAt == request.time;
+        allow update, delete: if false;
       }
 
       match /verifiedShards/{shardType} {
-        allow read, create: if isAdmin() || ownsTeam(teamId);
-        allow update, delete: if isAdmin();
+        allow read: if isAdmin() || ownsTeam(teamId);
+        allow create: if ownsTeam(teamId)
+          && puzzleIsOpen(teamId, '7')
+          && shardType in ['A', 'B', 'C', 'D']
+          && request.resource.data.keys().hasOnly(['type', 'name', 'text', 'sealHash', 'verifiedAt'])
+          && request.resource.data.type == shardType
+          && request.resource.data.name is string
+          && request.resource.data.text is string
+          && request.resource.data.sealHash is string
+          && validSealLookup(request.resource.data.sealHash, shardType)
+          && request.resource.data.verifiedAt == request.time;
+        allow update, delete: if false;
+      }
+
+      match /rateLimits/{rateLimitId} {
+        allow read, write: if false;
+      }
+
+      match /puzzleRewards/{puzzleId} {
+        allow get: if isAdmin() || (ownsTeam(teamId) && solved(teamId, puzzleId));
+        allow list, write: if false;
+      }
+
+      match /puzzleHints/{hintId} {
+        allow get: if isAdmin()
+          || (
+            ownsTeam(teamId)
+            && puzzleIsOpen(teamId, resource.data.puzzleId)
+            && exists(progressPath(teamId, resource.data.puzzleId))
+            && get(progressPath(teamId, resource.data.puzzleId)).data.hintsUsed >= resource.data.hintNumber
+          );
+        allow list, write: if false;
       }
     }
 

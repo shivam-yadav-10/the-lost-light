@@ -3,7 +3,6 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 const STORAGE_KEY = 'lostlight.session';
 
 interface Session {
-  gameKey: string;
   teamId: number;
   teamDocId: string;
   teamName: string;
@@ -23,14 +22,19 @@ function readStored(): Session | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<Session>;
     if (
-      typeof parsed.gameKey !== 'string' ||
       typeof parsed.teamId !== 'number' ||
       typeof parsed.teamDocId !== 'string' ||
       typeof parsed.teamName !== 'string'
     ) {
       return null;
     }
-    return parsed as Session;
+    const session = {
+      teamId: parsed.teamId,
+      teamDocId: parsed.teamDocId,
+      teamName: parsed.teamName,
+    };
+    if ('gameKey' in parsed) localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+    return session;
   } catch {
     return null;
   }

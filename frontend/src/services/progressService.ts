@@ -18,7 +18,6 @@ const FRAGMENT_DIRECTIONS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 
 interface PuzzleRecord extends PuzzleSummary {
   requires: number[];
-  fragment: FragmentMeta | null;
 }
 
 interface PuzzleProgressRecord {
@@ -96,7 +95,6 @@ function parsePuzzle(documentId: string, rawData: unknown): PuzzleRecord {
   }
 
   const unlockAt = timestampToIso(data.unlockAt);
-  const fragment = parseFragment(data.fragment);
   return {
     id,
     slug: requiredString(data, 'slug'),
@@ -110,7 +108,6 @@ function parsePuzzle(documentId: string, rawData: unknown): PuzzleRecord {
     hintsUsed: 0,
     maxHints: requiredInteger(data, 'maxHints'),
     requires,
-    fragment,
   };
 }
 
@@ -168,19 +165,15 @@ function toPuzzleSummaries(
 
 function toCheckpoints(
   visits: Array<{ id: string; data: () => unknown }>,
-  checkpointDocuments: Array<{ id: string; data: () => unknown }>,
 ): TeamProgress['checkpoints'] {
-  const titles = new Map(
-    checkpointDocuments.map((snapshot) => [snapshot.id, requiredString(asRecord(snapshot.data()), 'title')]),
-  );
   return visits
     .map((snapshot) => {
       const visit = asRecord(snapshot.data());
       const visitedAt = timestampToIso(visit.visitedAt);
       if (!visitedAt) throw new GameServicesUnavailableError();
       return {
-        code: typeof visit.code === 'string' ? visit.code : snapshot.id,
-        title: typeof visit.title === 'string' ? visit.title : titles.get(snapshot.id) ?? snapshot.id,
+        code: requiredString(visit, 'code'),
+        title: requiredString(visit, 'title'),
         visitedAt,
       };
     })
@@ -193,7 +186,7 @@ function toTeamProgress(
   puzzleDocuments: Array<{ id: string; data: () => unknown }>,
   progressDocuments: Array<{ id: string; data: () => unknown }>,
   visitDocuments: Array<{ id: string; data: () => unknown }>,
-  checkpointDocuments: Array<{ id: string; data: () => unknown }>,
+  rewardDocuments: Array<{ id: string; data: () => unknown }>,
   rawConfig: unknown,
 ): TeamProgress {
   const puzzles = puzzleDocuments.map((snapshot) => parsePuzzle(snapshot.id, snapshot.data()));
@@ -230,7 +223,12 @@ function toTeamProgress(
 
   const fragments = puzzles
     .filter((puzzle) => puzzle.kind === 'core' && progressByPuzzle.get(puzzle.id)?.status === 'solved')
-    .flatMap((puzzle) => (puzzle.fragment ? [toFragment(puzzle.fragment, puzzle)] : []));
+    .flatMap((puzzle) => {
+      const earnedData = rewardDocuments.find((snapshot) => Number(snapshot.id) === puzzle.id);
+      if (!earnedData) throw new GameServicesUnavailableError();
+      const fragment = parseFragment(asRecord(earnedData.data()).fragment);
+      return fragment ? [toFragment(fragment, puzzle)] : [];
+    });
   return {
     teamId: teamNumber,
     teamName: requiredString(team, 'teamName'),
@@ -243,7 +241,7 @@ function toTeamProgress(
     lightPercent: convergenceSolved ? 100 : Math.round((Math.min(coreSolved, 5) / 6) * 100),
     lightMessage: typeof lightMessage === 'string' ? lightMessage : null,
     fragments,
-    checkpoints: toCheckpoints(visitDocuments, checkpointDocuments),
+    checkpoints: toCheckpoints(visitDocuments),
   };
 }
 
@@ -268,13 +266,18 @@ export async function getTeamProgress(teamDocId: string, teamNumber: number): Pr
       throw new GameServicesUnavailableError();
     }
 
-    const [puzzles, progress, visits, checkpoints, config] = await Promise.all([
+    const [puzzles, progress, visits, config] = await Promise.all([
       getDocs(collection(firestore, 'puzzles')),
       getDocs(collection(teamRef, 'progress')),
       getDocs(collection(teamRef, 'checkpointVisits')),
-      getDocs(collection(firestore, 'checkpoints')),
       getDoc(doc(firestore, 'gameConfig', 'main')),
     ]);
+    const solvedPuzzleIds = progress.docs
+      .filter((snapshot) => snapshot.get('status') === 'solved')
+      .map((snapshot) => Number(snapshot.id));
+    const rewards = await Promise.all(
+      solvedPuzzleIds.map((id) => getDoc(doc(teamRef, 'puzzleRewards', String(id)))),
+    );
 
     return toTeamProgress(
       team,
@@ -282,7 +285,7 @@ export async function getTeamProgress(teamDocId: string, teamNumber: number): Pr
       puzzles.docs,
       progress.docs,
       visits.docs,
-      checkpoints.docs,
+      rewards.filter((snapshot) => snapshot.exists()),
       config.exists() ? config.data() : null,
     );
   } catch (error) {

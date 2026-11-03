@@ -60,7 +60,7 @@ function VaultOpen({ puzzleId, fragments }: { puzzleId: number; fragments: Earne
     setBusy(true);
     setFeedback(null);
     try {
-      const result = await api.submit(session.gameKey, puzzle.id, word.trim(), proof.trim());
+      const result = await api.submit(puzzle.id, session.teamDocId, session.teamId, word.trim(), proof.trim());
       if (result.correct) {
         setOpened(true);
         setPuzzle({ ...puzzle, state: 'SOLVED', solvedAt: result.puzzle.solvedAt, completionMessage: result.message });
