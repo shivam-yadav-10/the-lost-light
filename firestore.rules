@@ -23,6 +23,16 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /adminTeamData/{teamId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /adminGameData/{documentId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     match /gameConfig/{configId} {
       allow read: if signedIn();
       allow write: if isAdmin();

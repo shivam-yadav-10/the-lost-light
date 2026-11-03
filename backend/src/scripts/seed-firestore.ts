@@ -3,13 +3,16 @@ import { FieldValue, getFirestore, Timestamp, type DocumentData } from 'firebase
 import { createHash } from 'node:crypto';
 import { existsSync, realpathSync } from 'node:fs';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
-import { CHECKPOINTS, protectedPuzzle } from '../content/protected.js';
+import { CHECKPOINTS, ERRAND_LOCATIONS, errandGroup, protectedPuzzle, riddleSet } from '../content/protected.js';
 import { LIGHT_MESSAGES, PUBLIC_PUZZLES } from '../content/public.js';
 import { SEED_TEAMS } from '../content/teams.js';
+import type { ShardType } from '../content/types.js';
+import { keeperSeal, shardContent, teamKey } from '../services/convergence.js';
 
 const applyChanges = process.argv.slice(2).includes('--apply');
 const includeLocalTestTeams = process.argv.slice(2).includes('--include-local-test-teams');
 const supportedArguments = new Set(['--apply', '--help', '--include-local-test-teams']);
+const SHARD_TYPES: ShardType[] = ['A', 'B', 'C', 'D'];
 
 function validateArguments(): void {
   const unexpected = process.argv.slice(2).filter((argument) => !supportedArguments.has(argument));
@@ -127,6 +130,10 @@ async function seedFirestore(): Promise<void> {
   if (!applyChanges) {
     console.log('Dry run only. No Firebase credentials were used and no documents were written. Add --apply to write.');
     return;
+  }
+
+  if (!process.env.GAME_SECRET?.trim()) {
+    throw new Error('GAME_SECRET must be set in backend/.env before organiser-only key data can be seeded.');
   }
 
   validateCredentialsLocation();
@@ -247,8 +254,52 @@ async function seedFirestore(): Promise<void> {
       }
     }
 
+    const allTeams = await teamCollection.get();
+    const organizerDocuments = allTeams.docs.map((teamSnapshot) => {
+      const teamNumber = teamSnapshot.get('teamNumber');
+      if (typeof teamNumber !== 'number' || !Number.isInteger(teamNumber) || teamNumber < 1) {
+        throw new Error(`teams/${teamSnapshot.id} is missing a valid teamNumber; organiser data was not seeded.`);
+      }
+      const group = errandGroup(teamNumber);
+      return {
+        reference: firestore.doc(`adminTeamData/${teamSnapshot.id}`),
+        data: {
+          teamNumber,
+          errandGroup: group,
+          errandLocation: ERRAND_LOCATIONS[group],
+          riddleSet: riddleSet(teamNumber),
+          lanternKey: teamKey(teamNumber),
+        },
+      };
+    });
+    const keeperSealDocument = {
+      reference: firestore.doc('adminGameData/keeperSeals'),
+      data: {
+        keeperSeals: SHARD_TYPES.map((type) => ({
+          type,
+          name: shardContent(type).name,
+          seal: keeperSeal(type),
+        })),
+      },
+    };
+    const organizerWrites = [...organizerDocuments, keeperSealDocument];
+    for (let offset = 0; offset < organizerWrites.length; offset += 450) {
+      const batch = firestore.batch();
+      organizerWrites.slice(offset, offset + 450).forEach(({ reference, data }) => batch.set(reference, data));
+      await batch.commit();
+    }
+
+    const organizerReadBack = await firestore.getAll(...organizerWrites.map(({ reference }) => reference));
+    if (organizerReadBack.some((snapshot) => !snapshot.exists)) {
+      throw new Error('Read-back check failed for organiser-only records.');
+    }
+    const keeperSealReadBack = organizerReadBack.find((snapshot) => snapshot.ref.path === 'adminGameData/keeperSeals')?.get('keeperSeals');
+    if (!Array.isArray(keeperSealReadBack) || keeperSealReadBack.length !== SHARD_TYPES.length) {
+      throw new Error('Read-back check failed for adminGameData/keeperSeals.');
+    }
+
     console.log(
-      `Firebase seed completed and read-back verified: ${puzzleDocuments.size} puzzles, ${checkpointDocuments.size} checkpoints, gameConfig/main, and ${localTestTeamDocuments.size} local test teams.`,
+      `Firebase seed completed and read-back verified: ${puzzleDocuments.size} puzzles, ${checkpointDocuments.size} checkpoints, gameConfig/main, ${localTestTeamDocuments.size} local test teams, and ${organizerDocuments.length} organiser team records.`,
     );
   } finally {
     await deleteApp(app);

@@ -53,9 +53,33 @@ export const firebaseApp = firebaseRuntime.app;
 export const firebaseAuth = firebaseRuntime.auth;
 export const firestore = firebaseRuntime.firestore;
 
+function initializeAdminFirebase(): { auth: Auth; firestore: Firestore } | null {
+  if (!firebaseApp) return null;
+
+  try {
+    const app = getApps().find((existingApp) => existingApp.name === 'organizer')
+      ?? initializeApp(firebaseConfig, 'organizer');
+    return {
+      auth: getAuth(app),
+      firestore: getFirestore(app),
+    };
+  } catch {
+    return null;
+  }
+}
+
+const adminFirebaseRuntime = initializeAdminFirebase();
+export const adminFirebaseAuth = adminFirebaseRuntime?.auth ?? null;
+export const adminFirestore = adminFirebaseRuntime?.firestore ?? null;
+
 export function requireFirebaseServices(): { auth: Auth; firestore: Firestore } {
   if (!firebaseAuth || !firestore) throw new GameServicesUnavailableError();
   return { auth: firebaseAuth, firestore };
+}
+
+export function requireAdminFirebaseServices(): { auth: Auth; firestore: Firestore } {
+  if (!adminFirebaseAuth || !adminFirestore) throw new GameServicesUnavailableError();
+  return { auth: adminFirebaseAuth, firestore: adminFirestore };
 }
 
 export function firebaseOperationNotReady(): never {

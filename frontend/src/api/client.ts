@@ -1,5 +1,4 @@
 import type {
-  AdminOverview,
   CheckpointResult,
   ConvergenceState,
   HintResult,
@@ -26,7 +25,6 @@ interface RequestOptions {
   method?: 'GET' | 'POST';
   body?: unknown;
   gameKey?: string | null;
-  adminKey?: string | null;
 }
 
 async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
@@ -39,7 +37,6 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
   if (opts.gameKey) headers['X-Game-Key'] = opts.gameKey;
-  if (opts.adminKey) headers['X-Admin-Key'] = opts.adminKey;
 
   try {
     const res = await fetch(`${API_BASE}/api${path}`, {
@@ -74,7 +71,4 @@ export const api = {
   convergence: (gameKey: string) => request<ConvergenceState>('/convergence', { gameKey }),
   verifySeal: (gameKey: string, seal: string) =>
     request<SealResult>('/convergence/verify', { method: 'POST', body: { seal }, gameKey }),
-  adminOverview: (adminKey: string) => request<AdminOverview>('/admin/overview', { adminKey }),
-  adminSetPuzzleUnlock: (adminKey: string, puzzleId: number, unlocked: boolean) =>
-    request<AdminOverview>(`/admin/puzzles/${puzzleId}/unlock-override`, { method: 'POST', body: { unlocked }, adminKey }),
 };

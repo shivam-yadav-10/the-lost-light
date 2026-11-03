@@ -200,6 +200,18 @@ function toTeamProgress(
   puzzles.sort((left, right) => left.sortOrder - right.sortOrder);
   if (puzzles.length === 0) throw new GameServicesUnavailableError();
 
+  const config = rawConfig == null ? {} : asRecord(rawConfig);
+  if (config.unlockOverrides != null) {
+    const overrides = asRecord(config.unlockOverrides);
+    for (const [rawId, value] of Object.entries(overrides)) {
+      const id = Number(rawId);
+      const puzzle = puzzles.find((candidate) => candidate.id === id);
+      const unlockAt = timestampToIso(value);
+      if (!puzzle || puzzle.kind !== 'core' || !unlockAt) throw new GameServicesUnavailableError();
+      puzzle.unlockAt = unlockAt;
+    }
+  }
+
   const progressByPuzzle = new Map(
     progressDocuments.map((snapshot) => [Number(snapshot.id), parseProgress(snapshot.data())]),
   );
@@ -212,7 +224,6 @@ function toTeamProgress(
   const coreSolved = corePuzzles.filter((puzzle) => puzzle.state === 'SOLVED').length;
   const convergenceSolved = summaries.some((puzzle) => puzzle.kind === 'convergence' && puzzle.state === 'SOLVED');
   const allCoreSolved = corePuzzles.length > 0 && coreSolved === corePuzzles.length;
-  const config = rawConfig == null ? {} : asRecord(rawConfig);
   const lightMessages = config.lightMessages == null ? {} : asRecord(config.lightMessages);
   const lightMessage = allCoreSolved && !convergenceSolved ? lightMessages.partial : null;
   if (lightMessage !== null && typeof lightMessage !== 'string') throw new GameServicesUnavailableError();

@@ -1,32 +1,54 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { api, ApiError } from '../api/client';
+import {
+  getAdminErrorMessage,
+  getAdminOverview,
+  getCurrentAdminUid,
+  setPuzzleUnlockOverride,
+  signInAdmin,
+  signOutAdmin,
+} from '../services/adminService';
 import type { AdminOverview } from '../api/types';
 
-const ADMIN_KEY_STORAGE = 'lostlight.adminKey';
 const REFRESH_MS = 15_000;
 
 /** Minimal local organiser view. Plain styling on purpose — this is a utility, not part of the game. */
 export function AdminPage() {
-  const [adminKey, setAdminKey] = useState(() => sessionStorage.getItem(ADMIN_KEY_STORAGE) ?? '');
-  const [draftKey, setDraftKey] = useState('');
+  const [adminUid, setAdminUid] = useState<string | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [data, setData] = useState<AdminOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const [toggleError, setToggleError] = useState<string | null>(null);
 
+  useEffect(() => {
+    let active = true;
+    void getCurrentAdminUid()
+      .then((uid) => {
+        if (active) setAdminUid(uid);
+      })
+      .catch((err: unknown) => {
+        if (active) setError(getAdminErrorMessage(err));
+      })
+      .finally(() => {
+        if (active) setAuthReady(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const load = useCallback(async () => {
-    if (!adminKey) return;
+    if (!adminUid) return;
     try {
-      setData(await api.adminOverview(adminKey));
+      setData(await getAdminOverview());
       setError(null);
     } catch (err) {
-      if (err instanceof ApiError && (err.status === 401 || err.status === 429)) {
-        sessionStorage.removeItem(ADMIN_KEY_STORAGE);
-        setAdminKey('');
-      }
-      setError(err instanceof Error ? err.message : 'Failed to load');
+      setData(null);
+      setError(getAdminErrorMessage(err));
     }
-  }, [adminKey]);
+  }, [adminUid]);
 
   useEffect(() => {
     void load();
@@ -34,11 +56,15 @@ export function AdminPage() {
     return () => clearInterval(timer);
   }, [load]);
 
-  function onSubmit(e: FormEvent) {
+  async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    sessionStorage.setItem(ADMIN_KEY_STORAGE, draftKey);
-    setAdminKey(draftKey);
-    setDraftKey('');
+    setError(null);
+    try {
+      setAdminUid(await signInAdmin(email, password));
+      setPassword('');
+    } catch (err) {
+      setError(getAdminErrorMessage(err));
+    }
   }
 
   /** Forces a core fragment open now, or re-locks it, overriding the day's release schedule. */
@@ -46,38 +72,61 @@ export function AdminPage() {
     setTogglingId(puzzleId);
     setToggleError(null);
     try {
-      setData(await api.adminSetPuzzleUnlock(adminKey, puzzleId, currentlyLocked));
+      setData(await setPuzzleUnlockOverride(puzzleId, currentlyLocked));
     } catch (err) {
-      setToggleError(err instanceof Error ? err.message : 'Could not change that fragment.');
+      setToggleError(getAdminErrorMessage(err));
     } finally {
       setTogglingId(null);
     }
   }
 
-  /** Forgets the key and hides all organiser data; the key must be entered again. */
-  function lock() {
-    sessionStorage.removeItem(ADMIN_KEY_STORAGE);
-    setAdminKey('');
-    setDraftKey('');
+  /** Signs out of the dedicated organiser Firebase session. */
+  async function lock() {
+    try {
+      await signOutAdmin();
+      setError(null);
+    } catch (err) {
+      setError(getAdminErrorMessage(err));
+    }
+    setAdminUid(null);
+    setEmail('');
+    setPassword('');
     setData(null);
-    setError(null);
+    setToggleError(null);
   }
 
-  if (!adminKey) {
+  if (!authReady) {
+    return <main className="mx-auto max-w-sm p-6" aria-live="polite">Checking organiser access…</main>;
+  }
+
+  if (!adminUid) {
     return (
       <main className="mx-auto max-w-sm p-6">
         <h1 className="text-2xl">Organiser access</h1>
         <form onSubmit={onSubmit} className="mt-4 space-y-3">
-          <label htmlFor="adminKey" className="eyebrow block">
-            Admin key
+          <label htmlFor="adminEmail" className="eyebrow block">
+            Organiser email
           </label>
           <input
-            id="adminKey"
+            id="adminEmail"
+            type="email"
+            className="input-ember"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="username"
+            required
+          />
+          <label htmlFor="adminPassword" className="eyebrow block">
+            Password
+          </label>
+          <input
+            id="adminPassword"
             type="password"
             className="input-ember"
-            value={draftKey}
-            onChange={(e) => setDraftKey(e.target.value)}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"
+            required
           />
           {error && (
             <p role="alert" className="text-sm text-marigold">
@@ -101,7 +150,7 @@ export function AdminPage() {
           <button type="button" className="btn-ghost !py-1 !px-3" onClick={() => void load()}>
             Refresh
           </button>
-          <button type="button" className="btn-ember !py-1 !px-4 text-xs" onClick={lock} aria-label="Lock the organiser view">
+          <button type="button" className="btn-ember !py-1 !px-4 text-xs" onClick={() => void lock()} aria-label="Lock the organiser view">
             Lock
           </button>
         </div>
