@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  BEACON, courtyardAnswer, GATES, INITIAL_MIRRORS, LANTERNS, MIRRORS, SOURCE, traceCourtyard,
+  BEACON, BOARD_COLUMNS, BOARD_ROWS, COURTYARD_VERSION, courtyardAnswer, GATES, INITIAL_MIRRORS, LANTERNS, MIRRORS, nextLantern, SOURCE, traceCourtyard,
   type Mirror,
 } from '../services/courtyard';
 
@@ -14,15 +14,19 @@ interface LanternCourtyardProps {
 
 const LABELS: Record<string, string> = { lotus: 'Lotus', star: 'Star', leaf: 'Leaf', bell: 'Bell', moon: 'Moon' };
 const position = (value: number) => (value + 0.5) * 80;
+const WIDTH = BOARD_COLUMNS * 80 + 40;
+const HEIGHT = BOARD_ROWS * 80 + 40;
+const left = (x: number) => `${(position(x) + 20) / WIDTH * 100}%`;
+const top = (y: number) => `${(position(y) + 20) / HEIGHT * 100}%`;
 
-/** Accessible tap/select board with a live beam preview and team-scoped local draft. */
+/** Tap-to-cycle lanterns and rotating mirrors with a live beam preview and local draft. */
 export function LanternCourtyard({ teamDocId, busy, solved, feedback, onSubmit }: LanternCourtyardProps) {
   const [lanterns, setLanterns] = useState<string[]>(['', '', '', '', '']);
   const [mirrors, setMirrors] = useState<Mirror[]>([...INITIAL_MIRRORS]);
   const [error, setError] = useState<string | null>(null);
   const [storageError, setStorageError] = useState<string | null>(null);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
-  const storageKey = `lostlight.courtyard-v1.${teamDocId}`;
+  const storageKey = `lostlight.${COURTYARD_VERSION}.${teamDocId}`;
 
   useEffect(() => {
     setLanterns(['', '', '', '', '']);
@@ -52,7 +56,7 @@ export function LanternCourtyard({ teamDocId, busy, solved, feedback, onSubmit }
   }, [lanterns, mirrors, loadedKey, storageKey]);
 
   const beam = traceCourtyard(mirrors);
-  const ready = beam.reachedBeacon && new Set(beam.gates).size === 5;
+  const ready = beam.reachedBeacon && new Set(beam.gates).size === 5 && new Set(beam.mirrorsVisited).size === MIRRORS.length;
   const litGates = new Set(beam.gates);
   const disabled = busy || solved || loadedKey !== storageKey;
   const canSubmit = ready && lanterns.every(Boolean) && new Set(lanterns).size === 5;
@@ -67,7 +71,7 @@ export function LanternCourtyard({ teamDocId, busy, solved, feedback, onSubmit }
   }
 
   return (
-    <section className={`card mx-auto w-full max-w-[44rem] !p-4 sm:!p-6 ${solved ? 'border-ember/60 shadow-ember' : ''}`} aria-labelledby="courtyard-heading">
+    <section className={`card w-full !p-4 sm:!p-6 ${solved ? 'border-ember/60 shadow-ember' : ''}`} aria-labelledby="courtyard-heading">
       <h2 id="courtyard-heading" className="eyebrow">The lantern courtyard</h2>
       {solved ? (
         <div className="py-16 text-center">
@@ -78,22 +82,37 @@ export function LanternCourtyard({ teamDocId, busy, solved, feedback, onSubmit }
       ) : (
         <>
           <p className="mt-3 text-sm text-parchment/70">
-            Place the lanterns using the clues, then tap mirrors A, B and C to turn them.
-            The diya sends light to the right. Mirrors reflect it through a right angle.
+            Tap a numbered gate to cycle its symbol: empty, Lotus, Star, Leaf, Bell, Moon, then empty.
+            Use each symbol once. Tap mirrors A to J to turn them. The beam must visit all five gates
+            and all ten mirrors before reaching the beacon. The diya sends light to the right.
+            Some wrong turns feed back into earlier mirrors; faded branches can lead to dark dead ends.
           </p>
-          <div className="courtyard-board relative mx-auto my-6 aspect-square w-full max-w-[34rem] overflow-hidden rounded-2xl border border-ember/20 bg-black/20">
-            <svg viewBox="-20 -20 600 600" className="h-full w-full" role="img" aria-labelledby="courtyard-map-title courtyard-map-description">
+          <div className="my-6 overflow-x-auto rounded-2xl border border-ember/20">
+          <div className="courtyard-board relative w-full min-w-[660px] bg-black/20" style={{ aspectRatio: `${WIDTH} / ${HEIGHT}` }}>
+            <svg viewBox={`-20 -20 ${WIDTH} ${HEIGHT}`} className="h-full w-full" role="img" aria-labelledby="courtyard-map-title courtyard-map-description">
               <title id="courtyard-map-title">Courtyard light-path preview</title>
-              <desc id="courtyard-map-description">The diya starts at the centre, pointing east. Mirror A is on the right, B at the top right, C at the top left. The beacon is at the bottom left. Gate 1 is between the diya and A; gate 2 between A and B; gates 3 and 4 between B and C; gate 5 between C and the beacon.</desc>
+              <desc id="courtyard-map-description">The diya starts near the bottom left, pointing east. Ten mirrors form a winding path across the courtyard to the top-left beacon. Use the labelled mirror and gate buttons to explore the live light path.</desc>
               <g stroke="#f59e0b" fill="none" opacity="0.12">
-                {Array.from({ length: 7 }, (_, i) => <path key={i} d={`M${position(i)} 40V520 M40 ${position(i)}H520`} />)}
+                {Array.from({ length: BOARD_COLUMNS }, (_, i) => <path key={`v${i}`} d={`M${position(i)} 40V${position(BOARD_ROWS - 1)}`} />)}
+                {Array.from({ length: BOARD_ROWS }, (_, i) => <path key={`h${i}`} d={`M40 ${position(i)}H${position(BOARD_COLUMNS - 1)}`} />)}
               </g>
+              <g fill="none" stroke="#ad8051" strokeWidth="7" strokeDasharray="5 13" opacity="0.22" aria-hidden="true">
+                <path d={`M${position(3)} ${position(1)}H${position(12)} M${position(3)} ${position(5)}H${position(12)} M${position(3)} ${position(5)}V${position(10)} M${position(9)} ${position(7)}H${position(12)}`} />
+              </g>
+              <g stroke="#806440" strokeWidth="3" opacity="0.55" aria-hidden="true">
+                {[{ x: 12, y: 1 }, { x: 12, y: 5 }, { x: 12, y: 7 }, { x: 3, y: 10 }].map((point) => (
+                  <path key={`${point.x}-${point.y}`}
+                    d={`M${position(point.x) - 9} ${position(point.y) - 9}l18 18m0 -18l-18 18`} />
+                ))}
+              </g>
+              <g transform="translate(240 120)">
               <g className="courtyard-rangoli" stroke="#f59e0b" fill="none">
                 <circle cx="280" cy="280" r="115" strokeDasharray="3 9" />
                 <circle cx="280" cy="280" r="100" opacity="0.5" />
                 {Array.from({ length: 8 }, (_, index) =>
                   <path key={index} d="M280 180Q320 240 280 266Q240 240 280 180Z"
                     transform={`rotate(${index * 45} 280 280)`} opacity="0.5" />)}
+              </g>
               </g>
               <g key={mirrors.join('-')} fill="none" stroke="#fbbf24" strokeLinecap="round" strokeLinejoin="round">
                 <polyline className="courtyard-beam-aura" pathLength="1" strokeWidth="15"
@@ -103,15 +122,6 @@ export function LanternCourtyard({ teamDocId, busy, solved, feedback, onSubmit }
                 <polyline className="courtyard-beam-sparkle" pathLength="1" stroke="#fff4cc" strokeWidth="2"
                   points={beam.path.map((point) => `${position(point.x)},${position(point.y)}`).join(' ')} />
               </g>
-              {GATES.map((gate, index) => (
-                <g key={index} transform={`translate(${position(gate.x)},${position(gate.y)})`}>
-                  <rect className={litGates.has(index) && lanterns[index] ? 'courtyard-lantern-lit' : 'courtyard-lantern'}
-                    x="-29" y="-29" width="58" height="58" rx="14" fill="#211915"
-                    stroke={litGates.has(index) && lanterns[index] ? '#fbbf24' : '#806440'} strokeWidth="2" />
-                  {lanterns[index] && <svg x="-20" y="-22" width="40" height="40" viewBox="0 0 48 48" className="text-ember-glow"><LanternMark name={lanterns[index]} /></svg>}
-                  <text y={lanterns[index] ? 24 : 6} textAnchor="middle" fill="#f3e8ce" fontSize="16">{index + 1}</text>
-                </g>
-              ))}
               <g transform={`translate(${position(SOURCE.x)},${position(SOURCE.y)})`} fill="#fbbf24">
                 <path d="M-23 5Q0 35 23 5Z" />
                 <path className="courtyard-flame" d="M0 4Q-16 -12 0 -29Q16 -12 0 4Z" />
@@ -122,41 +132,39 @@ export function LanternCourtyard({ teamDocId, busy, solved, feedback, onSubmit }
                 <text x="38" y="6" fill="#f3e8ce" fontSize="18">Beacon</text>
               </g>
             </svg>
+            {GATES.map((gate, index) => (
+              <button key={index} type="button" disabled={disabled}
+                aria-label={`Gate ${index + 1}: ${LABELS[lanterns[index]] ?? 'empty'}. Click for ${LABELS[nextLantern(lanterns[index])] ?? 'empty'}.`}
+                onClick={() => {
+                  setError(null);
+                  setLanterns((current) => current.map((value, i) => i === index ? nextLantern(value) : value));
+                }}
+                className={`absolute flex min-h-11 min-w-11 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-xl border bg-night text-ember-glow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ember-glow disabled:opacity-50 ${litGates.has(index) && lanterns[index] ? 'courtyard-lantern-lit border-ember-glow' : 'border-ember/40'}`}
+                style={{ left: left(gate.x), top: top(gate.y), width: '6%', aspectRatio: '1' }}>
+                {lanterns[index] && <span className="w-7 sm:w-8"><LanternMark name={lanterns[index]} /></span>}
+                <span className="text-xs leading-none">{index + 1}</span>
+              </button>
+            ))}
             {MIRRORS.map((mirror, index) => (
               <button key={index} type="button" disabled={disabled}
                 onClick={() => { setError(null); setMirrors((current) => current.map((value, i) => i === index ? value === 'slash' ? 'backslash' : 'slash' : value)); }}
-                aria-label={`Rotate mirror ${'ABC'[index]}, currently ${mirrors[index] === 'slash' ? 'forward slash' : 'backslash'}`}
+                aria-label={`Rotate mirror ${'ABCDEFGHIJ'[index]}, currently ${mirrors[index] === 'slash' ? 'forward slash' : 'backslash'}`}
                 className="absolute flex min-h-11 min-w-11 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-lg border border-ember/70 bg-night text-ember-glow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ember-glow disabled:opacity-50"
-                style={{ left: `${(position(mirror.x) + 20) / 6}%`, top: `${(position(mirror.y) + 20) / 6}%`, width: '10%', height: '10%' }}>
-                <span className="text-[10px] leading-none">{'ABC'[index]}</span>
+                style={{ left: left(mirror.x), top: top(mirror.y), width: '5.5%', aspectRatio: '1' }}>
+                <span className="text-[10px] leading-none">{'ABCDEFGHIJ'[index]}</span>
                 <span aria-hidden="true" className="courtyard-mirror font-code text-2xl leading-none"
                   style={{ transform: `rotate(${mirrors[index] === 'slash' ? 0 : 90}deg)` }}>/</span>
               </button>
             ))}
           </div>
+          </div>
           <p role="status" className="text-sm text-parchment/70">
-            {ready ? 'Light path connected. Check your lantern order against all four clues before submitting.' : `Light reaches ${litGates.size} of 5 gates. Turn the mirrors to reach the beacon.`}
+            {ready ? 'Light path connected. Check your lantern order against all four clues before submitting.' : `Light reaches ${litGates.size} of 5 gates and ${new Set(beam.mirrorsVisited).size} of 10 mirrors. Keep turning to reach the beacon.`}
           </p>
-          <fieldset disabled={disabled} className="mt-6">
-            <legend className="eyebrow">Place one lantern at each gate</legend>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              {lanterns.map((lantern, index) => (
-                <label key={index} className="text-sm text-parchment/80">
-                  Gate {index + 1}
-                  <select value={lantern} className="input-ember mt-1 w-full"
-                    onChange={(event) => {
-                      const selected = event.target.value;
-                      setError(null);
-                      setLanterns((current) => current.map((value, i) => i === index ? selected : value));
-                    }}>
-                    <option value="">Choose a lantern</option>
-                    {LANTERNS.map((id) => <option key={id} value={id} disabled={lantern !== id && lanterns.includes(id)}>{LABELS[id]}</option>)}
-                  </select>
-                </label>
-              ))}
-            </div>
-          </fieldset>
-          <p className="mt-3 text-xs text-parchment/50">To move an already-placed lantern, clear its current gate first. Drafts are saved only in this browser; completed progress syncs to your team.</p>
+          <div className="mt-4 flex flex-wrap gap-3" aria-label="Lantern symbol legend">
+            {LANTERNS.map((id) => <span key={id} className="flex items-center gap-1 text-xs text-parchment/70"><span className="w-6"><LanternMark name={id} /></span>{LABELS[id]}</span>)}
+          </div>
+          <p className="mt-3 text-xs text-parchment/50">Click a gate or focus it and press Space/Enter to cycle. Duplicate symbols must be changed before submission. On small screens, scroll the board sideways. Drafts stay in this browser.</p>
           <div className="mt-6 flex flex-wrap gap-3">
             <button type="button" className="btn-ember" onClick={() => void offer()} disabled={disabled || !canSubmit}>
               {busy ? 'Lighting...' : 'Light the courtyard'}
@@ -166,7 +174,7 @@ export function LanternCourtyard({ teamDocId, busy, solved, feedback, onSubmit }
               Reset board
             </button>
           </div>
-          {!canSubmit && <p className="mt-3 text-xs text-parchment/60">Place all five lanterns and connect the beam to enable submission.</p>}
+          {!canSubmit && <p className="mt-3 text-xs text-parchment/60">Use each symbol once and connect all ten mirrors to enable submission.</p>}
         </>
       )}
       {storageError && <p role="alert" className="mt-4 text-sm text-marigold">{storageError}</p>}
@@ -180,8 +188,7 @@ function isDraft(value: unknown): value is { lanterns: string[]; mirrors: Mirror
   if (!value || typeof value !== 'object' || !('lanterns' in value) || !('mirrors' in value)) return false;
   return Array.isArray(value.lanterns) && value.lanterns.length === 5
     && value.lanterns.every((id) => id === '' || LANTERNS.some((lantern) => lantern === id))
-    && new Set(value.lanterns.filter(Boolean)).size === value.lanterns.filter(Boolean).length
-    && Array.isArray(value.mirrors) && value.mirrors.length === 3
+    && Array.isArray(value.mirrors) && value.mirrors.length === MIRRORS.length
     && value.mirrors.every((mirror) => mirror === 'slash' || mirror === 'backslash');
 }
 

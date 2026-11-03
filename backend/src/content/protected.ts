@@ -154,15 +154,15 @@ export const PROTECTED_PUZZLES: ProtectedPuzzle[] = [
   },
   {
     id: 6,
-    answers: ['courtyard-v1 leaf moon lotus bell star slash backslash slash'],
+    answers: ['courtyard-v2 leaf moon lotus bell star slash backslash slash slash backslash backslash slash slash backslash backslash'],
     nearMisses: [],
     incorrectMessage: 'The courtyard is not ready yet. Check the gate-number clues and the path through all five lanterns.',
     completionMessage:
       'One small diya lights the whole courtyard. The sixth fragment is yours. Carry its light into the Convergence.',
     hints: corePenalties(
-      'Start with the paired clues: Leaf and Lotus have exactly one gate between them; Bell and Star must occupy neighbouring gates in that order. Moon cannot be at either end.',
-      'If Leaf were at gate 2 or 3, there would be no place left for both the Bell-Star pair and a Moon before Bell. Place Leaf at gate 1 and Lotus at gate 3.',
-      'From gate 1 to 5: Leaf, Moon, Lotus, Bell, Star. Set mirror A to forward slash (/), B to backslash (\\), and C to forward slash (/). The beam travels east, north, west, then south to the beacon.',
+      'Use the gate-number clues first. Leaf and Lotus have one gate between them, Bell is immediately before Star, and Moon is not at either end. Follow the actual beam, not the faded branches.',
+      'Place Leaf at gate 1 and Lotus at gate 3; that leaves Moon, Bell, Star at gates 2, 4, 5. From the diya turn north at A, west at B, south at C, then west at D. The eastward branch at F sends you back to C.',
+      'Gates 1 to 5: Leaf, Moon, Lotus, Bell, Star. Mirrors A to J: /, \\, /, /, \\, \\, /, /, \\, \\. The correct beam visits every mirror in alphabetical order before reaching the beacon.',
     ),
     rateLimit: CORE_LIMIT,
     fragment: { symbol: 'spiral', number: 2, direction: 'S', keyword: 'RETURN', colour: 'Blue' },

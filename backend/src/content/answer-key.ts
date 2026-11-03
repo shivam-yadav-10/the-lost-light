@@ -114,7 +114,7 @@ try {
   const perTeam = teams.map((t) => {
     const key = teamKey(t.id);
     const dawns = FIVE_DAWNS_SETS.find((s) => s.group === riddleSet(t.id))!;
-    return `| ${t.name} | ${code(t.game_key)} | ${upper(protectedPuzzle(1).answers[0])} | ${protectedPuzzle(2).answersByGroup![errandGroup(t.id)][0]} (${errandGroup(t.id)}) | ${upper(protectedPuzzle(3).answers[0])} | ${upper(protectedPuzzle(4).answers[0])} | ${dawns.final} (${dawns.group}) | Leaf → Moon → Lotus → Bell → Star; mirrors /, \\, / | ${key} | SHARED + ${key} |`;
+    return `| ${t.name} | ${code(t.game_key)} | ${upper(protectedPuzzle(1).answers[0])} | ${protectedPuzzle(2).answersByGroup![errandGroup(t.id)][0]} (${errandGroup(t.id)}) | ${upper(protectedPuzzle(3).answers[0])} | ${upper(protectedPuzzle(4).answers[0])} | ${dawns.final} (${dawns.group}) | Leaf → Moon → Lotus → Bell → Star; A–J: /, \\, /, /, \\, \\, /, /, \\, \\ | ${key} | SHARED + ${key} |`;
   });
 
   const markdown = [
