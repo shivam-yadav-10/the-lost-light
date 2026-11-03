@@ -166,6 +166,73 @@ function puzzleReference(teamDocId: string, puzzleId: number) {
   return doc(firestore, 'teams', teamDocId, 'progress', String(puzzleId));
 }
 
+/**
+ * The game engine now runs client-side: Firestore Rules only require a signed-in
+ * user. This mirrors the schedule/prerequisite gating that used to live in Rules.
+ */
+async function isPuzzleOpen(
+  firestore: ReturnType<typeof requireFirebaseServices>['firestore'],
+  teamRef: ReturnType<typeof doc>,
+  puzzleId: number,
+  metadata: DataRecord,
+): Promise<boolean> {
+  const configSnapshot = await getDoc(doc(firestore, 'gameConfig', 'main'));
+  const config = configSnapshot.exists() ? asRecord(configSnapshot.data()) : {};
+  const overrides = config.unlockOverrides && typeof config.unlockOverrides === 'object' && !Array.isArray(config.unlockOverrides)
+    ? config.unlockOverrides as DataRecord
+    : {};
+  const overrideValue = overrides[String(puzzleId)];
+  const now = Date.now();
+  const released = overrideValue instanceof Timestamp
+    ? overrideValue.toMillis() <= now
+    : metadata.unlockAt == null || (metadata.unlockAt instanceof Timestamp && metadata.unlockAt.toMillis() <= now);
+  if (!released) return false;
+
+  const requires = Array.isArray(metadata.requires) ? metadata.requires as unknown[] : [];
+  if (requires.length === 0) return true;
+  const progressSnapshots = await Promise.all(
+    requires.map((requiredId) => getDoc(doc(teamRef, 'progress', String(requiredId)))),
+  );
+  return progressSnapshots.every((snapshot) => snapshot.exists() && snapshot.get('status') === 'solved');
+}
+
+async function isAnswerCorrect(
+  firestore: ReturnType<typeof requireFirebaseServices>['firestore'],
+  teamDocId: string,
+  teamRef: ReturnType<typeof doc>,
+  puzzleId: number,
+  rawAnswer: string,
+  rawProof: string | undefined,
+): Promise<boolean> {
+  const secretSnapshot = await getDoc(doc(firestore, 'privatePuzzles', String(puzzleId)));
+  if (!secretSnapshot.exists()) throw new ApiError(503, 'Puzzle answer data is missing from Firebase.');
+  const secret = asRecord(secretSnapshot.data());
+  const answer = answerForRules(puzzleId, rawAnswer);
+  const acceptedAnswers = Array.isArray(secret.acceptedAnswers) ? secret.acceptedAnswers as unknown[] : [];
+
+  if (puzzleId === 7) {
+    const privateTeam = await getDoc(doc(firestore, 'privateTeamData', teamDocId));
+    const key = privateTeam.get('lanternKey');
+    return typeof key === 'string' && answer === key;
+  }
+  if (puzzleId === 8) {
+    const privateTeam = await getDoc(doc(firestore, 'privateTeamData', teamDocId));
+    const key = privateTeam.get('lanternKey');
+    return acceptedAnswers.includes(answer) && typeof key === 'string' && digitString(rawProof ?? '') === key;
+  }
+  if (puzzleId === 2 || puzzleId === 5) {
+    const teamSnapshot = await getDoc(teamRef);
+    const team = asRecord(teamSnapshot.data());
+    const byGroup = secret.acceptedAnswersByGroup && typeof secret.acceptedAnswersByGroup === 'object'
+      ? secret.acceptedAnswersByGroup as DataRecord
+      : {};
+    const groupKey = puzzleId === 2 ? team.errandGroup : team.riddleSet;
+    const groupAnswers = typeof groupKey === 'string' && Array.isArray(byGroup[groupKey]) ? byGroup[groupKey] as unknown[] : [];
+    return groupAnswers.includes(answer);
+  }
+  return acceptedAnswers.includes(answer);
+}
+
 async function loadPuzzleDetail(teamDocId: string, teamNumber: number, puzzleId: number): Promise<PuzzleDetail> {
   const { firestore } = requireFirebaseServices();
   await initializeSession();
@@ -184,6 +251,9 @@ async function loadPuzzleDetail(teamDocId: string, teamNumber: number, puzzleId:
   if (teamSnapshot.get('teamNumber') !== teamNumber) throw new ApiError(403, 'This team is no longer linked to this device.');
 
   const metadata = asRecord(metadataSnapshot.data());
+  if (!(await isPuzzleOpen(firestore, teamRef, puzzleId, metadata))) {
+    throw new ApiError(423, 'This fragment is still hidden.');
+  }
   const content = asRecord(contentSnapshot.data());
   const progress = progressSnapshot.exists() ? asRecord(progressSnapshot.data()) : {};
   const solved = progress.status === 'solved';
@@ -268,6 +338,9 @@ export const api = {
       await loadPuzzleDetail(teamDocId, teamNumber, id);
       const { firestore } = requireFirebaseServices();
       await initializeSession();
+      const teamRef = doc(firestore, 'teams', teamDocId);
+      const correct = await isAnswerCorrect(firestore, teamDocId, teamRef, id, answer, proof);
+      if (!correct) throw new ApiError(400, INCORRECT_ANSWER_MESSAGE);
       const progressRef = puzzleReference(teamDocId, id);
       const result = await runTransaction(firestore, async (transaction) => {
         const progressSnapshot = await transaction.get(progressRef);
@@ -305,9 +378,6 @@ export const api = {
         },
       };
     } catch (error) {
-      if (error instanceof FirebaseError && error.code === 'permission-denied') {
-        throw new ApiError(400, INCORRECT_ANSWER_MESSAGE);
-      }
       throw firebaseApiError(error, 'Could not submit that answer.');
     }
   },
@@ -317,12 +387,22 @@ export const api = {
     try {
       const { firestore } = requireFirebaseServices();
       await initializeSession();
+      const teamRef = doc(firestore, 'teams', teamDocId);
+      const metadataSnapshot = await getDoc(doc(firestore, 'puzzles', String(id)));
+      if (!metadataSnapshot.exists()) throw new ApiError(404, 'Puzzle not found.');
+      const metadata = asRecord(metadataSnapshot.data());
+      if (!(await isPuzzleOpen(firestore, teamRef, id, metadata))) {
+        throw new ApiError(423, 'This fragment is still hidden or no hints remain.');
+      }
+      const maxHints = metadata.maxHints;
+      if (typeof maxHints !== 'number') throw new ApiError(503, 'Puzzle hint metadata is incomplete.');
       const progressRef = puzzleReference(teamDocId, id);
       const hintsUsed = await runTransaction(firestore, async (transaction) => {
         const progressSnapshot = await transaction.get(progressRef);
         const progress = progressSnapshot.exists() ? progressSnapshot.data() : {};
         if (progress.status === 'solved') throw new ApiError(409, 'This fragment has already been solved.');
         const nextCount = (typeof progress.hintsUsed === 'number' ? progress.hintsUsed : 0) + 1;
+        if (nextCount > maxHints) throw new ApiError(409, 'No more hints remain for this fragment.');
         const now = serverTimestamp();
         transaction.set(progressRef, {
           status: 'in_progress',
@@ -332,15 +412,8 @@ export const api = {
         });
         return nextCount;
       });
-      const metadata = await getDoc(doc(firestore, 'puzzles', String(id)));
-      const maxHints = metadata.get('maxHints');
-      if (typeof maxHints !== 'number') throw new ApiError(503, 'Puzzle hint metadata is incomplete.');
-      if (hintsUsed > maxHints) throw new ApiError(409, 'No more hints remain for this fragment.');
       return { hintsUsed, maxHints, hints: await hintDocuments(teamDocId, id, hintsUsed) };
     } catch (error) {
-      if (error instanceof FirebaseError && error.code === 'permission-denied') {
-        throw new ApiError(423, 'This fragment is still hidden or no hints remain.');
-      }
       throw firebaseApiError(error, 'Could not reveal a hint.');
     }
   },
@@ -401,6 +474,11 @@ export const api = {
     try {
       const { firestore } = requireFirebaseServices();
       await initializeSession();
+      const teamRef = doc(firestore, 'teams', teamDocId);
+      const metadataSnapshot = await getDoc(doc(firestore, 'puzzles', '7'));
+      if (!metadataSnapshot.exists() || !(await isPuzzleOpen(firestore, teamRef, 7, asRecord(metadataSnapshot.data())))) {
+        throw new ApiError(423, 'The lantern is still hidden.');
+      }
       const sealHash = await hashText(normalizeSeal(rawSeal));
       const lookup = await getDoc(doc(firestore, 'sealLookups', sealHash));
       if (!lookup.exists()) throw new ApiError(404, 'That seal is false, or belongs to no one yet.');
