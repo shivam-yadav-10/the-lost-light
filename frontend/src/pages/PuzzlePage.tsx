@@ -94,8 +94,7 @@ export function PuzzlePage() {
   const proseBlocks = puzzle.blocks.filter((b) => !VISUAL_BLOCKS.has(b.type));
   const hasCourtyard = puzzle.blocks.some((block) => block.type === 'courtyard');
   const hasVisual = visualBlocks.length > 0 || hasCourtyard;
-  // The street scene and courtyard board need 70% of the desktop width.
-  const columns = hasCourtyard || visualBlocks.some((b) => b.type === 'street')
+  const columns = visualBlocks.some((b) => b.type === 'street')
     ? 'lg:grid-cols-[minmax(0,7fr)_minmax(0,3fr)] lg:gap-x-10'
     : 'lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-x-16';
 
@@ -178,16 +177,23 @@ export function PuzzlePage() {
         ← All fragments
       </Link>
 
-      {hasVisual ? (
+      {hasCourtyard ? (
+        <article className="mt-8 space-y-8 animate-rise">
+          {session && (
+            <LanternCourtyard key={`${session.teamDocId}-${puzzle.id}`} teamDocId={session.teamDocId}
+              busy={busy} solved={solved} feedback={feedback} onSubmit={submitAnswer} />
+          )}
+          <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,3fr)]">
+            {intro}
+            {action}
+          </div>
+        </article>
+      ) : hasVisual ? (
         // Desktop: puzzle visual on the left (stays in view), story + answer on the right.
         // Mobile: story, then visual, then answer.
         <article className={`mt-8 grid items-start gap-10 animate-rise lg:gap-y-10 ${columns}`}>
           <div className="lg:col-start-2 lg:row-start-1">{intro}</div>
           <div className="lg:sticky lg:top-8 lg:col-start-1 lg:row-span-2 lg:row-start-1">
-            {hasCourtyard && session && (
-              <LanternCourtyard key={`${session.teamDocId}-${puzzle.id}`} teamDocId={session.teamDocId}
-                busy={busy} solved={solved} feedback={feedback} onSubmit={submitAnswer} />
-            )}
             <PuzzleBlocks key={`${session?.teamDocId}-${puzzle.id}`} blocks={visualBlocks}
               onRiddlesValidated={setRiddleAnswers} disabled={busy || solved} />
           </div>

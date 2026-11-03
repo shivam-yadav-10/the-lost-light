@@ -71,7 +71,7 @@ export function LanternCourtyard({ teamDocId, busy, solved, feedback, onSubmit }
   }
 
   return (
-    <section className={`card w-full !p-4 sm:!p-6 ${solved ? 'border-ember/60 shadow-ember' : ''}`} aria-labelledby="courtyard-heading">
+    <section className={`card min-w-0 w-full !p-4 ${solved ? 'border-ember/60 shadow-ember' : ''}`} aria-labelledby="courtyard-heading">
       <h2 id="courtyard-heading" className="eyebrow">The lantern courtyard</h2>
       {solved ? (
         <div className="py-16 text-center">
@@ -164,7 +164,7 @@ export function LanternCourtyard({ teamDocId, busy, solved, feedback, onSubmit }
           <div className="mt-4 flex flex-wrap gap-3" aria-label="Lantern symbol legend">
             {LANTERNS.map((id) => <span key={id} className="flex items-center gap-1 text-xs text-parchment/70"><span className="w-6"><LanternMark name={id} /></span>{LABELS[id]}</span>)}
           </div>
-          <p className="mt-3 text-xs text-parchment/50">Click a gate or focus it and press Space/Enter to cycle. Duplicate symbols must be changed before submission. On small screens, scroll the board sideways. Drafts stay in this browser.</p>
+          <p className="mt-3 text-xs text-parchment/50">Click a gate or focus it and press Space/Enter to cycle. Duplicate symbols must be changed before submission. The courtyard uses the full page width; on narrower screens, scroll the board sideways. Drafts stay in this browser.</p>
           <div className="mt-6 flex flex-wrap gap-3">
             <button type="button" className="btn-ember" onClick={() => void offer()} disabled={disabled || !canSubmit}>
               {busy ? 'Lighting...' : 'Light the courtyard'}
