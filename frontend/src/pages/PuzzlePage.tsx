@@ -1,4 +1,4 @@
-import { useCallback, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, ApiError } from '../api/client';
 import type { ContentBlock } from '../api/types';
@@ -24,14 +24,25 @@ export function PuzzlePage() {
   const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
+  const [riddleAnswers, setRiddleAnswers] = useState<string[] | null>(null);
+  useEffect(() => {
+    setRiddleAnswers(null);
+    setAnswer('');
+    setFeedback(null);
+  }, [puzzleId, session?.teamDocId]);
   const closeCelebration = useCallback(() => setCelebrate(false), []);
 
   async function submitAnswer(value: string) {
     if (!session || !puzzle || value.trim().length === 0) return;
+    if (puzzle.id === 5 && !riddleAnswers) {
+      setFeedback({ ok: false, text: 'Solve and check all five day riddles before offering the final word.' });
+      return;
+    }
     setBusy(true);
     setFeedback(null);
     try {
-      const result = await api.submit(puzzle.id, session.teamDocId, session.teamId, value.trim());
+      const result = await api.submit(puzzle.id, session.teamDocId, session.teamId, value.trim(),
+        puzzle.id === 5 ? JSON.stringify(riddleAnswers) : undefined);
       setFeedback({ ok: result.correct, text: result.message });
       if (result.correct) {
         setCelebrate(true);
@@ -133,7 +144,8 @@ export function PuzzlePage() {
           placeholder="Type your answer"
           aria-describedby={feedback ? 'answer-feedback' : undefined}
         />
-        <button type="submit" className="btn-ember w-full" disabled={busy || answer.trim().length === 0}>
+        {puzzle.id === 5 && !riddleAnswers && <p className="text-sm text-parchment/60">Solve all five day riddles and select "Check five answers" before submitting the final word.</p>}
+        <button type="submit" className="btn-ember w-full" disabled={busy || answer.trim().length === 0 || (puzzle.id === 5 && !riddleAnswers)}>
           {busy ? 'Offering…' : 'Offer answer'}
         </button>
         {feedback && (
@@ -176,7 +188,8 @@ export function PuzzlePage() {
               <LanternCourtyard key={`${session.teamDocId}-${puzzle.id}`} teamDocId={session.teamDocId}
                 busy={busy} solved={solved} feedback={feedback} onSubmit={submitAnswer} />
             )}
-            <PuzzleBlocks blocks={visualBlocks} />
+            <PuzzleBlocks key={`${session?.teamDocId}-${puzzle.id}`} blocks={visualBlocks}
+              onRiddlesValidated={setRiddleAnswers} disabled={busy || solved} />
           </div>
           <div className="lg:col-start-2 lg:row-start-2">{action}</div>
         </article>

@@ -26,6 +26,7 @@ import { initializeSession } from '../services/authService';
 import { compactAnswer, hashText, normalizeAnswer, normalizeSeal } from '../services/gameCrypto';
 import { GameServicesUnavailableError, requireFirebaseServices } from '../services/firebase';
 import { assertHintAvailable, hintCount, PUZZLE_IDS, puzzleHintLimit, puzzleRequirements } from '../services/gameRules';
+import { checkRiddleAnswers, parseRiddleProof } from '../services/riddleAnswers';
 
 const ERROR_STATUS: Record<string, number> = {
   'permission-denied': 403,
@@ -232,6 +233,12 @@ async function isAnswerCorrect(
       : {};
     const groupKey = puzzleId === 2 ? team.errandGroup : team.riddleSet;
     const groupAnswers = typeof groupKey === 'string' && Array.isArray(byGroup[groupKey]) ? byGroup[groupKey] as unknown[] : [];
+    if (puzzleId === 5) {
+      const expected = asRecord(secret.riddleAnswersByGroup);
+      if (typeof groupKey !== 'string' || !checkRiddleAnswers(parseRiddleProof(rawProof), expected[groupKey]).every(Boolean)) {
+        throw new ApiError(400, 'Solve and check all five day riddles before offering the final word.');
+      }
+    }
     return groupAnswers.includes(answer);
   }
   return acceptedAnswers.includes(answer);
@@ -322,6 +329,22 @@ async function hintDocuments(teamDocId: string, puzzleId: number, hintsUsed: num
 }
 
 export const api = {
+  checkRiddles: async (teamDocId: string, answers: string[]): Promise<boolean[]> => {
+    try {
+      const { firestore } = requireFirebaseServices();
+      await initializeSession();
+      const [team, secret] = await Promise.all([
+        getDoc(doc(firestore, 'teams', teamDocId)),
+        getDoc(doc(firestore, 'privatePuzzles', '5')),
+      ]);
+      const group = team.get('riddleSet');
+      const expected = asRecord(secret.get('riddleAnswersByGroup'));
+      if (typeof group !== 'string') throw new ApiError(503, 'The team riddle set is missing.');
+      return checkRiddleAnswers(answers, expected[group]);
+    } catch (error) {
+      throw firebaseApiError(error, 'Could not check the five day answers.');
+    }
+  },
   status: async () => ({ name: 'The Lost Light', serverTime: new Date().toISOString(), eventDate: '2026-11-10' }),
 
   puzzle: async (id: number, teamDocId: string, teamNumber: number) => {

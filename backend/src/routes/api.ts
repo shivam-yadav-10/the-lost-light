@@ -22,7 +22,7 @@ import { HttpError } from '../types.js';
 export const api = Router();
 
 const loginSchema = z.object({ gameKey: z.string().min(1).max(64) });
-const answerSchema = z.object({ answer: z.string().min(1).max(200), proof: z.string().max(40).optional() });
+const answerSchema = z.object({ answer: z.string().min(1).max(200), proof: z.string().max(256).optional() });
 const sealSchema = z.object({ seal: z.string().min(1).max(40) });
 const unlockOverrideSchema = z.object({ unlocked: z.boolean() });
 

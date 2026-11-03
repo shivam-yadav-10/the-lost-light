@@ -1,15 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { RiddleLine } from '../api/types';
 import { useTeam } from '../store/team';
+import { api } from '../api/client';
 
 const MAX_INPUT = 40;
 const lettersOnly = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, '');
 
 /**
  * A set of riddles whose answers fill letter boxes; one box per answer is marked.
- * What players type here is a private scratchpad: it stays in this browser and is never sent to the server.
+ * Drafts stay in this browser; checked answers accompany the final word to prevent skipping days.
  */
-export function RiddleSet({ items }: { items: RiddleLine[] }) {
+export function RiddleSet({ items, onValidated, disabled = false }: {
+  items: RiddleLine[];
+  onValidated?: (answers: string[] | null) => void;
+  disabled?: boolean;
+}) {
   const { session } = useTeam();
   const storageKey = useMemo(
     () => `lostlight.riddles.${session?.teamId ?? 'anon'}.${items.map((i) => `${i.lengths.join('-')}:${i.mark}`).join('|')}`,
@@ -23,6 +28,27 @@ export function RiddleSet({ items }: { items: RiddleLine[] }) {
       return items.map(() => '');
     }
   });
+  const [results, setResults] = useState<boolean[] | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const complete = items.length === 5 && items.every((item, index) =>
+    lettersOnly(answers[index]).length === item.lengths.reduce((sum, length) => sum + length, 0));
+
+  async function checkAnswers() {
+    if (!session || !complete) return;
+    setChecking(true);
+    setError(null);
+    try {
+      const checked = await api.checkRiddles(session.teamDocId, answers);
+      setResults(checked);
+      onValidated?.(checked.length === 5 && checked.every(Boolean) ? [...answers] : null);
+    } catch (err) {
+      onValidated?.(null);
+      setError(err instanceof Error ? err.message : 'Could not check the day answers.');
+    } finally {
+      setChecking(false);
+    }
+  }
 
   useEffect(() => {
     try {
@@ -32,7 +58,7 @@ export function RiddleSet({ items }: { items: RiddleLine[] }) {
     }
   }, [storageKey, answers]);
 
-  const marked = items.map((item, i) => lettersOnly(answers[i])[item.mark - 1] ?? '');
+  const marked = items.map((item, i) => lettersOnly(answers[i] ?? '')[item.mark - 1] ?? '');
 
   return (
     <div className="space-y-4">
@@ -85,10 +111,18 @@ export function RiddleSet({ items }: { items: RiddleLine[] }) {
                   maxLength={MAX_INPUT}
                   autoComplete="off"
                   spellCheck={false}
+                  disabled={disabled || checking}
                   placeholder="Fill the boxes"
-                  onChange={(e) => setAnswers((prev) => prev.map((a, j) => (j === i ? e.target.value : a)))}
+                  onChange={(e) => {
+                    setResults(null);
+                    onValidated?.(null);
+                    setAnswers((prev) => prev.map((a, j) => (j === i ? e.target.value : a)));
+                  }}
                 />
               </div>
+              {results && <p className={`mt-3 text-sm ${results[i] ? 'text-ember-glow' : 'text-marigold'}`}>
+                {results[i] ? 'Correct' : 'Not quite. Check this day\'s answer.'}
+              </p>}
             </li>
           );
         })}
@@ -105,8 +139,12 @@ export function RiddleSet({ items }: { items: RiddleLine[] }) {
             </span>
           ))}
         </div>
-        <span className="text-xs text-parchment/45">Your notes stay on this device.</span>
+        <span className="text-xs text-parchment/45">Check all five answers to enable the final word.</span>
       </div>
+      {!disabled && <button type="button" className="btn-ghost" disabled={!complete || checking}
+        onClick={() => void checkAnswers()}>{checking ? 'Checking...' : 'Check five answers'}</button>}
+      {results?.every(Boolean) && <p role="status" className="text-sm text-ember-glow">All five days are correct. You can now offer the final word.</p>}
+      {error && <p role="alert" className="text-sm text-marigold">{error}</p>}
     </div>
   );
 }

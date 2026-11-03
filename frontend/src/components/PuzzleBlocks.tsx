@@ -3,17 +3,23 @@ import { RiddleSet } from './RiddleSet';
 import { StreetScene } from './StreetScene';
 
 /** Renders structured puzzle content delivered by the API. Contains no puzzle data of its own. */
-export function PuzzleBlocks({ blocks }: { blocks: ContentBlock[] }) {
+interface PuzzleBlocksProps {
+  blocks: ContentBlock[];
+  onRiddlesValidated?: (answers: string[] | null) => void;
+  disabled?: boolean;
+}
+
+export function PuzzleBlocks({ blocks, onRiddlesValidated, disabled }: PuzzleBlocksProps) {
   return (
     <div className="space-y-10">
       {blocks.map((block, i) => (
-        <Block key={i} block={block} />
+        <Block key={i} block={block} onRiddlesValidated={onRiddlesValidated} disabled={disabled} />
       ))}
     </div>
   );
 }
 
-function Block({ block }: { block: ContentBlock }) {
+function Block({ block, onRiddlesValidated, disabled }: Omit<PuzzleBlocksProps, 'blocks'> & { block: ContentBlock }) {
   switch (block.type) {
     case 'text':
       return <p className="whitespace-pre-line text-lg font-light leading-relaxed text-parchment/90">{block.text}</p>;
@@ -32,7 +38,7 @@ function Block({ block }: { block: ContentBlock }) {
     case 'street':
       return <StreetScene caption={block.caption} rangoli={block.rangoli} lamps={block.lamps} />;
     case 'riddles':
-      return <RiddleSet items={block.items} />;
+      return <RiddleSet items={block.items} onValidated={onRiddlesValidated} disabled={disabled} />;
     case 'courtyard':
       return (
         <section className="card !p-6" aria-labelledby="courtyard-clues">

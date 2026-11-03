@@ -14,6 +14,13 @@ the preceding question or any additional prerequisites. Existing solved question
 The frontend enforces this order even against older Firebase puzzle metadata, without reseeding progress.
 Question VI is the Lantern Courtyard: teams deduce a five-lantern arrangement, then rotate mirrors to guide
 the diya's beam through the gates to its beacon. Its clues and controls are self-contained on the puzzle page.
+Its compact board animates the beam, mirrors, lantern glow and rangoli, respecting reduced-motion preferences.
+
+Question V requires checking all five day answers before submitting the final word. Changing an answer
+invalidates that check. The submission also validates all five answers against the team's riddle set, so
+knowing only the final word is insufficient. Existing completed progress is not reset.
+Firestore's `privatePuzzles/5` needs `riddleAnswersByGroup` from the current seed content before this frontend
+is deployed; the seed command includes this field automatically.
 
 Each team shares **12 hints across the entire game**, including Convergence and the Final Vault.
 A question allows at most **3 hints** (or fewer if fewer are provisioned). Previously used hints count

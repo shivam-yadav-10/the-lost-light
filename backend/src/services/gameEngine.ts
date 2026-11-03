@@ -253,6 +253,20 @@ function judge(teamId: number, secret: ProtectedPuzzle, rawAnswer: string, rawPr
     // Codes compare on letters and digits only, so "glow 7k4m" and "GLOW-7K4M" both work.
     const compact = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
     const given = compact(rawAnswer);
+    if (secret.id === 5) {
+      let answers: unknown;
+      try {
+        answers = JSON.parse(rawProof ?? 'null');
+      } catch (error) {
+        if (!(error instanceof SyntaxError)) throw error;
+        throw new HttpError(400, 'Solve all five day riddles before offering the final word.');
+      }
+      const expected = secret.riddleAnswersByGroup?.[riddleSet(teamId)];
+      if (!expected || !Array.isArray(answers) || answers.length !== 5
+        || !expected.every((value, index) => typeof answers[index] === 'string' && compact(answers[index]) === compact(value))) {
+        throw new HttpError(400, 'Solve all five day riddles before offering the final word.');
+      }
+    }
     const own = secret.answersByGroup[variantKey(teamId, Object.keys(secret.answersByGroup))].map(compact);
     if (given.length > 0 && own.includes(given)) return { correct: true, message: '', stored: answer };
     const otherGroup = Object.values(secret.answersByGroup).flat().map(compact).includes(given);

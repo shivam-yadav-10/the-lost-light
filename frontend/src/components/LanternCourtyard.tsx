@@ -67,7 +67,7 @@ export function LanternCourtyard({ teamDocId, busy, solved, feedback, onSubmit }
   }
 
   return (
-    <section className={`card !p-4 sm:!p-6 ${solved ? 'border-ember/60 shadow-ember' : ''}`} aria-labelledby="courtyard-heading">
+    <section className={`card mx-auto w-full max-w-[44rem] !p-4 sm:!p-6 ${solved ? 'border-ember/60 shadow-ember' : ''}`} aria-labelledby="courtyard-heading">
       <h2 id="courtyard-heading" className="eyebrow">The lantern courtyard</h2>
       {solved ? (
         <div className="py-16 text-center">
@@ -81,21 +81,32 @@ export function LanternCourtyard({ teamDocId, busy, solved, feedback, onSubmit }
             Place the lanterns using the clues, then tap mirrors A, B and C to turn them.
             The diya sends light to the right. Mirrors reflect it through a right angle.
           </p>
-          <div className="relative my-6 aspect-square overflow-hidden rounded-2xl border border-ember/20 bg-black/20">
-            <svg viewBox="0 0 560 560" className="h-full w-full" role="img" aria-labelledby="courtyard-map-title courtyard-map-description">
+          <div className="courtyard-board relative mx-auto my-6 aspect-square w-full max-w-[34rem] overflow-hidden rounded-2xl border border-ember/20 bg-black/20">
+            <svg viewBox="-20 -20 600 600" className="h-full w-full" role="img" aria-labelledby="courtyard-map-title courtyard-map-description">
               <title id="courtyard-map-title">Courtyard light-path preview</title>
               <desc id="courtyard-map-description">The diya starts at the centre, pointing east. Mirror A is on the right, B at the top right, C at the top left. The beacon is at the bottom left. Gate 1 is between the diya and A; gate 2 between A and B; gates 3 and 4 between B and C; gate 5 between C and the beacon.</desc>
               <g stroke="#f59e0b" fill="none" opacity="0.12">
                 {Array.from({ length: 7 }, (_, i) => <path key={i} d={`M${position(i)} 40V520 M40 ${position(i)}H520`} />)}
-                <circle cx="280" cy="280" r="115" />
-                <circle cx="280" cy="280" r="100" />
-                <path d="M280 165L395 280L280 395L165 280Z" />
               </g>
-              <polyline points={beam.path.map((point) => `${position(point.x)},${position(point.y)}`).join(' ')}
-                fill="none" stroke="#fbbf24" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" />
+              <g className="courtyard-rangoli" stroke="#f59e0b" fill="none">
+                <circle cx="280" cy="280" r="115" strokeDasharray="3 9" />
+                <circle cx="280" cy="280" r="100" opacity="0.5" />
+                {Array.from({ length: 8 }, (_, index) =>
+                  <path key={index} d="M280 180Q320 240 280 266Q240 240 280 180Z"
+                    transform={`rotate(${index * 45} 280 280)`} opacity="0.5" />)}
+              </g>
+              <g key={mirrors.join('-')} fill="none" stroke="#fbbf24" strokeLinecap="round" strokeLinejoin="round">
+                <polyline className="courtyard-beam-aura" pathLength="1" strokeWidth="15"
+                  points={beam.path.map((point) => `${position(point.x)},${position(point.y)}`).join(' ')} />
+                <polyline className="courtyard-beam" pathLength="1" strokeWidth="4"
+                  points={beam.path.map((point) => `${position(point.x)},${position(point.y)}`).join(' ')} />
+                <polyline className="courtyard-beam-sparkle" pathLength="1" stroke="#fff4cc" strokeWidth="2"
+                  points={beam.path.map((point) => `${position(point.x)},${position(point.y)}`).join(' ')} />
+              </g>
               {GATES.map((gate, index) => (
                 <g key={index} transform={`translate(${position(gate.x)},${position(gate.y)})`}>
-                  <rect x="-29" y="-29" width="58" height="58" rx="14" fill="#211915"
+                  <rect className={litGates.has(index) && lanterns[index] ? 'courtyard-lantern-lit' : 'courtyard-lantern'}
+                    x="-29" y="-29" width="58" height="58" rx="14" fill="#211915"
                     stroke={litGates.has(index) && lanterns[index] ? '#fbbf24' : '#806440'} strokeWidth="2" />
                   {lanterns[index] && <svg x="-20" y="-22" width="40" height="40" viewBox="0 0 48 48" className="text-ember-glow"><LanternMark name={lanterns[index]} /></svg>}
                   <text y={lanterns[index] ? 24 : 6} textAnchor="middle" fill="#f3e8ce" fontSize="16">{index + 1}</text>
@@ -103,11 +114,11 @@ export function LanternCourtyard({ teamDocId, busy, solved, feedback, onSubmit }
               ))}
               <g transform={`translate(${position(SOURCE.x)},${position(SOURCE.y)})`} fill="#fbbf24">
                 <path d="M-23 5Q0 35 23 5Z" />
-                <path d="M0 4Q-16 -12 0 -29Q16 -12 0 4Z" />
+                <path className="courtyard-flame" d="M0 4Q-16 -12 0 -29Q16 -12 0 4Z" />
                 <text x="0" y="52" textAnchor="middle" fontSize="18">Diya →</text>
               </g>
               <g transform={`translate(${position(BEACON.x)},${position(BEACON.y)})`}>
-                <circle r="25" fill={ready ? '#fbbf24' : '#211915'} stroke="#fbbf24" strokeWidth="2" />
+                <circle className={ready ? 'courtyard-lantern-lit' : 'courtyard-lantern'} r="25" fill={ready ? '#fbbf24' : '#211915'} stroke="#fbbf24" strokeWidth="2" />
                 <text x="38" y="6" fill="#f3e8ce" fontSize="18">Beacon</text>
               </g>
             </svg>
@@ -116,9 +127,10 @@ export function LanternCourtyard({ teamDocId, busy, solved, feedback, onSubmit }
                 onClick={() => { setError(null); setMirrors((current) => current.map((value, i) => i === index ? value === 'slash' ? 'backslash' : 'slash' : value)); }}
                 aria-label={`Rotate mirror ${'ABC'[index]}, currently ${mirrors[index] === 'slash' ? 'forward slash' : 'backslash'}`}
                 className="absolute flex min-h-11 min-w-11 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-lg border border-ember/70 bg-night text-ember-glow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ember-glow disabled:opacity-50"
-                style={{ left: `${position(mirror.x) / 5.6}%`, top: `${position(mirror.y) / 5.6}%`, width: '11%', height: '11%' }}>
+                style={{ left: `${(position(mirror.x) + 20) / 6}%`, top: `${(position(mirror.y) + 20) / 6}%`, width: '10%', height: '10%' }}>
                 <span className="text-[10px] leading-none">{'ABC'[index]}</span>
-                <span aria-hidden="true" className="font-code text-2xl leading-none">{mirrors[index] === 'slash' ? '/' : '\\'}</span>
+                <span aria-hidden="true" className="courtyard-mirror font-code text-2xl leading-none"
+                  style={{ transform: `rotate(${mirrors[index] === 'slash' ? 0 : 90}deg)` }}>/</span>
               </button>
             ))}
           </div>

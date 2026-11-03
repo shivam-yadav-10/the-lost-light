@@ -3,7 +3,8 @@ import { afterEach, beforeEach, test } from 'node:test';
 import { config } from '../src/config.ts';
 import { applySchema, closeDb, getDb } from '../src/db/connection.ts';
 import { seed } from '../src/db/seed.ts';
-import { getPuzzleForTeam, getTeamProgress, requestHint } from '../src/services/gameEngine.ts';
+import { getPuzzleForTeam, getTeamProgress, requestHint, submitAnswer } from '../src/services/gameEngine.ts';
+import { FIVE_DAWNS_SETS } from '../src/content/protected.ts';
 
 beforeEach(() => {
   config.dbPath = ':memory:';
@@ -91,3 +92,28 @@ test('saved hint usage remains after a question is solved and is counted on the 
   assert.equal(getPuzzleForTeam(1, 1).hintsUsed, 2);
   assert.equal(requestHint(1, 2).teamHintsUsed, 3);
 });
+
+test('knowing the final word cannot bypass missing, incomplete or incorrect day answers', () => {
+  for (const id of [1, 2, 3, 4]) saveProgress(id, 0);
+  const set = FIVE_DAWNS_SETS[0];
+  for (const proof of [
+    undefined, 'invalid json', JSON.stringify(set.lines.slice(0, 4)),
+    JSON.stringify([...set.lines.slice(0, 4), '']),
+    JSON.stringify(['WRONG', ...set.lines.slice(1)]),
+    JSON.stringify(FIVE_DAWNS_SETS[1].lines),
+  ]) {
+    assert.throws(() => submitAnswer(1, 5, set.final, proof), /all five day riddles/);
+    assert.notEqual(getTeamProgress(1).puzzles[4].state, 'SOLVED');
+  }
+});
+
+for (const [index, set] of FIVE_DAWNS_SETS.entries()) {
+  test(`five correct day answers and final word complete riddle set ${set.group}`, () => {
+    if (index >= 4) getDb().prepare('INSERT INTO teams (id, name, game_key) VALUES (?, ?, ?)').run(index + 1, `Test ${index}`, `TEST-${index}`);
+    const teamId = index + 1;
+    for (const id of [1, 2, 3, 4]) saveProgress(id, 0, 'solved', teamId);
+    const result = submitAnswer(teamId, 5, set.final, JSON.stringify(set.lines.map((line) => line.toLowerCase())));
+    assert.equal(result.correct, true);
+    assert.equal(result.puzzle.state, 'SOLVED');
+  });
+}

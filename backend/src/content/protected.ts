@@ -130,6 +130,7 @@ export const PROTECTED_PUZZLES: ProtectedPuzzle[] = [
     id: 5,
     answers: [], // team-specific: see answersByGroup (built from FIVE_DAWNS_SETS)
     answersByGroup: Object.fromEntries(FIVE_DAWNS_SETS.map((s) => [s.group, [s.final]])),
+    riddleAnswersByGroup: Object.fromEntries(FIVE_DAWNS_SETS.map((s) => [s.group, s.lines])),
     otherGroupMessage:
       "That word belongs to another team's riddles. Your five dawns spell something else; read your own marked letters.",
     nearMisses: [
