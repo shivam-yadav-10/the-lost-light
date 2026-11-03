@@ -312,10 +312,10 @@ async function seedFirestore(): Promise<void> {
         const existing = fixtureSnapshots[index];
         const teamDocument: DocumentData = { ...expected };
         if (!existing.exists) {
-          teamDocument.assignedUid = null;
+          teamDocument.assignedUids = [];
           teamDocument.createdAt = FieldValue.serverTimestamp();
         } else {
-          if (existing.get('assignedUid') === undefined) teamDocument.assignedUid = null;
+          if (existing.get('assignedUids') === undefined) teamDocument.assignedUids = [];
           if (existing.get('createdAt') === undefined) teamDocument.createdAt = FieldValue.serverTimestamp();
         }
         transaction.set(teamCollection.doc(id), teamDocument, { merge: true });
@@ -382,7 +382,6 @@ async function seedFirestore(): Promise<void> {
         teamName,
         gameKeyHash,
         active: team.active === true,
-        assignedUid: typeof team.assignedUid === 'string' ? team.assignedUid : null,
         shardType,
         lantern: buildLantern(teamNumber),
         lanternKey: teamKey(teamNumber),
@@ -411,7 +410,6 @@ async function seedFirestore(): Promise<void> {
           teamNumber: team.teamNumber,
           teamName: team.teamName,
           active: team.active,
-          assignedUid: team.assignedUid,
         },
       },
       {

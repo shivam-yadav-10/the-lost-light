@@ -1,5 +1,5 @@
 import { FirebaseError } from 'firebase/app';
-import { doc, getDoc, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, runTransaction, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { initializeSession } from './authService';
 import { hashText } from './gameCrypto';
 import { GameServicesUnavailableError, requireFirebaseServices } from './firebase';
@@ -18,14 +18,16 @@ export class TeamLoginError extends Error {
   }
 }
 
+/** Up to this many browsers/devices may be signed in to the same team at once. */
+export const MAX_DEVICES_PER_TEAM = 3;
+
 const INVALID_KEY_MESSAGE = 'That key does not open any door.';
+const DEVICE_LIMIT_MESSAGE = `This team already has ${MAX_DEVICES_PER_TEAM} devices linked. Ask an organiser to free a slot.`;
 
 interface TeamKeyClaim {
   teamId: string;
   teamNumber: number;
   teamName: string;
-  active: boolean;
-  assignedUid: string | null;
 }
 
 function parseClaim(value: unknown): TeamKeyClaim {
@@ -41,8 +43,7 @@ function parseClaim(value: unknown): TeamKeyClaim {
     record.teamNumber < 1 ||
     typeof record.teamName !== 'string' ||
     !record.teamName.trim() ||
-    record.active !== true ||
-    (record.assignedUid != null && typeof record.assignedUid !== 'string')
+    record.active !== true
   ) {
     throw new GameServicesUnavailableError();
   }
@@ -50,9 +51,12 @@ function parseClaim(value: unknown): TeamKeyClaim {
     teamId: record.teamId,
     teamNumber: record.teamNumber,
     teamName: record.teamName,
-    active: true,
-    assignedUid: typeof record.assignedUid === 'string' ? record.assignedUid : null,
   };
+}
+
+function assignedDeviceIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((entry): entry is string => typeof entry === 'string');
 }
 
 export async function validateTeamGameKey(rawGameKey: string): Promise<TeamIdentity> {
@@ -63,52 +67,44 @@ export async function validateTeamGameKey(rawGameKey: string): Promise<TeamIdent
   const user = await initializeSession();
   try {
     const keyHash = await hashText(gameKey);
-    const claimRef = doc(firestore, 'teamKeyClaims', keyHash);
-    const claimSnapshot = await getDoc(claimRef);
+    const claimSnapshot = await getDoc(doc(firestore, 'teamKeyClaims', keyHash));
     if (!claimSnapshot.exists()) throw new TeamLoginError(INVALID_KEY_MESSAGE);
-
     const claim = parseClaim(claimSnapshot.data());
-    if (claim.assignedUid && claim.assignedUid !== user.uid) {
-      throw new TeamLoginError('This team is already linked to another device.');
-    }
 
     const teamRef = doc(firestore, 'teams', claim.teamId);
-    if (!claim.assignedUid) {
-      const batch = writeBatch(firestore);
-      batch.update(claimRef, { assignedUid: user.uid });
-      batch.update(teamRef, {
-        assignedUid: user.uid,
-        lastSeenAt: serverTimestamp(),
-      });
-      await batch.commit();
-    }
+    const introSeen = await runTransaction(firestore, async (transaction) => {
+      const teamSnapshot = await transaction.get(teamRef);
+      if (!teamSnapshot.exists()) throw new GameServicesUnavailableError();
+      const teamData = teamSnapshot.data();
+      if (
+        teamData.active !== true ||
+        teamData.teamNumber !== claim.teamNumber ||
+        teamData.teamName !== claim.teamName
+      ) {
+        throw new GameServicesUnavailableError();
+      }
 
-    const teamSnapshot = await getDoc(teamRef);
-    if (!teamSnapshot.exists()) throw new GameServicesUnavailableError();
-    const teamData = teamSnapshot.data();
-    if (
-      teamData.assignedUid !== user.uid ||
-      teamData.active !== true ||
-      teamData.teamNumber !== claim.teamNumber ||
-      teamData.teamName !== claim.teamName
-    ) {
-      throw new TeamLoginError('This team is already linked to another device.');
-    }
+      const devices = assignedDeviceIds(teamData.assignedUids);
+      if (devices.includes(user.uid)) {
+        transaction.update(teamRef, { lastSeenAt: serverTimestamp() });
+      } else {
+        if (devices.length >= MAX_DEVICES_PER_TEAM) throw new TeamLoginError(DEVICE_LIMIT_MESSAGE);
+        transaction.update(teamRef, {
+          assignedUids: [...devices, user.uid],
+          lastSeenAt: serverTimestamp(),
+        });
+      }
+      return teamData.introSeenAt != null;
+    });
 
     return {
       teamId: claim.teamId,
       teamNumber: claim.teamNumber,
       teamName: claim.teamName,
-      introSeen: teamData.introSeenAt != null,
+      introSeen,
     };
   } catch (error) {
     if (error instanceof TeamLoginError || error instanceof GameServicesUnavailableError) throw error;
-    if (error instanceof FirebaseError && error.code === 'permission-denied') {
-      const claimSnapshot = await getDoc(doc(firestore, 'teamKeyClaims', await hashText(gameKey)));
-      if (claimSnapshot.exists() && claimSnapshot.get('assignedUid') !== user.uid) {
-        throw new TeamLoginError('This team is already linked to another device.');
-      }
-    }
     if (error instanceof FirebaseError) throw new GameServicesUnavailableError();
     throw error;
   }
@@ -121,7 +117,7 @@ export async function markTeamIntroSeen(teamDocId: string): Promise<void> {
   const teamRef = doc(firestore, 'teams', teamDocId);
   try {
     const teamSnapshot = await getDoc(teamRef);
-    if (!teamSnapshot.exists() || teamSnapshot.get('assignedUid') !== user.uid) {
+    if (!teamSnapshot.exists() || !assignedDeviceIds(teamSnapshot.get('assignedUids')).includes(user.uid)) {
       throw new TeamLoginError('This team is no longer linked to this device.');
     }
     if (teamSnapshot.get('introSeenAt') == null) {

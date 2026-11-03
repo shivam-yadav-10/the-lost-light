@@ -259,8 +259,9 @@ export async function getTeamProgress(teamDocId: string, teamNumber: number): Pr
     if (!teamSnapshot.exists()) throw new GameServicesUnavailableError();
 
     const team = asRecord(teamSnapshot.data());
-    if (team.assignedUid !== user.uid) {
-      throw new TeamLoginError('This team is already linked to another device.');
+    const assignedUids = Array.isArray(team.assignedUids) ? team.assignedUids.filter((v) => typeof v === 'string') : [];
+    if (!assignedUids.includes(user.uid)) {
+      throw new TeamLoginError('This team is no longer linked to this device.');
     }
     if (team.active !== true || team.teamNumber !== teamNumber) {
       throw new GameServicesUnavailableError();
