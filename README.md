@@ -22,6 +22,9 @@ scrolling, with clues and hints on the right. Extra board height keeps controls 
 scroll sideways to keep the controls usable. All twenty mirrors and all five gates must be visited.
 The answer uses a compact orientation code to stay within the submission limit. Old v1/v2 browser drafts are ignored,
 while completed team progress and the fragment reward are preserved.
+Mirror positions use deterministic team-specific corridor spacing: each team sees a different physical
+arrangement, stable across browsers and refreshes. The route topology, answer encoding and hints remain
+compatible; existing solved progress is unchanged. Earlier browser drafts are isolated from the new layout.
 
 Question V requires checking all five day answers before submitting the final word. Changing an answer
 invalidates that check. The submission also validates all five answers against the team's riddle set, so

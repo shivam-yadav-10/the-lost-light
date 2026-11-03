@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   BEACON, BOARD_COLUMNS, BOARD_ROWS, COURTYARD_VERSION, courtyardAnswer, GATES, INITIAL_MIRRORS, LANTERNS, MIRRORS, nextLantern, SOURCE, traceCourtyard,
-  type Mirror,
+  teamCourtyardPosition, type Mirror,
 } from '../services/courtyard';
 
 interface LanternCourtyardProps {
@@ -21,12 +21,19 @@ const top = (y: number) => `${(position(y) + 20) / HEIGHT * 100}%`;
 
 /** Tap-to-cycle lanterns and rotating mirrors with a live beam preview and local draft. */
 export function LanternCourtyard({ teamDocId, busy, solved, feedback, onSubmit }: LanternCourtyardProps) {
+  const arrange = useMemo(() => teamCourtyardPosition(teamDocId), [teamDocId]);
+  const gates = GATES.map(arrange);
+  const mirrorPositions = MIRRORS.map(arrange);
+  const source = arrange(SOURCE);
+  const beacon = arrange(BEACON);
+  const px = (x: number) => position(arrange({ x, y: 0 }).x);
+  const py = (y: number) => position(arrange({ x: 0, y }).y);
   const [lanterns, setLanterns] = useState<string[]>(['', '', '', '', '']);
   const [mirrors, setMirrors] = useState<Mirror[]>([...INITIAL_MIRRORS]);
   const [error, setError] = useState<string | null>(null);
   const [storageError, setStorageError] = useState<string | null>(null);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
-  const storageKey = `lostlight.${COURTYARD_VERSION}.${teamDocId}`;
+  const storageKey = `lostlight.${COURTYARD_VERSION}.layout-v1.${teamDocId}`;
 
   useEffect(() => {
     setLanterns(['', '', '', '', '']);
@@ -56,6 +63,7 @@ export function LanternCourtyard({ teamDocId, busy, solved, feedback, onSubmit }
   }, [lanterns, mirrors, loadedKey, storageKey]);
 
   const beam = traceCourtyard(mirrors);
+  const beamPoints = beam.path.map(arrange).map((point) => `${position(point.x)},${position(point.y)}`).join(' ');
   const ready = beam.reachedBeacon && new Set(beam.gates).size === 5 && new Set(beam.mirrorsVisited).size === MIRRORS.length;
   const litGates = new Set(beam.gates);
   const disabled = busy || solved || loadedKey !== storageKey;
@@ -86,6 +94,7 @@ export function LanternCourtyard({ teamDocId, busy, solved, feedback, onSubmit }
             Use each symbol once. Tap mirrors A to T to turn them. The beam must visit all five gates
             and all twenty mirrors before reaching the beacon. The diya sends light to the right.
             Some wrong turns feed back into earlier mirrors; faded branches can lead to dark dead ends.
+            Mirror positions are arranged for your team and stay the same across browsers.
           </p>
           <div className="my-6 overflow-x-auto rounded-2xl border border-ember/20">
           <div className="courtyard-board relative min-h-[540px] w-full min-w-[660px] bg-black/20 lg:min-w-0" style={{ aspectRatio: `${WIDTH} / ${HEIGHT}` }}>
@@ -93,16 +102,16 @@ export function LanternCourtyard({ teamDocId, busy, solved, feedback, onSubmit }
               <title id="courtyard-map-title">Courtyard light-path preview</title>
               <desc id="courtyard-map-description">The diya starts near the bottom centre, pointing east. Twenty mirrors form a winding path across the courtyard to the top-left beacon. Use the labelled mirror and gate buttons to explore the live light path.</desc>
               <g stroke="#f59e0b" fill="none" opacity="0.12">
-                {Array.from({ length: BOARD_COLUMNS }, (_, i) => <path key={`v${i}`} d={`M${position(i)} 40V${position(BOARD_ROWS - 1)}`} />)}
-                {Array.from({ length: BOARD_ROWS }, (_, i) => <path key={`h${i}`} d={`M40 ${position(i)}H${position(BOARD_COLUMNS - 1)}`} />)}
+                {Array.from({ length: BOARD_COLUMNS }, (_, i) => <path key={`v${i}`} d={`M${px(i)} 40V${py(BOARD_ROWS - 1)}`} />)}
+                {Array.from({ length: BOARD_ROWS }, (_, i) => <path key={`h${i}`} d={`M40 ${py(i)}H${px(BOARD_COLUMNS - 1)}`} />)}
               </g>
               <g fill="none" stroke="#ad8051" strokeWidth="7" strokeDasharray="5 13" opacity="0.22" aria-hidden="true">
-                <path d={`M${position(5)} ${position(1)}H${position(24)} M${position(15)} ${position(5)}H${position(24)} M${position(15)} ${position(5)}V${position(10)} M${position(21)} ${position(7)}H${position(24)} M${position(5)} ${position(3)}H${position(12)}`} />
+                <path d={`M${px(5)} ${py(1)}H${px(24)} M${px(15)} ${py(5)}H${px(24)} M${px(15)} ${py(5)}V${py(10)} M${px(21)} ${py(7)}H${px(24)} M${px(5)} ${py(3)}H${px(12)}`} />
               </g>
               <g stroke="#806440" strokeWidth="3" opacity="0.55" aria-hidden="true">
                 {[{ x: 24, y: 1 }, { x: 24, y: 5 }, { x: 24, y: 7 }, { x: 15, y: 10 }, { x: 12, y: 3 }].map((point) => (
                   <path key={`${point.x}-${point.y}`}
-                    d={`M${position(point.x) - 9} ${position(point.y) - 9}l18 18m0 -18l-18 18`} />
+                    d={`M${px(point.x) - 9} ${py(point.y) - 9}l18 18m0 -18l-18 18`} />
                 ))}
               </g>
               <g transform="translate(720 120)">
@@ -116,23 +125,23 @@ export function LanternCourtyard({ teamDocId, busy, solved, feedback, onSubmit }
               </g>
               <g key={mirrors.join('-')} fill="none" stroke="#fbbf24" strokeLinecap="round" strokeLinejoin="round">
                 <polyline className="courtyard-beam-aura" pathLength="1" strokeWidth="15"
-                  points={beam.path.map((point) => `${position(point.x)},${position(point.y)}`).join(' ')} />
+                  points={beamPoints} />
                 <polyline className="courtyard-beam" pathLength="1" strokeWidth="4"
-                  points={beam.path.map((point) => `${position(point.x)},${position(point.y)}`).join(' ')} />
+                  points={beamPoints} />
                 <polyline className="courtyard-beam-sparkle" pathLength="1" stroke="#fff4cc" strokeWidth="2"
-                  points={beam.path.map((point) => `${position(point.x)},${position(point.y)}`).join(' ')} />
+                  points={beamPoints} />
               </g>
-              <g transform={`translate(${position(SOURCE.x)},${position(SOURCE.y)})`} fill="#fbbf24">
+              <g transform={`translate(${position(source.x)},${position(source.y)})`} fill="#fbbf24">
                 <path d="M-23 5Q0 35 23 5Z" />
                 <path className="courtyard-flame" d="M0 4Q-16 -12 0 -29Q16 -12 0 4Z" />
                 <text x="0" y="52" textAnchor="middle" fontSize="18">Diya →</text>
               </g>
-              <g transform={`translate(${position(BEACON.x)},${position(BEACON.y)})`}>
+              <g transform={`translate(${position(beacon.x)},${position(beacon.y)})`}>
                 <circle className={ready ? 'courtyard-lantern-lit' : 'courtyard-lantern'} r="25" fill={ready ? '#fbbf24' : '#211915'} stroke="#fbbf24" strokeWidth="2" />
                 <text x="38" y="6" fill="#f3e8ce" fontSize="18">Beacon</text>
               </g>
             </svg>
-            {GATES.map((gate, index) => (
+            {gates.map((gate, index) => (
               <button key={index} type="button" disabled={disabled}
                 aria-label={`Gate ${index + 1}: ${LABELS[lanterns[index]] ?? 'empty'}. Click for ${LABELS[nextLantern(lanterns[index])] ?? 'empty'}.`}
                 onClick={() => {
@@ -145,7 +154,7 @@ export function LanternCourtyard({ teamDocId, busy, solved, feedback, onSubmit }
                 <span className="text-xs leading-none">{index + 1}</span>
               </button>
             ))}
-            {MIRRORS.map((mirror, index) => (
+            {mirrorPositions.map((mirror, index) => (
               <button key={index} type="button" disabled={disabled}
                 onClick={() => { setError(null); setMirrors((current) => current.map((value, i) => i === index ? value === 'slash' ? 'backslash' : 'slash' : value)); }}
                 aria-label={`Rotate mirror ${'ABCDEFGHIJKLMNOPQRST'[index]}, currently ${mirrors[index] === 'slash' ? 'forward slash' : 'backslash'}`}

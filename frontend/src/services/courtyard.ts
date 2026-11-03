@@ -23,6 +23,38 @@ export const INITIAL_MIRRORS: Mirror[] = [
   'slash', 'slash', 'backslash', 'slash', 'slash',
 ];
 
+/** Changes corridor spacing without changing intersections or reflection rules. */
+export function teamCourtyardPosition(teamId: string): (point: Point) => Point {
+  if (!teamId.trim()) throw new Error('A team is required to arrange the courtyard.');
+  let seed = 2166136261;
+  for (const char of `courtyard-layout-v1:${teamId}`) {
+    seed = Math.imul(seed ^ char.charCodeAt(0), 16777619) >>> 0;
+  }
+  const random = () => {
+    seed += 0x6D2B79F5;
+    let value = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    value ^= value + Math.imul(value ^ value >>> 7, 61 | value);
+    return ((value ^ value >>> 14) >>> 0) / 4294967296;
+  };
+  const xs = [0, 2 + random()];
+  for (let i = 2; i < 11; i++) xs.push(xs[i - 1] + 2 + random() * 0.15);
+  xs.push(24);
+  const ys = [0, 0.6 + random() * 0.3];
+  for (let i = 2; i < 6; i++) ys.push(ys[i - 1] + 2 + random() * 0.1);
+  ys.push(10);
+  const interpolate = (value: number, from: readonly number[], to: readonly number[]) => {
+    const index = from.findIndex((coordinate) => coordinate >= value);
+    if (index === -1) return to[to.length - 1] + value - from[from.length - 1];
+    if (index === 0) return to[0] + value - from[0];
+    const fraction = (value - from[index - 1]) / (from[index] - from[index - 1]);
+    return to[index - 1] + fraction * (to[index] - to[index - 1]);
+  };
+  return ({ x, y }) => ({
+    x: interpolate(x, [0, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 24], xs),
+    y: interpolate(y, [0, 1, 3, 5, 7, 9, 10], ys),
+  });
+}
+
 export function nextLantern(current: string): string {
   const cycle: readonly string[] = ['', ...LANTERNS];
   return cycle[(cycle.indexOf(current) + 1) % cycle.length];

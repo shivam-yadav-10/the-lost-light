@@ -8,6 +8,7 @@ import {
   INITIAL_MIRRORS,
   MIRRORS,
   nextLantern,
+  teamCourtyardPosition,
   traceCourtyard,
 } from '../src/services/courtyard.ts';
 
@@ -65,4 +66,36 @@ test('gate clicks cycle every symbol and then return to empty', () => {
   }
   assert.deepEqual(cycle, ['lotus', 'star', 'leaf', 'bell', 'moon', '']);
   assert.equal(nextLantern(''), 'lotus');
+});
+
+test('team positions are stable, distinct, ordered and keep controls separated', () => {
+  const layouts = new Set();
+  for (let team = 1; team <= 1000; team++) {
+    const arrange = teamCourtyardPosition(`TEAM-${team}`);
+    const points = [...GATES, ...MIRRORS].map(arrange);
+    const layout = JSON.stringify(points);
+    assert.equal(JSON.stringify([...GATES, ...MIRRORS].map(teamCourtyardPosition(`TEAM-${team}`))), layout);
+    layouts.add(layout);
+    for (let x = 1; x < BOARD_COLUMNS; x++) {
+      assert.ok(arrange({ x, y: 0 }).x > arrange({ x: x - 1, y: 0 }).x);
+    }
+    for (let y = 1; y < BOARD_ROWS; y++) {
+      assert.ok(arrange({ x: 0, y }).y > arrange({ x: 0, y: y - 1 }).y);
+    }
+    for (let i = 0; i < points.length; i++) {
+      assert.ok(points[i].x >= 0 && points[i].x < BOARD_COLUMNS);
+      assert.ok(points[i].y >= 0 && points[i].y < BOARD_ROWS);
+      for (let j = i + 1; j < points.length; j++) {
+        const dx = Math.abs(points[i].x - points[j].x) * 80 * 610 / (BOARD_COLUMNS * 80 + 40);
+        const dy = Math.abs(points[i].y - points[j].y) * 80 * 540 / (BOARD_ROWS * 80 + 40);
+        assert.ok(dx >= 44 || dy >= 44, `Overlapping controls for team ${team}`);
+      }
+    }
+    const route = traceCourtyard(SOLVED_MIRRORS).path.map(arrange);
+    for (let i = 1; i < route.length; i++) {
+      assert.ok(route[i].x === route[i - 1].x || route[i].y === route[i - 1].y);
+    }
+  }
+  assert.equal(layouts.size, 1000);
+  assert.throws(() => teamCourtyardPosition(''), /team is required/);
 });
