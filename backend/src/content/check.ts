@@ -28,6 +28,7 @@ import {
   teamSeal,
 } from '../services/convergence.js';
 import { normaliseAnswer } from '../services/normalise.js';
+import { buildOverlayCards, OVERLAY_WORD, planConvergenceGroups, wordPixels } from '../services/convergenceOverlay.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 let failures = 0;
@@ -150,6 +151,20 @@ const naive = vaultWord(false);
 check('Uncorrected Vault word is the SHADED trap with a near miss', nearMissFor(8, naive.toLowerCase()), naive);
 
 // ---------- VII. The Convergence ----------
+check('Convergence hidden word matches its accepted answer', OVERLAY_WORD.toLowerCase() === canonical(7));
+for (const size of [2, 3]) {
+  const cards = buildOverlayCards(Array.from({ length: size }, (_, i) => `check-${i}`));
+  const pixels = cards.flatMap((card) => card.lit);
+  const dark = wordPixels();
+  check(`${size}-team overlay leaves exactly the dark word`,
+    pixels.length === new Set(pixels).size && pixels.length + dark.size === 31 * 9
+    && pixels.every((pixel) => !dark.has(pixel)));
+  check(`${size}-team overlay needs every card`, cards.every((card) => card.lit.length > 20));
+}
+check('15 teams form six mutual pairs and one triple',
+  planConvergenceGroups(Array.from({ length: 15 }, (_, i) => ({ id: String(i + 1), teamNumber: i + 1 })), new Map())
+    .map((group) => group.length).sort().join() === '2,2,2,2,2,2,3');
+// The old digit lantern remains an internal derivation for existing Vault proofs.
 const targets = lanternTargets();
 check('Lantern targets are six distinct cells', new Set(targets.map((t) => `${t.spoke}:${t.ring}`)).size === 6);
 check('Key order is violet → red', targets.map((t) => t.colour).join() === [...RAINBOW].reverse().join());

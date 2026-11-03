@@ -14,10 +14,8 @@ import type {
   ConvergenceState,
   FragmentMeta,
   HintResult,
-  LanternCell,
   PuzzleDetail,
   SealResult,
-  ShardRule,
   Spoke,
   SubmitResult,
   SymbolName,
@@ -27,6 +25,7 @@ import { compactAnswer, hashText, normalizeAnswer, normalizeSeal } from '../serv
 import { GameServicesUnavailableError, requireFirebaseServices } from '../services/firebase';
 import { assertHintAvailable, hintCount, PUZZLE_IDS, puzzleHintLimit, puzzleRequirements } from '../services/gameRules';
 import { checkRiddleAnswers, parseRiddleProof } from '../services/riddleAnswers';
+import { alignmentProof, parseMemberIds, parseOverlayCard } from '../services/convergenceOverlay';
 
 const ERROR_STATUS: Record<string, number> = {
   'permission-denied': 403,
@@ -75,7 +74,6 @@ function firebaseApiError(error: unknown, fallback: string): ApiError {
 }
 
 function answerForRules(puzzleId: number, rawAnswer: string): string {
-  if (puzzleId === 7) return rawAnswer.replace(/\D/g, '');
   if (puzzleId === 2 || puzzleId === 5) return compactAnswer(rawAnswer);
   return normalizeAnswer(rawAnswer);
 }
@@ -92,27 +90,12 @@ function requiredString(record: DataRecord, key: string): string {
   return value;
 }
 
-function isShardType(value: unknown): value is ShardRule['type'] {
-  return value === 'A' || value === 'B' || value === 'C' || value === 'D';
-}
-
 function isSymbolName(value: unknown): value is SymbolName {
   return typeof value === 'string' && FRAGMENT_SYMBOLS.has(value);
 }
 
 function isSpoke(value: unknown): value is Spoke {
   return typeof value === 'string' && LANTERN_SPOKES.has(value);
-}
-
-function parseShardRule(value: unknown): ShardRule {
-  const record = asRecord(value);
-  if (!isShardType(record.type)) throw new ApiError(503, 'Convergence data in Firebase is incomplete.');
-  return { type: record.type, name: requiredString(record, 'name'), text: requiredString(record, 'text') };
-}
-
-function parseShard(value: unknown): ConvergenceState['shard'] {
-  const record = asRecord(value);
-  return { ...parseShardRule(record), seal: requiredString(record, 'seal') };
 }
 
 function parseFragment(value: unknown): FragmentMeta | null {
@@ -136,31 +119,14 @@ function parseFragment(value: unknown): FragmentMeta | null {
   };
 }
 
-function parseLantern(value: unknown): LanternCell[] {
-  if (!Array.isArray(value)) throw new ApiError(503, 'Lantern data in Firebase is incomplete.');
-  return value.map((cell) => {
-    const record = asRecord(cell);
-    if (
-      !isSpoke(record.spoke) ||
-      typeof record.ring !== 'number' ||
-      !Number.isInteger(record.ring) ||
-      record.ring < 1 ||
-      typeof record.flame !== 'number' ||
-      !Number.isInteger(record.flame) ||
-      typeof record.shadow !== 'number' ||
-      !Number.isInteger(record.shadow) ||
-      !isSymbolName(record.mark)
-    ) {
-      throw new ApiError(503, 'Lantern data in Firebase is incomplete.');
-    }
-    return {
-      spoke: record.spoke,
-      ring: record.ring,
-      flame: record.flame,
-      shadow: record.shadow,
-      mark: record.mark,
-    };
-  });
+function parseCircle(value: unknown, ownId: string) {
+  const record = asRecord(value);
+  if (record.version !== 2) throw new ApiError(503, 'Your lantern circle has not been provisioned.');
+  return {
+    memberIds: parseMemberIds(record.memberIds, ownId),
+    seal: requiredString(record, 'seal'),
+    card: parseOverlayCard(record.card),
+  };
 }
 
 function puzzleReference(teamDocId: string, puzzleId: number) {
@@ -216,9 +182,8 @@ async function isAnswerCorrect(
   const acceptedAnswers = Array.isArray(secret.acceptedAnswers) ? secret.acceptedAnswers as unknown[] : [];
 
   if (puzzleId === 7) {
-    const privateTeam = await getDoc(doc(firestore, 'privateTeamData', teamDocId));
-    const key = privateTeam.get('lanternKey');
-    return typeof key === 'string' && answer === key;
+    await validateConvergenceSubmission(teamDocId, rawProof);
+    return acceptedAnswers.includes(answer);
   }
   if (puzzleId === 8) {
     const privateTeam = await getDoc(doc(firestore, 'privateTeamData', teamDocId));
@@ -242,6 +207,33 @@ async function isAnswerCorrect(
     return groupAnswers.includes(answer);
   }
   return acceptedAnswers.includes(answer);
+}
+
+async function validateConvergenceSubmission(
+  ownId: string,
+  proof: string | undefined,
+  transaction?: Parameters<Parameters<typeof runTransaction>[1]>[0],
+): Promise<void> {
+  const { firestore } = requireFirebaseServices();
+  const read = (reference: ReturnType<typeof doc>) => transaction ? transaction.get(reference) : getDoc(reference);
+  const own = await read(doc(firestore, 'teamGameData', ownId));
+  const circle = parseCircle(own.get('convergence'), ownId);
+  alignmentProof(proof, circle.memberIds, ownId);
+  for (const partnerId of circle.memberIds.filter((id) => id !== ownId)) {
+    const [partner, seal, arrival, progress] = await Promise.all([
+      read(doc(firestore, 'teamGameData', partnerId)),
+      read(doc(firestore, 'teams', ownId, 'convergenceSeals', partnerId)),
+      read(doc(firestore, 'teams', partnerId, 'convergence', 'arrival')),
+      read(doc(firestore, 'teams', partnerId, 'progress', '7')),
+    ]);
+    const partnerCircle = parseCircle(partner.get('convergence'), partnerId);
+    if (JSON.stringify(partnerCircle.memberIds) !== JSON.stringify(circle.memberIds)
+      || !seal.exists() || seal.get('version') !== 2
+      || seal.get('sealHash') !== await hashText(normalizeSeal(partnerCircle.seal))
+      || (!arrival.exists() && progress.get('status') !== 'solved')) {
+      throw new ApiError(400, 'Every partner must arrive and have their seal verified before offering the word.');
+    }
+  }
 }
 
 async function loadPuzzleDetail(teamDocId: string, teamNumber: number, puzzleId: number): Promise<PuzzleDetail> {
@@ -373,6 +365,7 @@ export const api = {
         const progressSnapshot = await transaction.get(progressRef);
         const progress = progressSnapshot.exists() ? progressSnapshot.data() : {};
         if (progress.status === 'solved') throw new ApiError(409, 'This fragment has already been solved.');
+        if (id === 7) await validateConvergenceSubmission(teamDocId, proof, transaction);
         const now = serverTimestamp();
         const data = {
           status: 'solved',
@@ -494,16 +487,45 @@ export const api = {
     try {
       const { firestore } = requireFirebaseServices();
       await initializeSession();
-      const [teamData, verified] = await Promise.all([
+      const teamRef = doc(firestore, 'teams', teamDocId);
+      const [metadata, progress, teamData, verified] = await Promise.all([
+        getDoc(doc(firestore, 'puzzles', '7')),
+        getDoc(doc(teamRef, 'progress', '7')),
         getDoc(doc(firestore, 'teamGameData', teamDocId)),
-        getDocs(collection(firestore, 'teams', teamDocId, 'verifiedShards')),
+        getDocs(collection(teamRef, 'convergenceSeals')),
       ]);
-      if (!teamData.exists()) throw new ApiError(503, 'Convergence data is not provisioned.');
-      const verifiedShards = verified.docs.map((snapshot) => parseShardRule(snapshot.data()));
+      if (!metadata.exists() || (progress.get('status') !== 'solved'
+        && !(await isPuzzleOpen(firestore, teamRef, 7, asRecord(metadata.data()))))) {
+        throw new ApiError(423, 'This chamber is still sealed.');
+      }
+      const circle = parseCircle(teamData.get('convergence'), teamDocId);
+      const arrivalRef = doc(teamRef, 'convergence', 'arrival');
+      await runTransaction(firestore, async (transaction) => {
+        const arrival = await transaction.get(arrivalRef);
+        if (!arrival.exists()) transaction.set(arrivalRef, { reachedAt: serverTimestamp(), version: 2 });
+      });
+      const partners = await Promise.all(circle.memberIds.filter((id) => id !== teamDocId).map(async (partnerId) => {
+        const [team, data, arrival, partnerProgress] = await Promise.all([
+          getDoc(doc(firestore, 'teams', partnerId)),
+          getDoc(doc(firestore, 'teamGameData', partnerId)),
+          getDoc(doc(firestore, 'teams', partnerId, 'convergence', 'arrival')),
+          getDoc(doc(firestore, 'teams', partnerId, 'progress', '7')),
+        ]);
+        const partnerCircle = parseCircle(data.get('convergence'), partnerId);
+        if (JSON.stringify(partnerCircle.memberIds) !== JSON.stringify(circle.memberIds)) {
+          throw new ApiError(503, 'Your lantern circle is inconsistent. Ask a Keeper.');
+        }
+        const arrived = arrival.exists() || partnerProgress.get('status') === 'solved';
+        const verifiedSeal = verified.docs.find((snapshot) => snapshot.id === partnerId);
+        const isVerified = arrived && verifiedSeal?.get('version') === 2
+          && verifiedSeal.get('sealHash') === await hashText(normalizeSeal(partnerCircle.seal));
+        return {
+          teamId: partnerId, name: requiredString(asRecord(team.data()), 'teamName'), arrived,
+          verified: Boolean(isVerified), card: isVerified ? partnerCircle.card : null,
+        };
+      }));
       return {
-        shard: parseShard(teamData.get('shard')),
-        verified: verifiedShards,
-        lantern: parseLantern(teamData.get('lantern')),
+        ownId: teamDocId, seal: circle.seal, card: circle.card, partners,
       };
     } catch (error) {
       throw firebaseApiError(error, 'The lantern will not light.');
@@ -511,7 +533,7 @@ export const api = {
   },
 
   verifySeal: async (teamDocId: string, rawSeal: string): Promise<SealResult> => {
-    if (!teamDocId.trim() || !rawSeal.trim()) throw new ApiError(400, 'Enter a seal.');
+    if (!teamDocId.trim() || !rawSeal.trim() || rawSeal.length > 40) throw new ApiError(400, 'Enter a seal of at most 40 characters.');
     try {
       const { firestore } = requireFirebaseServices();
       await initializeSession();
@@ -521,18 +543,33 @@ export const api = {
         throw new ApiError(423, 'The lantern is still hidden.');
       }
       const sealHash = await hashText(normalizeSeal(rawSeal));
-      const lookup = await getDoc(doc(firestore, 'sealLookups', sealHash));
+      const lookup = await getDoc(doc(firestore, 'convergenceSealLookups', sealHash));
       if (!lookup.exists()) throw new ApiError(404, 'That seal is false, or belongs to no one yet.');
-      const shard = parseShardRule(lookup.data());
-      const verifiedRef = doc(firestore, 'teams', teamDocId, 'verifiedShards', shard.type);
-      const verified = await getDoc(verifiedRef);
-      if (verified.exists()) return { shard, alreadyHeld: true };
-      await setDoc(verifiedRef, {
-        ...shard,
-        sealHash,
-        verifiedAt: serverTimestamp(),
+      const partnerId = requiredString(asRecord(lookup.data()), 'ownerTeamId');
+      const verifiedRef = doc(teamRef, 'convergenceSeals', partnerId);
+      return await runTransaction(firestore, async (transaction) => {
+        const [own, partner, partnerTeam, arrival, partnerProgress, verified] = await Promise.all([
+          transaction.get(doc(firestore, 'teamGameData', teamDocId)),
+          transaction.get(doc(firestore, 'teamGameData', partnerId)),
+          transaction.get(doc(firestore, 'teams', partnerId)),
+          transaction.get(doc(firestore, 'teams', partnerId, 'convergence', 'arrival')),
+          transaction.get(doc(firestore, 'teams', partnerId, 'progress', '7')),
+          transaction.get(verifiedRef),
+        ]);
+        const ownCircle = parseCircle(own.get('convergence'), teamDocId);
+        const partnerCircle = parseCircle(partner.get('convergence'), partnerId);
+        if (partnerId === teamDocId || !ownCircle.memberIds.includes(partnerId)
+          || JSON.stringify(ownCircle.memberIds) !== JSON.stringify(partnerCircle.memberIds)
+          || await hashText(normalizeSeal(partnerCircle.seal)) !== sealHash) {
+          throw new ApiError(400, 'That seal is not from a partner in your circle.');
+        }
+        if (!arrival.exists() && partnerProgress.get('status') !== 'solved') {
+          throw new ApiError(423, 'Your partner must reach the Convergence before their seal can be accepted.');
+        }
+        const alreadyHeld = verified.get('version') === 2 && verified.get('sealHash') === sealHash;
+        if (!alreadyHeld) transaction.set(verifiedRef, { version: 2, sealHash, verifiedAt: serverTimestamp() });
+        return { partnerName: requiredString(asRecord(partnerTeam.data()), 'teamName'), alreadyHeld };
       });
-      return { shard, alreadyHeld: false };
     } catch (error) {
       throw firebaseApiError(error, 'Could not verify that seal.');
     }

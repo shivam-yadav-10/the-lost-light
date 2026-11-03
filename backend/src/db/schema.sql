@@ -91,3 +91,18 @@ CREATE TABLE IF NOT EXISTS seal_attempts (
   attempted_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 CREATE INDEX IF NOT EXISTS idx_seal_attempts_team ON seal_attempts(team_id, attempted_at);
+
+-- V2 circles are provisioned once, independently of legacy shard history.
+CREATE TABLE IF NOT EXISTS convergence_circles (
+  team_id INTEGER PRIMARY KEY REFERENCES teams(id) ON DELETE CASCADE,
+  members_json TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS convergence_arrivals (
+  team_id INTEGER PRIMARY KEY REFERENCES teams(id) ON DELETE CASCADE,
+  reached_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+CREATE TABLE IF NOT EXISTS convergence_seals (
+  team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  partner_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  PRIMARY KEY (team_id, partner_id)
+);

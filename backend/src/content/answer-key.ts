@@ -15,13 +15,13 @@ import {
   ERRAND_LOCATIONS,
   FIVE_DAWNS_SETS,
   POSTER_IMAGES,
-  SHARDS,
   errandGroup,
   protectedPuzzle,
   riddleSet,
 } from './protected.js';
-import type { ErrandGroup, ShardType } from './types.js';
-import { keeperSeal, teamKey, teamSeal } from '../services/convergence.js';
+import type { ErrandGroup } from './types.js';
+import { teamKey, teamSeal } from '../services/convergence.js';
+import { OVERLAY_WORD } from '../services/convergenceOverlay.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const outFile = path.resolve(here, '../../../ANSWER-KEY.md');
@@ -42,7 +42,7 @@ function aliasesSection(): string[] {
   out.push(`| IV ${title(4)} | ${accepted(4)} (a comma between the words is fine) |`);
   out.push(`| V ${title(5)} | own set's word only |`);
   out.push(`| VI ${title(6)} | ${accepted(6)} |`);
-  out.push(`| VII ${title(7)} | own 6-digit key only (spaces and dashes ignored) |`);
+  out.push(`| VII ${title(7)} | ${accepted(7)} after all partner seals and aligned cards |`);
   out.push(`| VIII ${title(8)} | word ${accepted(8)} **and** the team's own key as proof code |`);
   out.push('', 'Answers ignore case, accents and punctuation.', '');
   return out;
@@ -59,7 +59,7 @@ function nudgesSection(): string[] {
   }
   out.push(`| ${title(2)} | another group's code | ${firstSentence(protectedPuzzle(2).otherGroupMessage!)} |`);
   out.push(`| ${title(5)} | another set's word | ${firstSentence(protectedPuzzle(5).otherGroupMessage!)} |`);
-  out.push(`| ${title(7)} | own key reversed | Light fades from violet. |`);
+  out.push(`| ${title(7)} | correct word without every partner seal/alignment | All partner cards must be unlocked and aligned. |`);
   out.push(`| ${title(8)} | ${code('shared')} + wrong proof | The Vault stays sealed. (never confirms the word) |`);
   out.push('');
   return out;
@@ -86,7 +86,6 @@ function codesSection(teams: { id: number; name: string }[]): string[] {
   for (const g of Object.keys(ERRAND_LOCATIONS) as ErrandGroup[]) {
     out.push(`| Errand card ${g} | ${code(protectedPuzzle(2).answersByGroup![g][0])} | ${ERRAND_LOCATIONS[g]}; answer to II, also works in "Found a code?" |`);
   }
-  for (const s of SHARDS) out.push(`| Keeper seal ${s.type} (${s.name}) | ${code(keeperSeal(s.type as ShardType))} | deadlock fallback only |`);
   for (const t of teams) out.push(`| ${t.name}'s seal | ${code(teamSeal(t.id))} | only works once the team has opened The Convergence |`);
   out.push('', 'Poster pictures (IV): ' + POSTER_IMAGES.map((p) => `${p.poster}) ${p.word}${p.flames ? ` (${p.flames} lit)` : ''}`).join(' · '), '');
   return out;
@@ -114,7 +113,7 @@ try {
   const perTeam = teams.map((t) => {
     const key = teamKey(t.id);
     const dawns = FIVE_DAWNS_SETS.find((s) => s.group === riddleSet(t.id))!;
-    return `| ${t.name} | ${code(t.game_key)} | ${upper(protectedPuzzle(1).answers[0])} | ${protectedPuzzle(2).answersByGroup![errandGroup(t.id)][0]} (${errandGroup(t.id)}) | ${upper(protectedPuzzle(3).answers[0])} | ${upper(protectedPuzzle(4).answers[0])} | ${dawns.final} (${dawns.group}) | Leaf → Moon → Lotus → Bell → Star; A–J: /, \\, /, /, \\, \\, /, /, \\, \\; K–T: /, /, \\, \\, /, /, \\, \\, \\, \\ | ${key} | SHARED + ${key} |`;
+    return `| ${t.name} | ${code(t.game_key)} | ${upper(protectedPuzzle(1).answers[0])} | ${protectedPuzzle(2).answersByGroup![errandGroup(t.id)][0]} (${errandGroup(t.id)}) | ${upper(protectedPuzzle(3).answers[0])} | ${upper(protectedPuzzle(4).answers[0])} | ${dawns.final} (${dawns.group}) | Leaf → Moon → Lotus → Bell → Star; A–J: /, \\, /, /, \\, \\, /, /, \\, \\; K–T: /, /, \\, \\, /, /, \\, \\, \\, \\ | ${OVERLAY_WORD} | SHARED + ${key} |`;
   });
 
   const markdown = [
@@ -138,8 +137,8 @@ try {
     '|---|---|---|---|---|---|---|---|---|---|',
     ...perTeam,
     '',
-    'VII: the key is the six digits from the lantern. VIII: enter the word **SHARED** and the key as the proof code.',
-    'Convergence shards are handed out in arrival order: 1st team A, 2nd B, 3rd C, 4th D, 5th A…',
+    `VII: exchange every partner seal, align the cards at x=0, y=0, rotation=0 and read **${OVERLAY_WORD}** in the dark spaces. VIII: enter the word **SHARED** and the awarded team key as the proof code.`,
+    'Convergence circles are persisted mutual pairs, with one triple for an odd initial roster. Keeper shard seals are obsolete.',
     '',
     ...aliasesSection(),
     ...nudgesSection(),

@@ -21,13 +21,12 @@ import {
   type TeamRow,
 } from '../types.js';
 import {
-  buildLantern,
-  ensureShard,
   keeperSeal,
   shardContent,
   teamKey,
-  teamSeal,
   verifiedShards,
+  overlayState,
+  validateOverlaySubmission,
 } from './convergence.js';
 import { normaliseAnswer } from './normalise.js';
 
@@ -280,14 +279,12 @@ function judge(teamId: number, secret: ProtectedPuzzle, rawAnswer: string, rawPr
   }
 
   if (secret.id === 7) {
-    const key = teamKey(teamId);
-    const given = digitsOnly(rawAnswer);
-    if (given === key) return { correct: true, message: '', stored: given };
-    const reversed = given === [...key].reverse().join('');
+    validateOverlaySubmission(teamId, rawProof);
+    const correct = secret.answers.some((candidate) => answer === normaliseAnswer(candidate));
     return {
-      correct: false,
-      message: reversed ? 'Light fades from violet. Begin at the other end.' : secret.incorrectMessage,
-      stored: given || answer,
+      correct,
+      message: secret.incorrectMessage,
+      stored: answer,
     };
   }
 
@@ -385,17 +382,12 @@ export function visitCheckpoint(teamId: number, rawCode: string) {
 
 const CONVERGENCE_ID = 7;
 
-/** The team's own lantern, shard and verified rules. Never includes other teams' seals or keys. */
+/** The team's own seal and unlocked partner cards. */
 export function getConvergence(teamId: number) {
   const puzzle = getPuzzle(CONVERGENCE_ID);
   const state = resolveState(puzzle, progressMap(teamId));
   if (state === 'LOCKED') throw new HttpError(423, 'This fragment is still hidden.');
-  const type = ensureShard(teamId);
-  return {
-    shard: { ...shardContent(type), seal: teamSeal(teamId) },
-    verified: verifiedShards(teamId),
-    lantern: buildLantern(teamId),
-  };
+  return overlayState(teamId);
 }
 
 export function assertConvergenceOpen(teamId: number): void {

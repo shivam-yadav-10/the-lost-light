@@ -1,9 +1,10 @@
 import { createHmac } from 'node:crypto';
 import { config } from '../config.js';
-import { getDb, queryAll, queryOne } from '../db/connection.js';
+import { getDb, queryAll, queryOne, transaction } from '../db/connection.js';
 import { PROTECTED_PUZZLES, RAINBOW, SHARDS } from '../content/protected.js';
 import { SPOKES, type ShardContent, type ShardType, type Spoke, type SymbolName } from '../content/types.js';
 import { HttpError } from '../types.js';
+import { buildOverlayCards, parseAlignment, planConvergenceGroups, type ConvergenceAssignment } from './convergenceOverlay.js';
 
 /**
  * The Convergence: team-specific lanterns, keys and unforgeable shard seals.
@@ -183,7 +184,7 @@ export function verifiedShards(teamId: number): ShardContent[] {
   ).map((r) => shardContent(r.shard_type));
 }
 
-export function verifySeal(teamId: number, rawSeal: string) {
+export function verifyShardSealLegacy(teamId: number, rawSeal: string) {
   if (typeof rawSeal !== 'string' || rawSeal.length === 0 || rawSeal.length > 40) {
     throw new HttpError(400, 'That is not a seal.');
   }
@@ -210,4 +211,92 @@ export function verifySeal(teamId: number, rawSeal: string) {
     .prepare('INSERT OR IGNORE INTO convergence_verified (team_id, shard_type) VALUES (?, ?)')
     .run(teamId, type);
   return { shard: shardContent(type), alreadyHeld: result.changes === 0 };
+}
+
+export function convergenceCircle(teamId: number): string[] {
+  const teams = queryAll<{ id: number }>('SELECT id FROM teams ORDER BY id')
+    .map((team) => ({ id: String(team.id), teamNumber: team.id }));
+  const existing = new Map<string, ConvergenceAssignment>(queryAll<{ team_id: number; members_json: string }>(
+    'SELECT team_id, members_json FROM convergence_circles',
+  ).map((row) => [String(row.team_id), {
+    version: 2, memberIds: JSON.parse(row.members_json) as string[], seal: teamSeal(row.team_id),
+    card: { width: 31, height: 9, lit: [] },
+  }]));
+  const persisted = existing.get(String(teamId));
+  if (persisted) {
+    const members = persisted.memberIds;
+    if (!Array.isArray(members) || (members.length !== 2 && members.length !== 3)
+      || !members.includes(String(teamId)) || new Set(members).size !== members.length
+      || members.some((id) => !teams.some((team) => team.id === id)
+        || JSON.stringify(existing.get(id)?.memberIds) !== JSON.stringify(members))) {
+      throw new HttpError(503, 'The persisted lantern circle is inconsistent.');
+    }
+    return members;
+  }
+  let groups: string[][];
+  try { groups = planConvergenceGroups(teams, existing); }
+  catch (error) { throw new HttpError(503, error instanceof Error ? error.message : 'The lantern circles are not ready.'); }
+  transaction(getDb(), () => {
+    for (const members of groups) {
+      for (const id of members) getDb().prepare(
+        'INSERT OR IGNORE INTO convergence_circles (team_id, members_json) VALUES (?, ?)',
+      ).run(Number(id), JSON.stringify(members));
+    }
+  });
+  const members = groups.find((group) => group.includes(String(teamId)));
+  if (!members) throw new HttpError(404, 'Team not found.');
+  return members;
+}
+
+function hasArrived(teamId: number): boolean {
+  return Boolean(queryOne('SELECT team_id FROM convergence_arrivals WHERE team_id = ?', teamId)
+    || queryOne("SELECT team_id FROM team_progress WHERE team_id = ? AND puzzle_id = 7 AND status = 'solved'", teamId));
+}
+
+export function overlayState(teamId: number) {
+  const memberIds = convergenceCircle(teamId);
+  const cards = buildOverlayCards(memberIds);
+  getDb().prepare('INSERT OR IGNORE INTO convergence_arrivals (team_id) VALUES (?)').run(teamId);
+  const verified = queryAll<{ partner_id: number }>('SELECT partner_id FROM convergence_seals WHERE team_id = ?', teamId);
+  return {
+    ownId: String(teamId), seal: teamSeal(teamId), card: cards[memberIds.indexOf(String(teamId))],
+    partners: memberIds.filter((id) => id !== String(teamId)).map((id) => {
+      const arrived = hasArrived(Number(id));
+      const isVerified = arrived && verified.some((row) => row.partner_id === Number(id));
+      return {
+        teamId: id, name: queryOne<{ name: string }>('SELECT name FROM teams WHERE id = ?', Number(id))!.name,
+        arrived, verified: isVerified, card: isVerified ? cards[memberIds.indexOf(id)] : null,
+      };
+    }),
+  };
+}
+
+export function verifySeal(teamId: number, rawSeal: string) {
+  if (typeof rawSeal !== 'string' || rawSeal.length === 0 || rawSeal.length > 40) throw new HttpError(400, 'That is not a seal.');
+  const members = convergenceCircle(teamId);
+  if (!hasArrived(teamId)) throw new HttpError(423, 'Reach the Convergence before exchanging seals.');
+  const { fails } = queryOne<{ fails: number }>(
+    'SELECT COUNT(*) AS fails FROM seal_attempts WHERE team_id = ? AND ok = 0 AND attempted_at > ?',
+    teamId, new Date(Date.now() - SEAL_WINDOW_MS).toISOString(),
+  )!;
+  if (fails >= SEAL_MAX_FAILS) throw new HttpError(429, 'Too many false seals. Try again later.');
+  const partnerId = members.find((id) => id !== String(teamId) && normaliseSeal(teamSeal(Number(id))) === normaliseSeal(rawSeal));
+  getDb().prepare('INSERT INTO seal_attempts (team_id, ok) VALUES (?, ?)').run(teamId, partnerId ? 1 : 0);
+  if (!partnerId) throw new HttpError(404, 'That seal is not from a partner in your circle.');
+  if (!hasArrived(Number(partnerId))) throw new HttpError(423, 'Your partner must reach the Convergence before their seal can be accepted.');
+  const result = getDb().prepare('INSERT OR IGNORE INTO convergence_seals (team_id, partner_id) VALUES (?, ?)')
+    .run(teamId, Number(partnerId));
+  return { partnerName: queryOne<{ name: string }>('SELECT name FROM teams WHERE id = ?', Number(partnerId))!.name,
+    alreadyHeld: result.changes === 0 };
+}
+
+export function validateOverlaySubmission(teamId: number, proof: string | undefined): void {
+  const members = convergenceCircle(teamId);
+  try { parseAlignment(proof, members, String(teamId)); }
+  catch (error) { throw new HttpError(400, error instanceof Error ? error.message : 'Align every partner card.'); }
+  for (const id of members.filter((member) => member !== String(teamId))) {
+    if (!hasArrived(Number(id)) || !queryOne('SELECT team_id FROM convergence_seals WHERE team_id = ? AND partner_id = ?', teamId, Number(id))) {
+      throw new HttpError(400, 'Every partner must arrive and have their seal verified before offering the word.');
+    }
+  }
 }

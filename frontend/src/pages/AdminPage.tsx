@@ -198,22 +198,10 @@ export function AdminPage() {
       )}
 
       {data && (
-        <section className="mt-6 grid gap-4 sm:grid-cols-4" aria-label="Keeper seals">
-          {data.keeperSeals.map((k) => (
-            <div key={k.type} className="rounded-xl border border-ember/20 p-3 text-sm">
-              <div className="text-xs uppercase tracking-wider text-parchment/50">
-                Shard {k.type} · {k.name}
-              </div>
-              <div className="mt-1 font-code text-ember-glow">{k.seal}</div>
-              <div className="text-xs text-parchment/50">
-                {k.holders} team{k.holders === 1 ? '' : 's'} hold this shard
-              </div>
-            </div>
-          ))}
-          <p className="text-xs text-parchment/40 sm:col-span-4">
-            Keeper seals are for the deadlock safeguard only (organizer-runbook.md). Never share the lantern keys below.
-          </p>
-        </section>
+        <p className="mt-6 text-sm text-parchment/60">
+          Convergence uses named partner circles. Every partner must reach the chamber and exchange
+          seals. Legacy Keeper shard seals are no longer used. Never distribute the Vault proof keys below.
+        </p>
       )}
 
       {data && (
@@ -235,9 +223,6 @@ export function AdminPage() {
                 ))}
                 <th scope="col" className="py-2 pr-3">
                   Errand · riddles                </th>
-                <th scope="col" className="py-2 pr-3">
-                  Shard / rules
-                </th>
                 <th scope="col" className="py-2 pr-3">
                   Lantern key
                 </th>
@@ -263,10 +248,6 @@ export function AdminPage() {
                   ))}
                   <td className="py-3 pr-3 text-parchment/80" title={t.errandLocation}>
                     {t.errandGroup} · {t.riddleSet}
-                  </td>
-                  <td className="py-3 pr-3 text-parchment/80">
-                    {t.shardType ?? '—'}
-                    {t.verifiedShards.length > 0 && <div className="text-xs opacity-70">{t.verifiedShards.join(' ')}</div>}
                   </td>
                   <td className="py-3 pr-3 font-code text-parchment/80">{t.lanternKey}</td>
                   <td className="py-3 pr-3 text-parchment/80">{t.penaltyMinutes} min</td>

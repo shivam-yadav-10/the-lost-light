@@ -169,16 +169,16 @@ export const PROTECTED_PUZZLES: ProtectedPuzzle[] = [
   },
   {
     id: 7,
-    answers: [], // team-specific key, computed in services/convergence.ts
+    answers: ['unite'],
     nearMisses: [],
-    incorrectMessage: 'The lantern stays dark. Check every rule. Do you hold all four?',
+    incorrectMessage: 'The lantern keeps its silence. Check the corners, and look between the lights.',
     completionMessage:
-      'The shards lock together. The false flame was a reflection all along: its true colour is green, its true word REWARD. Your key, {key}, is now your proof. The Vault will ask for it.',
+      'The lanterns become one. The false flame was a reflection all along: its true colour is green, its true word REWARD. Your key, {key}, is now your proof. The Vault will ask for it.',
     hints: [
-      { text: 'Your shard is one of four kinds. Other teams hold the others, and they need yours.', penaltyMinutes: 10 },
-      { text: 'Trust only a rule you have verified with its seal. Unverified rules are just rumours.', penaltyMinutes: 15 },
+      { text: 'Find the teams named in your circle. All must reach this chamber and exchange their own seals.', penaltyMinutes: 10 },
+      { text: 'Rotate and slide every partner card until its corner marks meet those on your fixed card.', penaltyMinutes: 15 },
       {
-        text: "With all four rules: find each fragment's cell, add its two digits, keep the last digit, and read from violet to red.",
+        text: 'The gold is not the message. Read the five dark letters left in the unlit spaces when every card is aligned.',
         penaltyMinutes: 20,
       },
     ],

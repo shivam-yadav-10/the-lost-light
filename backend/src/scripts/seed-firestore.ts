@@ -9,10 +9,12 @@ import { SEED_TEAMS } from '../content/teams.js';
 import type { ShardType } from '../content/types.js';
 import { buildLantern, keeperSeal, shardContent, teamKey, teamSeal } from '../services/convergence.js';
 import { normaliseAnswer } from '../services/normalise.js';
+import { provisionConvergence } from './provision-convergence.js';
 
 const applyChanges = process.argv.slice(2).includes('--apply');
 const includeLocalTestTeams = process.argv.slice(2).includes('--include-local-test-teams');
-const supportedArguments = new Set(['--apply', '--help', '--include-local-test-teams']);
+const convergenceOnly = process.argv.slice(2).includes('--convergence-only');
+const supportedArguments = new Set(['--apply', '--help', '--include-local-test-teams', '--convergence-only']);
 const SHARD_TYPES: ShardType[] = ['A', 'B', 'C', 'D'];
 
 function hashValue(value: string): string {
@@ -202,15 +204,25 @@ async function seedFirestore(): Promise<void> {
   validateArguments();
 
   if (process.argv.slice(2).includes('--help')) {
-    console.log('Usage: npm run firestore:seed --prefix backend -- [--apply] [--include-local-test-teams]');
+    console.log('Usage: npm run firestore:seed --prefix backend -- [--apply] [--include-local-test-teams | --convergence-only]');
     console.log('Without --apply, validates and reports the documents without writing.');
     console.log('--include-local-test-teams adds four local-only fixtures as teamNumber 1–4.');
+    console.log('--convergence-only reads the roster and reports a targeted read-only plan; add --apply to provision puzzle 7 only.');
     return;
   }
 
   const projectId = process.env.VITE_FIREBASE_PROJECT_ID?.trim();
   if (!projectId) {
     throw new Error('VITE_FIREBASE_PROJECT_ID is missing; check frontend/.env.');
+  }
+  if (convergenceOnly) {
+    if (includeLocalTestTeams) throw new Error('--convergence-only cannot create test teams.');
+    if (!process.env.GAME_SECRET?.trim()) throw new Error('GAME_SECRET must be set before provisioning Convergence.');
+    validateCredentialsLocation();
+    const app = initializeApp({ credential: applicationDefault(), projectId });
+    try { await provisionConvergence(getFirestore(app), applyChanges); }
+    finally { await deleteApp(app); }
+    return;
   }
 
   const puzzleDocuments = makePuzzleDocuments();
@@ -360,6 +372,10 @@ async function seedFirestore(): Promise<void> {
     }
 
     const allTeams = await teamCollection.get();
+    const existingPrivateTeams = allTeams.empty ? [] : await firestore.getAll(
+      ...allTeams.docs.map((team) => firestore.doc(`privateTeamData/${team.id}`)),
+    );
+    const existingKeys = new Map(existingPrivateTeams.map((snapshot) => [snapshot.id, snapshot.get('lanternKey')]));
     const teamRecords = allTeams.docs.map((teamSnapshot) => {
       const team = teamSnapshot.data();
       const teamNumber = teamSnapshot.get('teamNumber');
@@ -384,7 +400,7 @@ async function seedFirestore(): Promise<void> {
         active: team.active === true,
         shardType,
         lantern: buildLantern(teamNumber),
-        lanternKey: teamKey(teamNumber),
+        lanternKey: existingKeys.get(teamSnapshot.id) ?? teamKey(teamNumber),
         teamSeal: teamSeal(teamNumber),
         errandGroup: group,
         riddleSet: riddleSet(teamNumber),
@@ -502,6 +518,7 @@ async function seedFirestore(): Promise<void> {
     if (!Array.isArray(keeperSealReadBack) || keeperSealReadBack.length !== SHARD_TYPES.length) {
       throw new Error('Read-back check failed for adminGameData/keeperSeals.');
     }
+    await provisionConvergence(firestore, true);
 
     const fragmentBackfills = [];
     for (const teamSnapshot of allTeams.docs) {

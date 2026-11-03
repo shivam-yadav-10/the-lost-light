@@ -292,15 +292,15 @@ export const PUBLIC_PUZZLES: PublicPuzzle[] = [
     unlockAt: null,
     requires: [1, 2, 3, 4, 5, 6],
     intro:
-      'The light you carry is not white. Somewhere in this building other Lightkeepers hold what you lack, and you hold what they lack.',
+      'Your lantern cannot tell its story alone. Find the Lightkeepers named below: your circle carries the missing light.',
     blocks: [
       {
         type: 'text',
-        text: 'Below is your team\'s lantern. No other team has one like it. You have also been given one shard of a four-part rule, together with its seal. A rule is only true if its seal is true.',
+        text: 'Exchange seals with every team in your circle. Each must reach this chamber before their seal can open a patterned lantern card. In a circle of three, you need both partners.',
       },
       {
         type: 'note',
-        text: "Enter another team's seal to receive their shard. Never trust a rule you have not sealed.",
+        text: 'Where golden voices gather, listen for what never glows. Let the corners meet, and let the silence speak.',
       },
     ],
   },

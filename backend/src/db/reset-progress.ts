@@ -15,6 +15,8 @@ const PROGRESS_TABLES = [
   'convergence_verified',
   'convergence_shards',
   'seal_attempts',
+  'convergence_seals',
+  'convergence_arrivals',
 ];
 
 try {

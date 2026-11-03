@@ -38,6 +38,38 @@ toward both limits; refreshing, switching devices, and solving a question do not
 Firestore hint transactions read all eight progress records so simultaneous requests on different
 questions cannot overspend the shared allowance.
 
+Question VII now uses **mutual lantern circles**: pairs, with one triple for an odd initial roster.
+The roster is assigned once and persisted, never re-sorted during play. Teams see their own seal and
+their partner names. A partner's seal works only after that team has opened Convergence (an old
+completed VII also counts). Every partner seal is required; unrelated, own and legacy Keeper seals
+do not unlock cards. Drag and quarter-turn the patterned cards, or use arrow/rotation buttons and
+keyboard controls. Aligned cards reveal a five-letter word in the unlit spaces. Submission checks
+all seals and every card's alignment, then awards the existing team-specific Vault proof internally.
+Old solves, logins, prerequisites and consumed hints remain intact.
+
+**Convergence-only Firestore cutover** (organiser; no reset required):
+
+```powershell
+# Set GOOGLE_APPLICATION_CREDENTIALS to an Admin credential outside this repository.
+# Keep the existing GAME_SECRET in backend\.env and project settings in frontend\.env.
+cmd /c npm run firestore:seed --prefix backend -- --convergence-only
+# Review the read-only roster/circle plan above before allowing writes:
+cmd /c npm run firestore:seed --prefix backend -- --convergence-only --apply
+```
+
+The first command reads live documents but does not write. The second merges only puzzle 7 metadata,
+answer/hint/reward/content documents, `teamGameData/{id}.convergence`, and
+`convergenceSealLookups/{sealHash}`; it creates a missing `privateTeamData/{id}.lanternKey` but never
+replaces an existing proof. It does **not** touch progress, hints-used, team/login documents,
+arrival/seal history, configuration overrides, or puzzle 6. Each circle is written atomically and
+read back; reruns retain assignments, seals and masks. Runtime records are
+`teams/{id}/convergence/arrival` and `teams/{id}/convergenceSeals/{partnerId}`.
+Provision the data immediately before deploying the matching frontend. Do not run `progress:reset`
+or a general full seed for this cutover. The general full seed also provisions circles for new rosters;
+later additions should be in pairs. A lone new team, missing partner or change requiring an existing
+triple to be reshuffled fails rather than silently changing anyone's partners. An organiser must
+explicitly plan any such roster migration before play.
+
 The page suppresses right-click menus and common inspection shortcuts (including Ctrl+Shift+I and F12).
 This is only a casual deterrent: it cannot disable browser tab menus, browser-menu DevTools, extensions,
 already-open tools, or direct database access. Client-side rules are not an anti-cheating security boundary.
@@ -107,7 +139,7 @@ Pages:
 | `/#/dashboard`           | Six diyas, light %, recovered fragment cards, code entry |
 | `/#/puzzle/:id`          | Puzzle, hints, answer submission (including the interactive Lantern Courtyard), fragment card on solve |
 | `/#/checkpoint[/:code]`  | Redeem a physical marker code (QR can deep-link)     |
-| `/#/convergence`         | Team lantern, shard + seal, seal verification, key   |
+| `/#/convergence`         | Partner circle, seals, draggable lantern cards, hidden word |
 | `/#/vault`               | Final word + proof code                              |
 | `/#/complete`            | Completion                                           |
 | `/#/admin`               | Organiser view (needs admin key)                     |
@@ -121,7 +153,7 @@ Pages:
 | Team Deepa   | `DEEPA-2026`   |
 | Team Prakash | `PRAKASH-2026` |
 
-Four teams are seeded so all four Convergence shard types can be exercised. Answers, checkpoint codes and
+Four teams are seeded so two Convergence pairs can be exercised. Answers, checkpoint codes and
 the full walkthrough are in [`docs/testing-guide.md`](docs/testing-guide.md). The admin key (local default)
 is `local-admin`. Override it with `ADMIN_KEY` in `backend/.env`.
 
@@ -196,8 +228,8 @@ All team endpoints require header `X-Game-Key: <team key>`. Admin endpoints requ
 | POST   | `/api/puzzles/:id/submit`    | `{ answer, proof? }` → `{ correct, message, fragment, puzzle }`; cooldown + lockout per puzzle; the Vault needs `proof` |
 | POST   | `/api/puzzles/:id/hint`      | Reveals the next hint (adds a time penalty)        |
 | POST   | `/api/checkpoints/:code`     | Records a physical marker visit                    |
-| GET    | `/api/convergence`           | The team's own lantern, shard + seal, verified rules |
-| POST   | `/api/convergence/verify`    | `{ seal }` → reveals that shard's rule if the seal is genuine |
+| GET    | `/api/convergence`           | Own seal/card, partner names and unlocked partner cards |
+| POST   | `/api/convergence/verify`    | `{ seal }` → unlocks an arrived partner's patterned card |
 | GET    | `/api/admin/overview`        | Per-team state, hints, penalties, shards, keys, Keeper seals |
 | POST   | `/api/admin/puzzles/:id/unlock-override` | `{ unlocked }` → forces one of the six core fragments open now or re-locks it, overriding the schedule for every team |
 

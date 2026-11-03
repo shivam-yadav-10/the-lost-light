@@ -40,7 +40,7 @@ export function seed(db: Db): void {
       sortOrder: p.sortOrder,
       intro: p.intro,
       body: JSON.stringify(p.variants ? { blocks: p.blocks, variants: p.variants } : p.blocks),
-      // Team-specific answers (Convergence) have no canonical answer; validation lives in the engine.
+      // Some grouped puzzles have no single canonical answer; validation lives in the engine.
       answer: secret.answers[0] ? normaliseAnswer(secret.answers[0]) : '',
       unlockAt: p.unlockAt,
       requiresJson: JSON.stringify(p.requires),

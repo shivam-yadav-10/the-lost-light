@@ -113,15 +113,19 @@ export interface LanternCell {
 }
 
 export interface ConvergenceState {
-  shard: ShardRule & { seal: string };
-  verified: ShardRule[];
-  lantern: LanternCell[];
+  ownId: string;
+  seal: string;
+  card: OverlayCard;
+  partners: { teamId: string; name: string; arrived: boolean; verified: boolean; card: OverlayCard | null }[];
 }
 
 export interface SealResult {
-  shard: ShardRule;
+  partnerName: string;
   alreadyHeld: boolean;
 }
+
+export interface OverlayCard { width: number; height: number; lit: number[] }
+export interface OverlayPlacement { teamId: string; x: number; y: number; rotation: number }
 
 export interface HintResult {
   hintsUsed: number;
