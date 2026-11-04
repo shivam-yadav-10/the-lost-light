@@ -11,7 +11,7 @@ import { SparkBurst } from '../components/SparkBurst';
 import { SuccessOverlay } from '../components/SuccessOverlay';
 import { usePuzzle } from '../store/usePuzzle';
 import { useTeam } from '../store/team';
-import { parseHiddenWords } from '../services/hiddenWords';
+import { countHiddenWordFields, isHiddenWordField } from '../services/hiddenWords';
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
 
@@ -22,6 +22,10 @@ export function PuzzlePage() {
   const { puzzle, setPuzzle, loadError } = usePuzzle(puzzleId);
   const [answer, setAnswer] = useState('');
   const [hiddenWords, setHiddenWords] = useState<string[]>(Array(6).fill(''));
+  const [wordErrors, setWordErrors] = useState<boolean[]>(Array(6).fill(false));
+  const enteredWords = countHiddenWordFields(hiddenWords);
+  const enoughWords = enteredWords >= 4 && !wordErrors.some(Boolean)
+    && hiddenWords.every(isHiddenWordField);
   const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
@@ -30,6 +34,7 @@ export function PuzzlePage() {
     setRiddleAnswers(null);
     setAnswer('');
     setHiddenWords(Array(6).fill(''));
+    setWordErrors(Array(6).fill(false));
     setFeedback(null);
   }, [puzzleId, session?.teamDocId]);
   const closeCelebration = useCallback(() => setCelebrate(false), []);
@@ -65,7 +70,15 @@ export function PuzzlePage() {
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
+    if (puzzleId === 4 && !enoughWords) return;
     void submitAnswer(puzzleId === 4 ? hiddenWords.filter((word) => word.trim()).join(', ') : answer);
+  }
+
+  function updateHiddenWord(index: number, value: string) {
+    const valid = isHiddenWordField(value);
+    setWordErrors((current) => current.map((error, i) => i === index ? !valid : error));
+    if (!valid) return;
+    setHiddenWords((current) => current.map((word, i) => i === index ? value : word));
   }
 
   if (loadError) {
@@ -90,8 +103,6 @@ export function PuzzlePage() {
 
   const solved = puzzle.state === 'SOLVED';
   const isWordPuzzle = puzzle.id === 4;
-  const enteredWords = new Set(parseHiddenWords(hiddenWords.join(' '))).size;
-  const enoughWords = enteredWords >= 4;
   const numeral = ROMAN[puzzle.sortOrder - 1];
   // Visual blocks (rangoli, cipher, table, lamps) get their own column; prose sits with the story.
   const visualBlocks = puzzle.blocks.filter((b) => VISUAL_BLOCKS.has(b.type));
@@ -157,15 +168,19 @@ export function PuzzlePage() {
                 <span className="word-notebook-field-number" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
               </span>
               <input value={word} maxLength={24} autoComplete="off" placeholder={index >= 4 ? 'Found another?' : 'A word you spotted…'}
-                spellCheck={false} pattern="[A-Za-z]*" aria-describedby={`hidden-words-help${feedback ? ' answer-feedback' : ''}`}
-                onChange={(event) => setHiddenWords((current) => current.map((value, i) => i === index ? event.target.value : value))} />
+                spellCheck={false} pattern="[A-Za-z]*" aria-invalid={wordErrors[index]}
+                aria-describedby={`hidden-words-help${wordErrors[index] ? ` hidden-word-error-${index}` : ''}${feedback ? ' answer-feedback' : ''}`}
+                onChange={(event) => updateHiddenWord(index, event.target.value)} />
+              {wordErrors[index] && <span id={`hidden-word-error-${index}`} role="alert" className="mt-2 block text-xs text-marigold">
+                One word only — letters A–Z, without spaces, numbers or symbols. Edit this field to continue.
+              </span>}
             </label>)}
           </div>
           <div className="word-notebook-progress">
             <span className="word-notebook-dots" aria-hidden="true">
               {Array.from({ length: 4 }, (_, index) => <span key={index} className={enteredWords > index ? 'is-filled' : ''} />)}
             </span>
-            <p role="status">{enoughWords ? 'Ready when you are.' : enteredWords === 0 ? 'Four different words are all you need.' : `${enteredWords} noted. A few more details to discover.`}</p>
+            <p role="status">{wordErrors.some(Boolean) ? 'Check the highlighted fields before sending.' : enoughWords ? 'Ready when you are.' : enteredWords === 0 ? 'Four different words are all you need.' : `${enteredWords} noted. A few more details to discover.`}</p>
           </div>
           <p className="word-notebook-footnote">One word per space. All six spaces are yours, but four correct words are enough.</p>
         </fieldset> : <>

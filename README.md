@@ -27,6 +27,9 @@ URLs, nested-route refreshes, images and fonts.
   fragment. Word order and letter case do not matter; at most six words are accepted.
   A Keeper's-notebook answer panel tracks entered words only; its four-dot indicator
   does not reveal correctness before submission.
+  Each field accepts a single A–Z word. Invalid typing or pasted text is rejected
+  with an inline error; submit requires four distinct words in separate fields
+  and no outstanding field errors.
 - Question V requires checking all five riddle answers before final submission.
 - The Lantern Courtyard has 20 rotating mirrors, team-specific positions,
   click-to-cycle symbols and a responsive 70/30 desktop layout.

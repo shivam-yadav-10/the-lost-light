@@ -1,3 +1,12 @@
+export function isHiddenWordField(value: string): boolean {
+  return /^[A-Za-z]*$/.test(value);
+}
+
+export function countHiddenWordFields(values: readonly string[]): number {
+  return new Set(values.filter((value) => value.length > 0 && isHiddenWordField(value))
+    .map((value) => value.toLowerCase())).size;
+}
+
 export function parseHiddenWords(raw: string): string[] {
   return raw.toLowerCase().trim().split(/[\s,;]+/).filter(Boolean);
 }

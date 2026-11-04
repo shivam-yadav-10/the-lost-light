@@ -1,6 +1,21 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { checkHiddenWords, parseHiddenWords } from '../src/services/hiddenWords.ts';
+import { checkHiddenWords, parseHiddenWords, isHiddenWordField, countHiddenWordFields } from '../src/services/hiddenWords.ts';
+
+test('individual fields accept only a single alphabetic word or an empty value', () => {
+  for (const value of ['', 'Alpha', 'BETA']) assert.equal(isHiddenWordField(value), true);
+  for (const value of ['alpha beta gamma delta', ' alpha', 'alpha ', 'alpha,beta', 'alpha-beta',
+    'alpha!', 'alpha1', 'alpha\nbeta', 'alpha\tbeta', 'alpha_beta', '123', '🙂']) {
+    assert.equal(isHiddenWordField(value), false, value);
+  }
+});
+
+test('readiness counts distinct valid fields rather than words within a field', () => {
+  assert.equal(countHiddenWordFields(['alpha beta gamma delta', '', '', '', '', '']), 0);
+  assert.equal(countHiddenWordFields(['alpha', 'beta', 'gamma', 'delta', '', '']), 4);
+  assert.equal(countHiddenWordFields(['alpha', 'ALPHA', 'beta', 'gamma', '', '']), 3);
+  assert.equal(countHiddenWordFields(['alpha', 'beta', 'gamma', 'delta!', '', '']), 3);
+});
 
 const expected = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta'];
 
