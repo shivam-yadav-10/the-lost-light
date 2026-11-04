@@ -71,17 +71,18 @@ function ConvergenceOpen({ puzzleId, fragments }: { puzzleId: number; fragments:
   const solved = puzzle.state === 'SOLVED';
   const ready = state && state.partners.every((p) => p.verified)
     && cardsAligned(placements, state.partners.map((p) => p.teamId));
+  const introduction = <header className="max-w-3xl">
+    <p className="eyebrow">VII · {puzzle.fragmentName}</p>
+    <h1 className="mt-4 text-5xl text-ember-glow">{puzzle.title}</h1>
+    {!solved && <><p className="mt-6 text-lg text-parchment/70">{puzzle.intro}</p>
+      <div className="mt-8"><PuzzleBlocks blocks={puzzle.blocks} /></div></>}
+  </header>;
   return (
     <Layout>
       {celebrate && <SuccessOverlay eyebrow="The Convergence" title="The lanterns become one!"
         subtitle="Your key is now your proof. The Vault awaits." onClose={closeCelebration} />}
       <Link to="/dashboard" className="text-xs text-parchment/60 hover:text-ember-glow">← All fragments</Link>
-      <header className="mt-10 max-w-3xl">
-        <p className="eyebrow">VII · {puzzle.fragmentName}</p>
-        <h1 className="mt-4 text-5xl text-ember-glow">{puzzle.title}</h1>
-        {!solved && <><p className="mt-6 text-lg text-parchment/70">{puzzle.intro}</p>
-          <div className="mt-8"><PuzzleBlocks blocks={puzzle.blocks} /></div></>}
-      </header>
+      {(solved || !state) && <div className="mt-10">{introduction}</div>}
       {solved ? <div className="card mt-10 border-ember/60 text-center">
         <p className="text-xl text-ember-glow">{puzzle.completionMessage}</p>
         <Link to="/vault" className="btn-ember mt-8">Approach the Vault</Link>
@@ -115,28 +116,29 @@ function ConvergenceOpen({ puzzleId, fragments }: { puzzleId: number; fragments:
               <button type="submit" className="btn-ember" disabled={busy || !seal.trim()}>Open card</button>
             </div>
           </form>}
-          {feedback && <p role="status" className="text-sm text-marigold">{feedback}</p>}
-          </aside>
-          <div className="min-w-0 lg:col-start-1 lg:row-start-1">
-          <LanternOverlay state={state} placements={placements} onChange={setPlacements} />
-          <form onSubmit={submit} className="mt-10 space-y-4">
+          <form onSubmit={submit} className="card space-y-4 !p-6">
             <label htmlFor="lantern-word" className="eyebrow">The word in the lantern</label>
             <p className="text-sm text-parchment/60">{ready ? 'The corners meet. What does the lantern say?'
               : 'Unlock every partner card and align its corners before offering the word.'}</p>
-            <div className="flex flex-wrap gap-3">
-              <input id="lantern-word" className="input-ember min-w-0 flex-1 font-code uppercase"
+            <div className="flex flex-col gap-3">
+              <input id="lantern-word" className="input-ember min-w-0 font-code uppercase"
                 value={word} onChange={(e) => setWord(e.target.value)} maxLength={30} autoComplete="off" spellCheck={false} />
               <button type="submit" className="btn-ember" disabled={busy || !ready || !word.trim()}>
                 {busy ? 'Listening…' : 'Offer the word'}
               </button>
             </div>
           </form>
+          {feedback && <p role="status" className="text-sm text-marigold">{feedback}</p>}
+          <HintSection puzzleId={puzzle.id} maxHints={puzzle.maxHints}
+            hintsUsed={puzzle.hintsUsed} revealedHints={puzzle.revealedHints}
+            onHints={(hints, used) => setPuzzle({ ...puzzle, revealedHints: hints, hintsUsed: used })} />
+          </aside>
+          <div className="min-w-0 lg:col-start-1 lg:row-start-1">
+            {introduction}
+            <LanternOverlay state={state} placements={placements} onChange={setPlacements} />
           </div>
         </div>}
         {!state && feedback && <p role="status" className="mt-5 text-marigold">{feedback}</p>}
-        <div className="mt-10"><HintSection puzzleId={puzzle.id} maxHints={puzzle.maxHints}
-          hintsUsed={puzzle.hintsUsed} revealedHints={puzzle.revealedHints}
-          onHints={(hints, used) => setPuzzle({ ...puzzle, revealedHints: hints, hintsUsed: used })} /></div>
       </>}
       <div className="mt-20"><FragmentLedger fragments={fragments} /></div>
     </Layout>
