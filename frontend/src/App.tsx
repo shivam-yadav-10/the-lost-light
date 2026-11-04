@@ -16,6 +16,7 @@ import { useProgress } from './store/useProgress';
 import { hasReleasedQuestion, nextRelease } from './services/gameClock';
 import { ReleaseCountdown, useClockNow } from './components/GameClock';
 import { WaitingRoom } from './components/WaitingRoom';
+import { Layout } from './components/Layout';
 
 function RequireTeam() {
   const { session } = useTeam();
@@ -28,9 +29,9 @@ function TeamReleaseBoundary() {
   return session && pathname !== '/admin' ? <ReleaseGate /> : <Outlet />;
 }
 
-function PublicEntry({ login = false }: { login?: boolean }) {
+function PublicEntry() {
   const { session } = useTeam();
-  return session ? <Navigate to="/dashboard" replace /> : login ? <LoginPage /> : <LandingPage />;
+  return session ? <Navigate to="/dashboard" replace /> : <Layout bare lanterns><Outlet /></Layout>;
 }
 
 function ReleaseGate() {
@@ -45,7 +46,12 @@ function ReleaseGate() {
   if (error) return <WaitingRoom>
     <p role="alert" className="text-sm text-marigold">{error} <button className="underline" onClick={() => void refresh()}>Retry</button></p>
   </WaitingRoom>;
-  if (!progress) return <WaitingRoom><p className="text-xs text-parchment/40">Gathering the light…</p></WaitingRoom>;
+  if (!progress) return <Layout bare lanterns>
+    <div role="status" className="flex min-h-[80dvh] flex-col items-center justify-center gap-5">
+      <span aria-hidden="true" className="h-8 w-8 animate-spin rounded-full border border-ember/20 border-t-ember-glow" />
+      <p className="text-xs tracking-wide text-parchment/50">Opening your team&apos;s path…</p>
+    </div>
+  </Layout>;
   if (!hasReleasedQuestion(progress.puzzles, now)) {
     if (pathname !== '/waiting') return <Navigate to="/waiting" replace />;
     const next = nextRelease(progress.puzzles, now);
@@ -64,8 +70,10 @@ export function App() {
       <HashRouter>
         <Routes>
           <Route element={<TeamReleaseBoundary />}>
-          <Route path="/" element={<PublicEntry />} />
-          <Route path="/login" element={<PublicEntry login />} />
+          <Route element={<PublicEntry />}>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/login" element={<LoginPage />} />
+          </Route>
           <Route path="/admin" element={<AdminPage />} />
           <Route element={<RequireTeam />}>
             <Route path="/waiting" element={null} />

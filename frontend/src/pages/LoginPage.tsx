@@ -1,7 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { Diya } from '../components/Diya';
-import { Layout } from '../components/Layout';
 import { GameServicesUnavailableError } from '../services/firebase';
 import { runFirebaseConnectivityDiagnostic } from '../services/firebaseDiagnostics';
 import { TeamLoginError, validateTeamGameKey } from '../services/teamService';
@@ -40,7 +39,6 @@ export function LoginPage() {
   }
 
   return (
-    <Layout bare lanterns>
       <section className="flex min-h-dvh flex-col items-center justify-center py-24">
         <Diya size={84} className="animate-rise" />
         <h1 className="mt-10 text-4xl text-ember-glow lg:text-5xl animate-rise">Speak the word</h1>
@@ -76,6 +74,5 @@ export function LoginPage() {
           </button>
         </form>
       </section>
-    </Layout>
   );
 }
