@@ -89,12 +89,13 @@ function ConvergenceOpen({ puzzleId, fragments }: { puzzleId: number; fragments:
         {stateError && <p role="alert" className="card mt-8 text-marigold">{stateError}
           <button type="button" className="btn-ghost ml-4" onClick={() => void loadState()}>Retry</button></p>}
         {!state && !stateError && <p className="mt-8">Opening your lantern circle…</p>}
-        {state && <>
-          <section className="card mt-10">
+        {state && <div className="mt-10 grid items-start gap-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,3fr)]">
+          <aside className="min-w-0 space-y-6 lg:sticky lg:top-8 lg:col-start-2 lg:row-start-1" aria-label="Your circle and partner seals">
+          <section className="card !p-6">
             <h2 className="eyebrow">Your circle</h2>
             <p className="mt-4">Your seal: give it to {state.partners.map((p) => p.name).join(' and ')}.</p>
             <div className="mt-3 flex flex-wrap items-center gap-4">
-              <code className="font-code text-lg tracking-widest text-ember-glow">{state.seal}</code>
+              <code className="break-all font-code text-lg tracking-widest text-ember-glow">{state.seal}</code>
               <button type="button" className="btn-ghost" onClick={() => {
                 void navigator.clipboard.writeText(state.seal).then(() => setFeedback('Seal copied.'),
                   () => setFeedback('Select and copy the seal shown above.'));
@@ -106,14 +107,17 @@ function ConvergenceOpen({ puzzleId, fragments }: { puzzleId: number; fragments:
             </li>)}</ul>
             <button type="button" className="btn-ghost mt-4" disabled={busy} onClick={() => void loadState()}>Refresh arrivals</button>
           </section>
-          {!state.partners.every((p) => p.verified) && <form onSubmit={verify} className="card mt-6">
+          {!state.partners.every((p) => p.verified) && <form onSubmit={verify} className="card !p-6">
             <label htmlFor="seal" className="eyebrow">A partner's seal</label>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <input id="seal" className="input-ember min-w-0 flex-1 font-code uppercase" value={seal}
+            <div className="mt-4 flex flex-col gap-3">
+              <input id="seal" className="input-ember min-w-0 font-code uppercase" value={seal}
                 onChange={(e) => setSeal(e.target.value)} autoComplete="off" spellCheck={false} maxLength={40} />
               <button type="submit" className="btn-ember" disabled={busy || !seal.trim()}>Open card</button>
             </div>
           </form>}
+          {feedback && <p role="status" className="text-sm text-marigold">{feedback}</p>}
+          </aside>
+          <div className="min-w-0 lg:col-start-1 lg:row-start-1">
           <LanternOverlay state={state} placements={placements} onChange={setPlacements} />
           <form onSubmit={submit} className="mt-10 space-y-4">
             <label htmlFor="lantern-word" className="eyebrow">The word in the lantern</label>
@@ -127,8 +131,9 @@ function ConvergenceOpen({ puzzleId, fragments }: { puzzleId: number; fragments:
               </button>
             </div>
           </form>
-        </>}
-        {feedback && <p role="status" className="mt-5 text-marigold">{feedback}</p>}
+          </div>
+        </div>}
+        {!state && feedback && <p role="status" className="mt-5 text-marigold">{feedback}</p>}
         <div className="mt-10"><HintSection puzzleId={puzzle.id} maxHints={puzzle.maxHints}
           hintsUsed={puzzle.hintsUsed} revealedHints={puzzle.revealedHints}
           onHints={(hints, used) => setPuzzle({ ...puzzle, revealedHints: hints, hintsUsed: used })} /></div>

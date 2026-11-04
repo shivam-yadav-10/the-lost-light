@@ -35,6 +35,8 @@ URLs, nested-route refreshes, images and fonts.
   click-to-cycle symbols and a responsive 70/30 desktop layout.
 - Convergence uses assigned partner circles and an interactive lantern-card puzzle.
   Partner assignments remain stable across browsers and refreshes.
+  Desktop uses a 70/30 split: the lantern puzzle on the left and a sticky circle/seal
+  sidebar on the right. On smaller screens the circle and seal entry come first.
 
 ### QR picture assets and puzzle IV content
 
