@@ -481,6 +481,7 @@ h3,
   overflow: hidden;
   background: #02080c;
   padding: 5rem 1rem;
+  animation: waiting-room-emerge 3s ease-in-out both;
 }
 .waiting-sky {
   position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none;
@@ -564,6 +565,10 @@ h3,
   from { opacity: 0; }
   to { opacity: 1; }
 }
+@keyframes waiting-room-emerge {
+  from { background-color: transparent; }
+  to { background-color: #02080c; }
+}
 @keyframes waiting-timer-emerge {
   from { opacity: 0; filter: blur(12px); transform: translateY(10px) scale(.98); }
   to { opacity: 1; filter: blur(0); transform: translateY(0) scale(1); }
@@ -582,13 +587,6 @@ h3,
 @keyframes game-page-enter {
   from { opacity: 0; }
   to { opacity: 1; }
-}
-@keyframes loading-lanterns-depart {
-  from { opacity: 1; }
-  to { opacity: 0; }
-}
-.loading-lanterns-depart {
-  animation: loading-lanterns-depart 1800ms ease-out forwards;
 }
 .game-page-enter {
   animation: game-page-enter 420ms ease-out both;

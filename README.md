@@ -46,8 +46,8 @@ so stale progress or a failed completion write cannot immediately reopen the sto
   a sticky circle/seal, word submission, and hints sidebar aligned to the heading
   on the right. On smaller screens the sidebar stacks above the introduction and board.
   Convergence reveals its table and sidebar together once puzzle and circle data are
-  ready. Initial release-check lanterns fade out over 1.8 seconds as the destination
-  appears; reduced-motion preferences disable the fade.
+  ready. Release checks use the waiting view's continuous lantern-night backdrop
+  rather than flashing a separate spinner screen; reduced-motion preferences are respected.
 
 ### QR picture assets and puzzle IV content
 
@@ -127,8 +127,9 @@ waiting screen with only the countdown and anticipatory text. That screen checks
 every 15 seconds. The release gate covers every route for signed-in teams, including direct URL
 navigation and unknown paths, except `/admin`, which retains its organiser authentication.
 Signed-out users can still reach login and organiser authentication.
-During the initial release-status check, a neutral loading state is shown instead of the waiting
-room; teams with an open question go directly to their destination without a timer-screen flash.
+During the initial release-status check, the lantern-night backdrop appears without a
+spinner or countdown. Unreleased teams retain that same backdrop as the timer emerges;
+teams with an open question go to their destination without a timer-screen flash.
 The release gate, countdown, and game pages use one team-scoped progress source, so the timer
 and dashboard render together without a second fetch shifting the content down.
 Dashboard and core puzzle routes also retain the same background, header, and countdown during
