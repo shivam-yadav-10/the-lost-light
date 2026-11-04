@@ -23,34 +23,42 @@ function Illustration({ art }: { art: string }) {
   if (index === -1) {
     const path = LINE_ART[art];
     if (!path) throw new Error('An illustrated clue is missing its artwork. Ask a Keeper to update Convergence.');
-    return <svg viewBox="0 0 300 220" className="mx-auto w-full max-w-sm" aria-hidden="true">
-      <circle cx="150" cy="106" r="85" fill="#f59e0b" opacity=".06" />
+    return <svg viewBox="0 0 300 220" className="clue-illustration mx-auto w-full max-w-sm" data-art={art} aria-hidden="true">
+      <circle className="clue-halo" cx="150" cy="106" r="85" fill="#f59e0b" opacity=".06" />
+      <g className="clue-character">
       <path d={path} fill="none" stroke="#eeb84e" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-      {art === 'eye' && <circle cx="150" cy="110" r="25" fill="#f59e0b" />}
+      {art === 'eye' && <circle className="clue-pupil" cx="150" cy="110" r="25" fill="#f59e0b" />}
       {art === 'fish' && <circle cx="190" cy="100" r="5" fill="#fde68a" />}
       {art === 'notes' && [70, 120, 155, 210].map((x, i) => <ellipse key={x} cx={x - 8} cy={[150, 135, 120, 105][i]} rx="12" ry="8" fill="#eeb84e" />)}
+      </g>
+      {art === 'timepiece' && <path className="clue-clock-hand" d="M150 110 130 100" stroke="#fde68a" strokeWidth="3" strokeLinecap="round" />}
+      {['lantern', 'candle'].includes(art) && <circle className="clue-glimmer" cx="150" cy={art === 'lantern' ? 120 : 65} r="9" fill="#fde68a" opacity=".4" />}
     </svg>;
   }
-  return <svg viewBox="0 0 300 220" className="mx-auto w-full max-w-sm" aria-hidden="true">
-    <circle cx="150" cy="106" r="85" fill="#f59e0b" opacity=".06" />
+  return <svg viewBox="0 0 300 220" className="clue-illustration mx-auto w-full max-w-sm" data-art={art} aria-hidden="true">
+    <circle className="clue-halo" cx="150" cy="106" r="85" fill="#f59e0b" opacity=".06" />
     {index === 0 ? <>
       <path d="M92 180 170 92" stroke="#cfaa73" strokeWidth="13" strokeLinecap="round" />
+      <g className="clue-flame">
       <path d="M170 100C130 80 166 48 170 24c10 28 48 48 25 72-7 9-16 12-25 4Z" fill="#f59e0b" />
       <path d="M173 94c-10-12 3-24 5-35 15 18 20 29 8 37Z" fill="#fde68a" />
+      </g>
       <path d="m184 143 45 21-17 37-45-21Z" fill="#783d26" stroke="#d4aa6b" strokeWidth="2" />
       <path d="m183 159 32 15m-36-6 32 15" stroke="#f5e6c8" opacity=".5" strokeWidth="2" />
     </> : index === 1 ? <>
       {[55, 165].map((x) => <g key={x} transform={`translate(${x} 60)`}>
+        <g className="clue-tile">
         <rect width="80" height="106" rx="8" fill="#1a1738" stroke="#eeb84e" strokeWidth="2" />
         <path d="M40 17 64 53 40 89 16 53Z" fill="none" stroke="#eeb84e" strokeWidth="2" />
         <circle cx="40" cy="53" r="12" fill="#f59e0b" opacity=".8" />
         <path d="M8 8h12M60 98h12" stroke="#fde68a" strokeWidth="2" />
+        </g>
       </g>)}
     </> : <>
       <path d="m50 92 100-42 100 42v92l-100 28-100-28Z" fill="#183c35" stroke="#d4aa6b" strokeWidth="2" />
       <path d="M50 137h200M150 50v162" stroke="#f5e6c8" opacity=".6" strokeWidth="2" />
       <ellipse cx="150" cy="135" rx="26" ry="17" fill="none" stroke="#f5e6c8" opacity=".6" />
-      {[90, 112, 200, 220].map((x, i) => <g key={x}>
+      {[90, 112, 200, 220].map((x, i) => <g className="clue-player" key={x} style={{ animationDelay: `${i * -.7}s` }}>
         <circle cx={x} cy={105 + (i % 2) * 55} r="6" fill={i < 2 ? '#fbbf24' : '#a5d9e8'} />
         <path d={`M${x} ${113 + (i % 2) * 55}v12`} stroke={i < 2 ? '#fbbf24' : '#a5d9e8'} strokeWidth="8" strokeLinecap="round" />
       </g>)}
@@ -67,7 +75,7 @@ export function ConvergenceCards({ state }: { state: ConvergenceState }) {
     <p className="eyebrow">One word, different stories</p>
     <p className="mt-3 max-w-2xl text-parchment/70">
       Each picture tells a different story. Find one five-letter word that fits every revealed clue.
-      These pictures do not move. The separate lantern table below holds your second word.
+      Let these little stories play; there is nothing to drag here. The separate lantern table below holds your second word.
     </p>
     <div className={`mt-6 grid gap-5 ${cards.length === 2 ? 'xl:grid-cols-2' : 'xl:grid-cols-3'}`}>
       {cards.map((card) => {

@@ -51,6 +51,9 @@ so stale progress or a failed completion write cannot immediately reopen the sto
   Exchange every partner seal after they arrive, then find the five-letter word
   shared by the pictures' different meanings. Six distinct sets are available,
   assigned once per circle and persisted; triples receive a third complementary clue.
+  with gentle illustration-specific idle motion (flames, drifting feathers,
+  ticking hands, curious glances, and more). Text stays still and reduced-motion
+  preferences disable the decorative animation.
   No set is reused: provisioning a seventh circle fails explicitly until more sets
   are added. Existing circle assignments are retained when teams are added.
   Also solve the restored lantern overlay: align all partner cards' corners and

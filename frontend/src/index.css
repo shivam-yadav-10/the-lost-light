@@ -647,7 +647,71 @@ h3,
   .word-notebook-fields { grid-template-columns: minmax(0, 1fr); gap: .75rem; }
 }
 
+.clue-illustration { overflow: visible; }
+.clue-halo { transform-origin: 150px 106px; animation: clue-breathe 6s ease-in-out infinite; }
+.clue-character { transform-origin: 150px 145px; animation: clue-sway 7s ease-in-out infinite; }
+.clue-illustration[data-art="balance"] .clue-character { transform-origin: 150px 70px; animation-duration: 5s; }
+.clue-illustration[data-art="fish"] .clue-character,
+.clue-illustration[data-art="feather"] .clue-character { animation: clue-drift 8s ease-in-out infinite; }
+.clue-illustration[data-art="notes"] .clue-character { animation: clue-bob 4s ease-in-out infinite; }
+.clue-illustration[data-art="timepiece"] .clue-character,
+.clue-illustration[data-art="eye"] .clue-character,
+.clue-illustration[data-art="gate"] .clue-character { animation: none; }
+.clue-illustration[data-art="hoist"] .clue-character { transform-origin: 115px 190px; animation-duration: 9s; }
+.clue-illustration[data-art="neck"] .clue-character { animation: clue-peek 7s ease-in-out infinite; }
+.clue-illustration[data-art="pencil"] .clue-character { animation: clue-scribble 6s ease-in-out infinite; }
+.clue-illustration[data-art="score"] .clue-character { animation: clue-bob 5s ease-in-out infinite; }
+.clue-illustration[data-art="arrow"] .clue-character { animation: clue-point 5s ease-in-out infinite; }
+.clue-pupil { animation: clue-look 8s ease-in-out infinite; }
+.clue-clock-hand { transform-origin: 150px 110px; animation: clue-tick 12s steps(12) infinite; }
+.clue-flame { transform-origin: 177px 100px; animation: clue-flicker 3s ease-in-out infinite; }
+.clue-glimmer { transform-box: fill-box; transform-origin: center; animation: clue-flicker 3.5s ease-in-out infinite; }
+.clue-tile { transform-origin: 40px 53px; animation: clue-sway 6s ease-in-out infinite; }
+.clue-illustration[data-art="tiles"] > g:nth-of-type(2) .clue-tile { animation-delay: -3s; }
+.clue-player { animation: clue-bob 3s ease-in-out infinite; }
+@keyframes clue-breathe {
+  0%, 100% { opacity: .06; transform: scale(1); }
+  50% { opacity: .12; transform: scale(1.05); }
+}
+@keyframes clue-sway {
+  0%, 100% { transform: rotate(-1.5deg); }
+  50% { transform: rotate(1.5deg); }
+}
+@keyframes clue-drift {
+  0%, 100% { transform: translate(-3px, 2px) rotate(-2deg); }
+  50% { transform: translate(4px, -4px) rotate(2deg); }
+}
+@keyframes clue-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+@keyframes clue-peek {
+  0%, 30%, 100% { transform: translateY(0); }
+  55%, 70% { transform: translateY(-5px); }
+}
+@keyframes clue-scribble {
+  0%, 30%, 75%, 100% { transform: translate(0, 0); }
+  40%, 60% { transform: translate(3px, -2px); }
+  50% { transform: translate(-2px, 1px); }
+}
+@keyframes clue-point {
+  0%, 35%, 75%, 100% { transform: translateX(0); }
+  50%, 60% { transform: translateX(5px); }
+}
+@keyframes clue-look {
+  0%, 20%, 100% { transform: translateX(0); }
+  35%, 45% { transform: translateX(-8px); }
+  65%, 75% { transform: translateX(8px); }
+}
+@keyframes clue-tick { to { transform: rotate(360deg); } }
+@keyframes clue-flicker {
+  0%, 100% { transform: scale(1) rotate(-1deg); opacity: .85; }
+  40% { transform: scale(.96, 1.04) rotate(2deg); opacity: 1; }
+  70% { transform: scale(1.03, .97) rotate(-2deg); opacity: .9; }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .clue-illustration * { animation: none !important; }
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
