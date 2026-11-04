@@ -90,7 +90,8 @@ export function PuzzlePage() {
 
   const solved = puzzle.state === 'SOLVED';
   const isWordPuzzle = puzzle.id === 4;
-  const enoughWords = new Set(parseHiddenWords(hiddenWords.join(' '))).size >= 4;
+  const enteredWords = new Set(parseHiddenWords(hiddenWords.join(' '))).size;
+  const enoughWords = enteredWords >= 4;
   const numeral = ROMAN[puzzle.sortOrder - 1];
   // Visual blocks (rangoli, cipher, table, lamps) get their own column; prose sits with the story.
   const visualBlocks = puzzle.blocks.filter((b) => VISUAL_BLOCKS.has(b.type));
@@ -134,18 +135,39 @@ export function PuzzlePage() {
     </div>
   ) : (
     <div className="space-y-8">
-      {!hasCourtyard && <form onSubmit={onSubmit} className="card space-y-4 !p-6" noValidate>
-        {isWordPuzzle ? <fieldset className="space-y-4">
-          <legend className="eyebrow">Words you found</legend>
-          <p className="text-sm text-parchment/60">Find any four of the six hidden words in your assigned picture. Enter one word per box, in any order.</p>
-          <div className="grid grid-cols-2 gap-3">
-            {hiddenWords.map((word, index) => <label key={index} className="block text-xs text-parchment/60">
-              Word {index + 1}{index >= 4 ? ' (optional)' : ''}
-              <input className="input-ember mt-2" value={word} maxLength={24} autoComplete="off"
-                spellCheck={false} pattern="[A-Za-z]*" aria-describedby={feedback ? 'answer-feedback' : undefined}
+      {!hasCourtyard && <form onSubmit={onSubmit} className={isWordPuzzle ? 'word-notebook' : 'card space-y-4 !p-6'} noValidate>
+        {isWordPuzzle ? <fieldset className="min-w-0">
+          <legend className="sr-only">Words you found</legend>
+          <div className="word-notebook-heading">
+            <span className="word-notebook-seal" aria-hidden="true">
+              <svg width="26" height="26" viewBox="0 0 32 32" fill="none">
+                <path d="M7 22c3-8 9-14 18-16-1 10-6 17-15 18M6 27l13-13M12 19h7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+            <p className="word-notebook-kicker">A little note to the Keeper</p>
+          </div>
+          <h2 className="word-notebook-title">What caught your eye?</h2>
+          <p id="hidden-words-help" className="word-notebook-intro">
+            Some words hide in the smallest details. Gather any four from your picture and leave them here.
+            No particular order. Take your time.
+          </p>
+          <div className="word-notebook-fields">
+            {hiddenWords.map((word, index) => <label key={index} className={`word-notebook-field${word.trim() ? ' word-notebook-field-filled' : ''}`}>
+              <span className="word-notebook-field-label"><span>Your {['first', 'second', 'third', 'fourth', 'fifth', 'sixth'][index]} find</span>
+                <span className="word-notebook-field-number" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+              </span>
+              <input value={word} maxLength={24} autoComplete="off" placeholder={index >= 4 ? 'Found another?' : 'A word you spotted…'}
+                spellCheck={false} pattern="[A-Za-z]*" aria-describedby={`hidden-words-help${feedback ? ' answer-feedback' : ''}`}
                 onChange={(event) => setHiddenWords((current) => current.map((value, i) => i === index ? event.target.value : value))} />
             </label>)}
           </div>
+          <div className="word-notebook-progress">
+            <span className="word-notebook-dots" aria-hidden="true">
+              {Array.from({ length: 4 }, (_, index) => <span key={index} className={enteredWords > index ? 'is-filled' : ''} />)}
+            </span>
+            <p role="status">{enoughWords ? 'Ready when you are.' : enteredWords === 0 ? 'Four different words are all you need.' : `${enteredWords} noted. A few more details to discover.`}</p>
+          </div>
+          <p className="word-notebook-footnote">One word per space. All six spaces are yours, but four correct words are enough.</p>
         </fieldset> : <>
         <label htmlFor="answer" className="eyebrow block">
           Your answer
@@ -162,11 +184,12 @@ export function PuzzlePage() {
         />
         </>}
         {puzzle.id === 5 && !riddleAnswers && <p className="text-sm text-parchment/60">Solve all five day riddles and select "Check five answers" before submitting the final word.</p>}
-        <button type="submit" className="btn-ember w-full" disabled={busy || (isWordPuzzle ? !enoughWords : answer.trim().length === 0) || (puzzle.id === 5 && !riddleAnswers)}>
-          {busy ? 'Offering…' : isWordPuzzle ? 'Offer words' : 'Offer answer'}
+        <button type="submit" className={isWordPuzzle ? 'word-notebook-submit' : 'btn-ember w-full'} disabled={busy || (isWordPuzzle ? !enoughWords : answer.trim().length === 0) || (puzzle.id === 5 && !riddleAnswers)}>
+          {busy ? isWordPuzzle ? 'Passing your note…' : 'Offering…' : isWordPuzzle ? 'Send to the Keeper' : 'Offer answer'}
+          {isWordPuzzle && <span aria-hidden="true">→</span>}
         </button>
         {feedback && (
-          <p id="answer-feedback" role="status" className={`text-sm ${feedback.ok ? 'text-ember-glow' : 'text-marigold'}`}>
+          <p id="answer-feedback" role="status" className={`${isWordPuzzle ? 'mt-4 ' : ''}text-sm ${feedback.ok ? 'text-ember-glow' : 'text-marigold'}`}>
             {feedback.text}
           </p>
         )}

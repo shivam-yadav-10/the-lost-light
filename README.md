@@ -25,6 +25,8 @@ URLs, nested-route refreshes, images and fonts.
 - Question IV assigns each team one of nine numbered QR posters. A location riddle
   leads to its poster; any four distinct hidden words from that picture unlock the
   fragment. Word order and letter case do not matter; at most six words are accepted.
+  A Keeper's-notebook answer panel tracks entered words only; its four-dot indicator
+  does not reveal correctness before submission.
 - Question V requires checking all five riddle answers before final submission.
 - The Lantern Courtyard has 20 rotating mirrors, team-specific positions,
   click-to-cycle symbols and a responsive 70/30 desktop layout.

@@ -570,6 +570,55 @@ h3,
   animation: game-page-enter 420ms ease-out both;
 }
 
+.word-notebook {
+  position: relative;
+  padding: clamp(1.4rem, 4vw, 2.4rem);
+  border: 1px solid #d5ab6838;
+  border-radius: 1.5rem;
+  background:
+    radial-gradient(ellipse at 0 0, #bd884419, transparent 65%),
+    linear-gradient(145deg, #201d29f5, #121221f5);
+  box-shadow: 0 18px 60px #00000025, inset 0 1px #fff1d60a;
+}
+.word-notebook-heading { display: flex; align-items: center; gap: .75rem; margin-bottom: 1.4rem; }
+.word-notebook-seal {
+  display: grid; place-items: center; flex-shrink: 0; width: 2.65rem; height: 2.65rem;
+  border: 1px solid #d5ab6838; border-radius: 50%; color: #e3bc7d; background: #d5ab680a;
+}
+.word-notebook-kicker { color: #d9b786; font-size: .6rem; letter-spacing: .16em; text-transform: uppercase; }
+.word-notebook-title { font-size: clamp(1.5rem, 3vw, 1.9rem); color: #f5e4c5; line-height: 1.25; }
+.word-notebook-intro { margin-top: .8rem; color: #d4ced0b8; font-size: .85rem; line-height: 1.85; max-width: 35rem; }
+.word-notebook-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.3rem 1.2rem; margin-top: 1.9rem; }
+.word-notebook-field { display: block; min-width: 0; padding: .6rem .7rem .2rem; border-radius: .6rem .6rem 0 0; background: #ffffff03; transition: background .2s; }
+.word-notebook-field:focus-within { background: #e3bc7d08; }
+.word-notebook-field-label { display: flex; justify-content: space-between; align-items: center; gap: .4rem; font-size: .65rem; color: #c9c0c1a8; }
+.word-notebook-field-number { font-size: .6rem; color: #d9b78670; font-variant-numeric: tabular-nums; }
+.word-notebook-field input {
+  width: 100%; min-width: 0; padding: .7rem 0; border: 0; border-bottom: 1px solid #d5ab6845;
+  border-radius: 0; background: transparent; color: #f6e5c7; font-size: 1rem;
+  transition: border-color .2s;
+}
+.word-notebook-field input::placeholder { color: #bcb3bd60; font-size: .75rem; }
+.word-notebook-field input:focus-visible { outline: 2px solid #e3bc7d; outline-offset: 4px; box-shadow: none; }
+.word-notebook-field-filled input { border-bottom-color: #e3bc7d99; }
+.word-notebook-progress { display: flex; align-items: center; gap: .75rem; margin-top: 1.7rem; }
+.word-notebook-progress p { font-size: .75rem; color: #ded0b7; }
+.word-notebook-dots { display: flex; gap: .3rem; flex-shrink: 0; }
+.word-notebook-dots span { width: .4rem; height: .4rem; border-radius: 50%; border: 1px solid #d5ab6860; transition: background .25s, box-shadow .25s; }
+.word-notebook-dots .is-filled { background: #e3bc7d; box-shadow: 0 0 8px #e3bc7d35; }
+.word-notebook-footnote { margin-top: .6rem; font-size: .65rem; line-height: 1.7; color: #bcb3bd99; }
+.word-notebook-submit {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  width: 100%; margin-top: 1.5rem; padding: .9rem 1.2rem; border: 1px solid #e3bc7d60;
+  border-radius: .85rem; background: #e3bc7d; color: #241a13; font-size: .85rem; font-weight: 600;
+  transition: background .2s, border-color .2s;
+}
+.word-notebook-submit:not(:disabled):hover { background: #f2d3a0; border-color: #f2d3a0; }
+.word-notebook-submit:disabled { background: #d5ab6810; border-color: #d5ab6828; color: #d0bd9a80; cursor: not-allowed; }
+@media (max-width: 380px) {
+  .word-notebook-fields { grid-template-columns: minmax(0, 1fr); gap: .75rem; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
