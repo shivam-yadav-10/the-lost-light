@@ -1,5 +1,6 @@
 import type { CheckpointContent, ErrandGroup, ProtectedPuzzle, RateLimit, ShardContent } from './types.js';
 import { WORD_PUZZLE_POSTERS } from './public.js';
+import { CONVERGENCE_RIDDLES } from './convergenceRiddles.js';
 
 export const WORD_PUZZLE_ANSWERS: Record<string, string[]> = {
   W1: ['Cow', 'Apple', 'Farm', 'Sun', 'Pick', 'Barn'],
@@ -179,16 +180,18 @@ export const PROTECTED_PUZZLES: ProtectedPuzzle[] = [
   },
   {
     id: 7,
-    answers: ['match'],
+    answers: [],
+    convergenceAnswersBySet: Object.fromEntries(CONVERGENCE_RIDDLES.map((riddle) => [riddle.id, riddle.answer])),
+    overlayWord: 'UNITE',
     nearMisses: [],
-    incorrectMessage: 'That word does not belong to every story. Read the illustrated clues together.',
+    incorrectMessage: 'Offer both words: your circle\'s illustrated riddle and the lantern table. Either order is welcome.',
     completionMessage:
       'The lanterns become one. The false flame was a reflection all along: its true colour is green, its true word REWARD. Your key, {key}, is now your proof. The Vault will ask for it.',
     hints: [
       { text: 'Find the teams named in your circle. All must reach this chamber and exchange their own seals.', penaltyMinutes: 10 },
-      { text: 'The pictures show different meanings of the same word: a small flame-maker and two things that belong together.', penaltyMinutes: 15 },
+      { text: 'The illustrated cards show different meanings of one five-letter word, unique to your circle. The lantern table hides a second word. Offer both, separated by a space, in either order.', penaltyMinutes: 15 },
       {
-        text: 'You can strike one to make a flame, find one for a patterned tile, or play one against a rival. The word has five letters.',
+        text: 'Focus the lantern table and press Ctrl+R to rotate the selected partner card (or use Rotate). Align every card\'s corner marks and orientation dot, then read the five dark letters between the gold squares.',
         penaltyMinutes: 20,
       },
     ],

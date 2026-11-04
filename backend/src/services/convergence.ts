@@ -4,7 +4,8 @@ import { getDb, queryAll, queryOne, transaction } from '../db/connection.js';
 import { PROTECTED_PUZZLES, RAINBOW, SHARDS } from '../content/protected.js';
 import { SPOKES, type ShardContent, type ShardType, type Spoke, type SymbolName } from '../content/types.js';
 import { HttpError } from '../types.js';
-import { buildOverlayCards, planConvergenceGroups, type ConvergenceAssignment } from './convergenceOverlay.js';
+import { buildOverlayCards, parseAlignment, planConvergenceGroups, type ConvergenceAssignment } from './convergenceOverlay.js';
+import { CONVERGENCE_RIDDLES, planRiddleSets } from '../content/convergenceRiddles.js';
 
 /**
  * The Convergence: team-specific lanterns, keys and unforgeable shard seals.
@@ -253,14 +254,29 @@ function hasArrived(teamId: number): boolean {
     || queryOne("SELECT team_id FROM team_progress WHERE team_id = ? AND puzzle_id = 7 AND status = 'solved'", teamId));
 }
 
+export function circleRiddle(teamId: number) {
+  convergenceCircle(teamId);
+  const assignments = queryAll<{ team_id: number; members_json: string }>('SELECT team_id, members_json FROM convergence_circles ORDER BY team_id');
+  const groups = [...new Map(assignments.map((row) => [row.members_json, JSON.parse(row.members_json) as string[]])).values()];
+  const existing = new Map(queryAll<{ team_id: number; riddle_set: string }>('SELECT team_id, riddle_set FROM convergence_riddles')
+    .map((row) => [String(row.team_id), row.riddle_set]));
+  const sets = planRiddleSets(groups, existing);
+  transaction(getDb(), () => {
+    for (const [id, set] of sets) getDb().prepare('INSERT OR IGNORE INTO convergence_riddles (team_id, riddle_set) VALUES (?, ?)').run(Number(id), set);
+  });
+  return CONVERGENCE_RIDDLES.find((riddle) => riddle.id === sets.get(String(teamId)))!;
+}
+
 export function overlayState(teamId: number) {
   const memberIds = convergenceCircle(teamId);
+  const riddle = circleRiddle(teamId);
   const cards = buildOverlayCards(memberIds);
   getDb().prepare('INSERT OR IGNORE INTO convergence_arrivals (team_id) VALUES (?)').run(teamId);
   const verified = queryAll<{ partner_id: number }>('SELECT partner_id FROM convergence_seals WHERE team_id = ?', teamId);
   return {
     ownId: String(teamId), seal: teamSeal(teamId), card: cards[memberIds.indexOf(String(teamId))],
     clueIndex: memberIds.indexOf(String(teamId)),
+    clue: riddle.clues[memberIds.indexOf(String(teamId))],
     partners: memberIds.filter((id) => id !== String(teamId)).map((id) => {
       const arrived = hasArrived(Number(id));
       const isVerified = arrived && verified.some((row) => row.partner_id === Number(id));
@@ -268,6 +284,7 @@ export function overlayState(teamId: number) {
         teamId: id, name: queryOne<{ name: string }>('SELECT name FROM teams WHERE id = ?', Number(id))!.name,
         arrived, verified: isVerified, card: isVerified ? cards[memberIds.indexOf(id)] : null,
         clueIndex: isVerified ? memberIds.indexOf(id) : null,
+        clue: isVerified ? riddle.clues[memberIds.indexOf(id)] : null,
       };
     }),
   };
@@ -292,8 +309,13 @@ export function verifySeal(teamId: number, rawSeal: string) {
     alreadyHeld: result.changes === 0 };
 }
 
-export function validateOverlaySubmission(teamId: number): void {
+export function validateOverlaySubmission(teamId: number, proof: string | undefined): void {
   const members = convergenceCircle(teamId);
+  try { parseAlignment(proof, members, String(teamId)); }
+  catch (error) {
+    if (!(error instanceof Error)) throw error;
+    throw new HttpError(400, error.message);
+  }
   for (const id of members.filter((member) => member !== String(teamId))) {
     if (!hasArrived(Number(id)) || !queryOne('SELECT team_id FROM convergence_seals WHERE team_id = ? AND partner_id = ?', teamId, Number(id))) {
       throw new HttpError(400, 'Every partner must arrive and have their seal verified before offering the word.');

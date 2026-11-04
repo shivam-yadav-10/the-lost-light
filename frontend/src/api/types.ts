@@ -118,12 +118,15 @@ export interface LanternCell {
   mark: SymbolName;
 }
 
+export interface ConvergenceClue { title: string; text: string; detail: string; art: string }
+
 export interface ConvergenceState {
   ownId: string;
   seal: string;
   clueIndex: number;
+  clue: ConvergenceClue;
   card: OverlayCard;
-  partners: { teamId: string; name: string; arrived: boolean; verified: boolean; clueIndex: number | null; card: OverlayCard | null }[];
+  partners: { teamId: string; name: string; arrived: boolean; verified: boolean; clueIndex: number | null; clue: ConvergenceClue | null; card: OverlayCard | null }[];
 }
 
 export interface SealResult {

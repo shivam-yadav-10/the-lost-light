@@ -36,7 +36,8 @@ import {
 import { checkRiddleAnswers, parseRiddleProof } from '../services/riddleAnswers';
 import { checkHiddenWords } from '../services/hiddenWords';
 import { parseVaultProof } from '../services/hanoi';
-import { parseMemberIds, parseOverlayCard } from '../services/convergenceOverlay';
+import { alignmentProof, parseMemberIds, parseOverlayCard } from '../services/convergenceOverlay';
+import { checkConvergenceAnswer } from '../services/convergenceAnswer';
 
 const ERROR_STATUS: Record<string, number> = {
   'permission-denied': 403,
@@ -129,10 +130,16 @@ function parseFragment(value: unknown): FragmentMeta | null {
 function parseCircle(value: unknown, ownId: string) {
   const record = asRecord(value);
   if (record.version !== 2) throw new ApiError(503, 'Your lantern circle has not been provisioned.');
+  const clue = asRecord(record.clue);
   return {
     memberIds: parseMemberIds(record.memberIds, ownId),
     seal: requiredString(record, 'seal'),
     card: parseOverlayCard(record.card),
+    riddleSet: requiredString(record, 'riddleSet'),
+    clue: {
+      title: requiredString(clue, 'title'), text: requiredString(clue, 'text'),
+      detail: requiredString(clue, 'detail'), art: requiredString(clue, 'art'),
+    },
   };
 }
 
@@ -205,8 +212,9 @@ async function isAnswerCorrect(
   }
 
   if (puzzleId === 7) {
-    await validateConvergenceSubmission(teamDocId);
-    return acceptedAnswers.includes(answer);
+    await validateConvergenceSubmission(teamDocId, rawProof);
+    const circle = parseCircle((await getDoc(doc(firestore, 'teamGameData', teamDocId))).get('convergence'), teamDocId);
+    return checkConvergenceAnswer(rawAnswer, asRecord(secret.convergenceAnswersBySet)[circle.riddleSet], secret.overlayWord);
   }
   if (puzzleId === 8) {
     const proof = parseVaultProof(rawProof);
@@ -235,12 +243,14 @@ async function isAnswerCorrect(
 
 async function validateConvergenceSubmission(
   ownId: string,
+  proof: string | undefined,
   transaction?: Parameters<Parameters<typeof runTransaction>[1]>[0],
 ): Promise<void> {
   const { firestore } = requireFirebaseServices();
   const read = (reference: ReturnType<typeof doc>) => transaction ? transaction.get(reference) : getDoc(reference);
   const own = await read(doc(firestore, 'teamGameData', ownId));
   const circle = parseCircle(own.get('convergence'), ownId);
+  alignmentProof(proof, circle.memberIds, ownId);
   for (const partnerId of circle.memberIds.filter((id) => id !== ownId)) {
     const [partner, seal, arrival, progress] = await Promise.all([
       read(doc(firestore, 'teamGameData', partnerId)),
@@ -249,7 +259,8 @@ async function validateConvergenceSubmission(
       read(doc(firestore, 'teams', partnerId, 'progress', '7')),
     ]);
     const partnerCircle = parseCircle(partner.get('convergence'), partnerId);
-    if (JSON.stringify(partnerCircle.memberIds) !== JSON.stringify(circle.memberIds)
+    if (partnerCircle.riddleSet !== circle.riddleSet
+      || JSON.stringify(partnerCircle.memberIds) !== JSON.stringify(circle.memberIds)
       || !seal.exists() || seal.get('version') !== 2
       || seal.get('sealHash') !== await hashText(normalizeSeal(partnerCircle.seal))
       || (!arrival.exists() && progress.get('status') !== 'solved')) {
@@ -396,7 +407,7 @@ export const api = {
         const progressSnapshot = await transaction.get(progressRef);
         const progress = progressSnapshot.exists() ? progressSnapshot.data() : {};
         if (progress.status === 'solved') throw new ApiError(409, 'This fragment has already been solved.');
-        if (id === 7) await validateConvergenceSubmission(teamDocId, transaction);
+        if (id === 7) await validateConvergenceSubmission(teamDocId, proof, transaction);
         const now = serverTimestamp();
         const data = {
           status: 'solved',
@@ -545,7 +556,8 @@ export const api = {
           getDoc(doc(firestore, 'teams', partnerId, 'progress', '7')),
         ]);
         const partnerCircle = parseCircle(data.get('convergence'), partnerId);
-        if (JSON.stringify(partnerCircle.memberIds) !== JSON.stringify(circle.memberIds)) {
+        if (partnerCircle.riddleSet !== circle.riddleSet
+          || JSON.stringify(partnerCircle.memberIds) !== JSON.stringify(circle.memberIds)) {
           throw new ApiError(503, 'Your lantern circle is inconsistent. Ask a Keeper.');
         }
         const arrived = arrival.exists() || partnerProgress.get('status') === 'solved';
@@ -556,11 +568,13 @@ export const api = {
           teamId: partnerId, name: requiredString(asRecord(team.data()), 'teamName'), arrived,
           verified: Boolean(isVerified), card: isVerified ? partnerCircle.card : null,
           clueIndex: isVerified ? circle.memberIds.indexOf(partnerId) : null,
+          clue: isVerified ? partnerCircle.clue : null,
         };
       }));
       return {
         ownId: teamDocId, seal: circle.seal, card: circle.card, partners,
         clueIndex: circle.memberIds.indexOf(teamDocId),
+        clue: circle.clue,
       };
     } catch (error) {
       throw firebaseApiError(error, 'The lantern will not light.');

@@ -1,5 +1,16 @@
 import type { OverlayCard, OverlayPlacement } from '../api/types';
 
+export function overlayKeyAction(event: Pick<KeyboardEvent, 'key' | 'altKey' | 'metaKey' | 'shiftKey'>):
+  { x: number; y: number; rotation: number } | null {
+  if (event.altKey || event.metaKey) return null;
+  const steps: Record<string, [number, number]> = {
+    ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1],
+  };
+  if (steps[event.key]) return { x: steps[event.key][0], y: steps[event.key][1], rotation: 0 };
+  if (event.key.toLowerCase() === 'r') return { x: 0, y: 0, rotation: event.shiftKey ? -90 : 90 };
+  return null;
+}
+
 export function adjustPlacement(placement: OverlayPlacement, patch: Partial<OverlayPlacement>): OverlayPlacement {
   return {
     ...placement, ...patch,

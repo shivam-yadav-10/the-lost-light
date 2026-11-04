@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import type { DocumentData, Firestore } from 'firebase-admin/firestore';
 import { protectedPuzzle } from '../content/protected.js';
+import { CONVERGENCE_RIDDLES, planRiddleSets } from '../content/convergenceRiddles.js';
 import { PUBLIC_PUZZLES } from '../content/public.js';
 import { teamKey, teamSeal } from '../services/convergence.js';
 import { buildOverlayCards, planConvergenceGroups, wordPixels, type ConvergenceAssignment } from '../services/convergenceOverlay.js';
@@ -32,6 +33,9 @@ export async function provisionConvergence(firestore: Firestore, apply: boolean)
     if (data.convergence != null) existing.set(id, data.convergence as ConvergenceAssignment);
   }
   const groups = planConvergenceGroups(teams, existing);
+  const riddleSets = planRiddleSets(groups, new Map([...existing]
+    .filter(([, assignment]) => assignment.riddleSet !== undefined)
+    .map(([id, assignment]) => [id, assignment.riddleSet!])));
   const puzzle = PUBLIC_PUZZLES.find((candidate) => candidate.id === 7)!;
   const secret = protectedPuzzle(7);
   const writes = new Map<string, DocumentData>();
@@ -51,7 +55,12 @@ export async function provisionConvergence(firestore: Firestore, apply: boolean)
         throw new Error(`Invalid existing Vault proof for ${id}; refusing to replace it.`);
       }
       const key = oldKey ?? teamKey(team.teamNumber);
-      const assignment: ConvergenceAssignment = previous ?? { version: 2, memberIds: members, seal, card: cards[index] };
+      const riddleSet = riddleSets.get(id)!;
+      const riddle = CONVERGENCE_RIDDLES.find((candidate) => candidate.id === riddleSet)!;
+      const assignment = {
+        ...(previous ?? { version: 2, memberIds: members, seal, card: cards[index] }),
+        riddleSet, clue: riddle.clues[index],
+      };
       if (typeof seal !== 'string' || !/^SEAL-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(seal)
         || !assignment.card || assignment.card.width !== 31 || assignment.card.height !== 9
         || !Array.isArray(assignment.card.lit) || !assignment.card.lit.length

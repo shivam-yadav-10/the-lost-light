@@ -49,13 +49,21 @@ so stale progress or a failed completion write cannot immediately reopen the sto
   click-to-cycle symbols and a responsive 70/30 desktop layout.
 - Convergence uses assigned partner circles and illustrated complementary clue cards.
   Exchange every partner seal after they arrive, then find the five-letter word
-  shared by the pictures' different meanings. Pairs see a flame-maker and identical
-  tiles; triples add a sporting contest. No dragging, rotation, or alignment proof.
+  shared by the pictures' different meanings. Six distinct sets are available,
+  assigned once per circle and persisted; triples receive a third complementary clue.
+  No set is reused: provisioning a seventh circle fails explicitly until more sets
+  are added. Existing circle assignments are retained when teams are added.
+  Also solve the restored lantern overlay: align all partner cards' corners and
+  orientation dots, and read the five dark letters between the gold squares.
+  Final submission requires the assigned riddle word plus the overlay word,
+  separated by a space, in either order. Both partner seals and alignment are checked.
+  Select a partner card, then focus the overlay and press Ctrl+R to rotate;
+  Ctrl+Shift+R reverses it. Plain R/Shift+R and visible Rotate buttons also work.
+  Outside the focused workspace Ctrl+R retains its normal browser-refresh behavior.
   Clues are assigned by the persisted circle's member order; partner clues remain
   sealed until their seals are verified. The targeted `--convergence-only --apply`
-  migration updates instructions, hints, and accepted answers without changing
-  seals, keys, progress, or circles. Legacy mask data is retained only for migration
-  compatibility and is not displayed or required to solve.
+  migration assigns riddle sets and clues and updates instructions, hints, and answer
+  data without changing seals, keys, progress, circles, or existing overlay masks.
   Partner assignments remain stable across browsers and refreshes.
   Desktop uses a 70/30 split: the introduction and illustrated cards on the left, with
   a sticky circle/seal, word submission, and hints sidebar aligned to the heading

@@ -27,10 +27,12 @@ import {
   verifiedShards,
   overlayState,
   validateOverlaySubmission,
+  circleRiddle,
 } from './convergence.js';
 import { normaliseAnswer } from './normalise.js';
 import { checkHiddenWords } from './hiddenWords.js';
 import { parseVaultProof } from './hanoi.js';
+import { checkConvergenceAnswer } from './convergenceAnswer.js';
 import { EVENT_START_AT, rankTeams, scoreCompletion } from './scoring.js';
 
 const MAX_ANSWER_LENGTH = 200;
@@ -302,8 +304,8 @@ function judge(teamId: number, secret: ProtectedPuzzle, rawAnswer: string, rawPr
   }
 
   if (secret.id === 7) {
-    validateOverlaySubmission(teamId);
-    const correct = secret.answers.some((candidate) => answer === normaliseAnswer(candidate));
+    validateOverlaySubmission(teamId, rawProof);
+    const correct = checkConvergenceAnswer(rawAnswer, circleRiddle(teamId).answer, secret.overlayWord);
     return {
       correct,
       message: secret.incorrectMessage,

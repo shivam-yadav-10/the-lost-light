@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { api, ApiError } from '../api/client';
-import type { ConvergenceState, EarnedFragment } from '../api/types';
+import type { ConvergenceState, EarnedFragment, OverlayPlacement } from '../api/types';
 import { HintSection } from '../components/HintSection';
 import { ConvergenceCards } from '../components/ConvergenceCards';
+import { LanternOverlay } from '../components/LanternOverlay';
+import { cardsAligned } from '../services/convergenceOverlay';
 import { Layout } from '../components/Layout';
 import { PuzzleBlocks } from '../components/PuzzleBlocks';
 import { SuccessOverlay } from '../components/SuccessOverlay';
@@ -27,6 +29,7 @@ function ConvergenceOpen({ puzzleId, fragments }: { puzzleId: number; fragments:
   const { puzzle, setPuzzle, loadError } = usePuzzle(puzzleId);
   const [state, setState] = useState<ConvergenceState | null>(null);
   const [stateError, setStateError] = useState<string | null>(null);
+  const [placements, setPlacements] = useState<OverlayPlacement[]>([]);
   const [seal, setSeal] = useState('');
   const [word, setWord] = useState('');
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -56,7 +59,7 @@ function ConvergenceOpen({ puzzleId, fragments }: { puzzleId: number; fragments:
     if (!session || !puzzle || busy) return;
     setBusy(true); setFeedback(null);
     try {
-      const result = await api.submit(puzzleId, session.teamDocId, session.teamId, word.trim());
+      const result = await api.submit(puzzleId, session.teamDocId, session.teamId, word.trim(), JSON.stringify(placements));
       if (result.correct) {
         setPuzzle({ ...puzzle, state: 'SOLVED', solvedAt: result.puzzle.solvedAt, completionMessage: result.message });
         setCelebrate(true);
@@ -72,7 +75,8 @@ function ConvergenceOpen({ puzzleId, fragments }: { puzzleId: number; fragments:
     </div>
   </Layout>;
   const solved = puzzle.state === 'SOLVED';
-  const ready = state && state.partners.every((p) => p.verified);
+  const ready = state && state.partners.every((p) => p.verified)
+    && cardsAligned(placements, state.partners.map((p) => p.teamId));
   const introduction = <header className="max-w-3xl">
     <p className="eyebrow">VII · {puzzle.fragmentName}</p>
     <h1 className="mt-4 text-5xl text-ember-glow">{puzzle.title}</h1>
@@ -120,9 +124,9 @@ function ConvergenceOpen({ puzzleId, fragments }: { puzzleId: number; fragments:
             </div>
           </form>}
           <form onSubmit={submit} className="card space-y-4 !p-6">
-            <label htmlFor="lantern-word" className="eyebrow">One word for every story</label>
-            <p className="text-sm text-parchment/60">{ready ? 'What five-letter word fits every illustrated clue?'
-              : 'Unlock every partner card before offering the word.'}</p>
+            <label htmlFor="lantern-word" className="eyebrow">The two words</label>
+            <p className="text-sm text-parchment/60">{ready ? 'Enter the illustrated-riddle word and the lantern-table word, separated by a space. Either order works.'
+              : 'Unlock every partner card, solve the illustrated riddle, and align the lantern patterns before offering both words.'}</p>
             <div className="flex flex-col gap-3">
               <input id="lantern-word" className="input-ember min-w-0 font-code uppercase"
                 value={word} onChange={(e) => setWord(e.target.value)} maxLength={30} autoComplete="off" spellCheck={false} />
@@ -139,6 +143,7 @@ function ConvergenceOpen({ puzzleId, fragments }: { puzzleId: number; fragments:
           <div className="min-w-0 lg:col-start-1 lg:row-start-1">
             {introduction}
             <ConvergenceCards state={state} />
+            <LanternOverlay state={state} placements={placements} onChange={setPlacements} />
           </div>
         </div>}
         {!state && feedback && <p role="status" className="mt-5 text-marigold">{feedback}</p>}

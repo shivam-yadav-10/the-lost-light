@@ -23,6 +23,7 @@ export interface ConvergenceAssignment {
   memberIds: string[];
   seal: string;
   card: OverlayCard;
+  riddleSet?: string;
 }
 
 export interface Placement { teamId: string; x: number; y: number; rotation: number }

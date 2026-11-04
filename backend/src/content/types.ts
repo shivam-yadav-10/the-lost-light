@@ -96,6 +96,8 @@ export interface ProtectedPuzzle {
   answersByGroup?: Record<string, string[]>;
   riddleAnswersByGroup?: Record<string, string[]>;
   hiddenWordsByGroup?: Record<string, string[]>;
+  convergenceAnswersBySet?: Record<string, string>;
+  overlayWord?: string;
   /** Shown when a team enters another group's answer. */
   otherGroupMessage?: string;
   /**

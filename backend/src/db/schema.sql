@@ -101,6 +101,10 @@ CREATE TABLE IF NOT EXISTS convergence_arrivals (
   team_id INTEGER PRIMARY KEY REFERENCES teams(id) ON DELETE CASCADE,
   reached_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
+CREATE TABLE IF NOT EXISTS convergence_riddles (
+  team_id INTEGER PRIMARY KEY REFERENCES teams(id) ON DELETE CASCADE,
+  riddle_set TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS convergence_seals (
   team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
   partner_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,

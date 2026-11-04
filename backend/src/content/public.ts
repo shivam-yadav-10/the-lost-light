@@ -346,7 +346,7 @@ export const PUBLIC_PUZZLES: PublicPuzzle[] = [
       },
       {
         type: 'note',
-        text: 'Different pictures. Different meanings. One five-letter word belongs to every story. Read your clues together; there is nothing to drag, align, or rotate.',
+        text: 'Solve two mysteries. The illustrated clues share one five-letter word unique to your circle. The lantern table hides another: slide and rotate every partner pattern until the corners meet, then read the dark spaces. Offer both words, separated by a space, in either order. To rotate, focus the lantern workspace and press Ctrl+R, or use the Rotate buttons.',
       },
     ],
   },

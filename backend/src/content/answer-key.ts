@@ -21,8 +21,8 @@ import {
   variantKey,
 } from './protected.js';
 import type { ErrandGroup } from './types.js';
-import { teamKey, teamSeal } from '../services/convergence.js';
-const CONVERGENCE_WORD = 'MATCH';
+import { circleRiddle, teamKey, teamSeal } from '../services/convergence.js';
+import { CONVERGENCE_RIDDLES } from './convergenceRiddles.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const outFile = path.resolve(here, '../../../ANSWER-KEY.md');
@@ -43,7 +43,7 @@ function aliasesSection(): string[] {
   out.push(`| IV ${title(4)} | any four distinct words from the team's assigned picture, in any order; six words maximum |`);
   out.push(`| V ${title(5)} | own set's word only |`);
   out.push(`| VI ${title(6)} | ${accepted(6)} |`);
-  out.push(`| VII ${title(7)} | ${accepted(7)} after all partner seals; no alignment required |`);
+  out.push(`| VII ${title(7)} | own circle word + UNITE, either order, after all partner seals and aligned overlay cards |`);
   out.push(`| VIII ${title(8)} | solve the four-disk Tower of Hanoi, then word ${accepted(8)} **and** the team's own key as proof code |`);
   out.push('', 'Answers ignore case, accents and punctuation.', '');
   return out;
@@ -112,6 +112,7 @@ try {
   const teams = queryAll<{ id: number; name: string; game_key: string }>('SELECT id, name, game_key FROM teams ORDER BY id');
 
   const perTeam = teams.map((t) => {
+    const CONVERGENCE_WORD = `${circleRiddle(t.id).answer} UNITE`;
     const key = teamKey(t.id);
     const dawns = FIVE_DAWNS_SETS.find((s) => s.group === riddleSet(t.id))!;
     const wordGroup = variantKey(t.id, Object.keys(protectedPuzzle(4).hiddenWordsByGroup!));
@@ -140,7 +141,8 @@ try {
     '|---|---|---|---|---|---|---|---|---|---|',
     ...perTeam,
     '',
-    `VII: exchange every partner seal and combine the illustrated clues: flame-maker, identical tiles, and (in triples) a contest. Answer **${CONVERGENCE_WORD}**. No dragging or rotation. VIII: move four Hanoi disks from left to right, then enter **SHARED** and the awarded team key as the proof code.`,
+    'VII: exchange every partner seal. Solve your circle riddle, then align all overlay cards at x=0, y=0, rotation=0 and read UNITE in the dark spaces. Enter both words separated by a space, in either order. Focus the overlay and press Ctrl+R to rotate, or use Rotate. VIII: solve four-disk Hanoi, then enter SHARED and the awarded proof key.',
+    ...CONVERGENCE_RIDDLES.map((riddle) => `${riddle.id}: **${riddle.answer} UNITE** — ${riddle.clues.map((clue) => clue.title).join(' / ')}.`),
     'Hanoi shortest solution (A = left, B = middle, C = right): A-B, A-C, B-C, A-B, C-A, C-B, A-B, A-C, B-C, B-A, C-A, B-C, A-B, A-C, B-C.',
     'Convergence circles are persisted mutual pairs, with one triple for an odd initial roster. Keeper shard seals are obsolete.',
     '',

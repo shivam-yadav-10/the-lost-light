@@ -1,6 +1,17 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { adjustPlacement, alignmentProof, cardsAligned, parseMemberIds, parseOverlayCard } from '../src/services/convergenceOverlay.ts';
+import { adjustPlacement, alignmentProof, cardsAligned, parseMemberIds, parseOverlayCard, overlayKeyAction } from '../src/services/convergenceOverlay.ts';
+
+test('focused overlay shortcuts rotate with Ctrl+R and reverse with Ctrl+Shift+R', () => {
+  const event = { key: 'r', ctrlKey: true, shiftKey: false, altKey: false, metaKey: false };
+  assert.deepEqual(overlayKeyAction(event), { x: 0, y: 0, rotation: 90 });
+  assert.deepEqual(overlayKeyAction({ ...event, key: 'R', shiftKey: true }), { x: 0, y: 0, rotation: -90 });
+  assert.deepEqual(overlayKeyAction({ ...event, ctrlKey: false }), { x: 0, y: 0, rotation: 90 });
+  assert.deepEqual(overlayKeyAction({ ...event, key: 'ArrowLeft' }), { x: -1, y: 0, rotation: 0 });
+  for (const patch of [{ altKey: true }, { metaKey: true }, { key: 'Tab' }, { key: 'Enter' }]) {
+    assert.equal(overlayKeyAction({ ...event, ...patch }), null);
+  }
+});
 
 test('drag snapping, keyboard/button steps and quarter-turns can solve both initial partner placements', () => {
   const first = { teamId: 'b', x: 3, y: 2, rotation: 90 };

@@ -29,6 +29,7 @@ import {
 } from '../services/convergence.js';
 import { normaliseAnswer } from '../services/normalise.js';
 import { buildOverlayCards, planConvergenceGroups, wordPixels } from '../services/convergenceOverlay.js';
+import { CONVERGENCE_RIDDLES } from './convergenceRiddles.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 let failures = 0;
@@ -147,7 +148,11 @@ const naive = vaultWord(false);
 check('Uncorrected Vault word is the SHADED trap with a near miss', nearMissFor(8, naive.toLowerCase()), naive);
 
 // ---------- VII. The Convergence ----------
-check('Convergence illustrated riddle accepts MATCH', canonical(7) === 'match');
+check('Convergence has six unique five-letter circle riddles',
+  CONVERGENCE_RIDDLES.length === 6 && new Set(CONVERGENCE_RIDDLES.map((riddle) => riddle.answer)).size === 6
+  && CONVERGENCE_RIDDLES.every((riddle) => /^[A-Z]{5}$/.test(riddle.answer)
+    && riddle.clues.length === 3 && protectedPuzzle(7).convergenceAnswersBySet?.[riddle.id] === riddle.answer));
+check('Convergence overlay still reads UNITE', protectedPuzzle(7).overlayWord === 'UNITE');
 for (const size of [2, 3]) {
   const cards = buildOverlayCards(Array.from({ length: size }, (_, i) => `check-${i}`));
   const pixels = cards.flatMap((card) => card.lit);

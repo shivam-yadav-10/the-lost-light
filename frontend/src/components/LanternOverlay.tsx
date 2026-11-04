@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import type { ConvergenceState, OverlayCard, OverlayPlacement } from '../api/types';
-import { adjustPlacement } from '../services/convergenceOverlay';
+import { adjustPlacement, overlayKeyAction } from '../services/convergenceOverlay';
 
 function Pattern({ card }: { card: OverlayCard }) {
   return <>{card.lit.map((pixel) => (
@@ -49,12 +49,12 @@ export function LanternOverlay({ state, placements, onChange }: {
   function rotate(amount: number) {
     if (selected) update(active, { rotation: selected.rotation + amount });
   }
-  function keyDown(event: KeyboardEvent<SVGGElement>) {
-    const steps: Record<string, [number, number]> = {
-      ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1],
-    };
-    if (steps[event.key]) { event.preventDefault(); move(...steps[event.key]); }
-    if (event.key.toLowerCase() === 'r') { event.preventDefault(); rotate(event.shiftKey ? -90 : 90); }
+  function keyDown(event: KeyboardEvent<HTMLElement>) {
+    const action = overlayKeyAction(event);
+    if (!selected || !action) return;
+    event.preventDefault();
+    if (action.rotation) rotate(action.rotation);
+    else move(action.x, action.y);
   }
   function pointerDown(event: PointerEvent<SVGGElement>, placement: OverlayPlacement) {
     if (!event.isPrimary) return;
@@ -66,27 +66,38 @@ export function LanternOverlay({ state, placements, onChange }: {
   }
   function pointerMove(event: PointerEvent<SVGGElement>) {
     if (!drag.current || !svg.current) return;
-    const bounds = svg.current.getBoundingClientRect();
+    const matrix = svg.current.getScreenCTM();
+    if (!matrix) return;
+    const inverse = matrix.inverse();
+    const start = new DOMPoint(drag.current.clientX, drag.current.clientY).matrixTransform(inverse);
+    const current = new DOMPoint(event.clientX, event.clientY).matrixTransform(inverse);
     update(drag.current.id, {
-      x: drag.current.x + (event.clientX - drag.current.clientX) * 47 / bounds.width,
-      y: drag.current.y + (event.clientY - drag.current.clientY) * 39 / bounds.height,
+      x: drag.current.x + current.x - start.x,
+      y: drag.current.y + current.y - start.y,
     });
   }
   const ordered = [...unlocked].sort((a, b) => Number(a.teamId === active) - Number(b.teamId === active));
   return (
-    <section className="card mt-10" aria-labelledby="overlay-heading">
+    <section className="card mt-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ember-glow"
+      tabIndex={0} onKeyDown={keyDown} aria-labelledby="overlay-heading" aria-describedby="overlay-instructions">
       <h2 id="overlay-heading" className="text-2xl text-ember-glow">The lantern table</h2>
       <p className="mt-3 text-sm text-parchment/70" id="overlay-instructions">
         Your card is fixed. Select a partner card, drag to slide it and turn it with the buttons.
-        Keyboard: focus the card, use arrow keys to slide and R / Shift+R to turn.
+        Keyboard: focus this workspace, use arrow keys to slide and Ctrl+R to rotate.
+        Ctrl+Shift+R rotates the other way. R / Shift+R also work.
         Each move snaps one square. Match all four corner marks and their single orientation dot.
+        Read the dark spaces between the gold squares, not the gold itself.
+      </p>
+      <p className="mt-4 rounded-lg border border-ember/40 bg-ember/10 px-4 py-3 text-sm text-ember-glow">
+        Need to turn a card? Select your partner below, then press <kbd>Ctrl + R</kbd> here or use Rotate.
+        The shortcut rotates only while this workspace has focus; elsewhere it refreshes the browser.
       </p>
       <div className="mt-5 flex flex-wrap gap-3">
         {unlocked.map((partner) => <button key={partner.teamId} type="button"
           className={active === partner.teamId ? 'btn-ember' : 'btn-ghost'}
           aria-pressed={active === partner.teamId} onClick={() => setActive(partner.teamId)}>{partner.name}</button>)}
       </div>
-      <svg ref={svg} viewBox="-8 -15 47 39" className="mt-4 w-full rounded-xl bg-midnight-900"
+      <svg ref={svg} viewBox="-8 -15 47 39" className="mt-4 w-full rounded-xl bg-midnight"
         aria-label="Overlapping patterned lantern cards, bright squares on a dark table">
         <rect x={0} y={0} width={31} height={9} fill="#13101d" />
         <Pattern card={state.card} />
@@ -97,7 +108,7 @@ export function LanternOverlay({ state, placements, onChange }: {
           return <g key={partner.teamId} transform={`translate(${p.x} ${p.y}) rotate(${p.rotation} 15.5 4.5)`}
             tabIndex={0} role="group" aria-label={`${partner.name} movable card`}
             aria-describedby="overlay-instructions" style={{ touchAction: 'none', cursor: 'grab' }}
-            onFocus={() => setActive(partner.teamId)} onKeyDown={keyDown}
+            onFocus={() => setActive(partner.teamId)}
             onPointerDown={(event) => pointerDown(event, p)} onPointerMove={pointerMove}
             onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }}
             onLostPointerCapture={() => { drag.current = null; }}>
@@ -115,8 +126,8 @@ export function LanternOverlay({ state, placements, onChange }: {
           <button type="button" className="btn-ghost" onClick={() => move(1, 0)} aria-label="Slide right">→</button>
           <button type="button" className="btn-ghost" onClick={() => move(0, -1)} aria-label="Slide up">↑</button>
           <button type="button" className="btn-ghost" onClick={() => move(0, 1)} aria-label="Slide down">↓</button>
-          <button type="button" className="btn-ghost" onClick={() => rotate(-90)}>Turn ↶</button>
-          <button type="button" className="btn-ghost" onClick={() => rotate(90)}>Turn ↷</button>
+          <button type="button" className="btn-ghost" onClick={() => rotate(-90)}>Rotate ↶</button>
+          <button type="button" className="btn-ghost" onClick={() => rotate(90)}>Rotate ↷</button>
         </div>
       </div> : <p className="text-sm text-parchment/60">Exchange a partner seal to bring their card to the table.</p>}
     </section>
