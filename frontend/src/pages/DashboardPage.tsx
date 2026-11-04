@@ -18,7 +18,7 @@ export function DashboardPage() {
   const markers = progress?.checkpoints.length ?? 0;
 
   // Nobody on the team has seen the opening story yet (first login, or after a progress reset).
-  // introDone: the story just ended but the server could not record it; don't loop back.
+  // The story handoff must not loop back while cached progress catches up.
   const introDone = Boolean((location.state as { introDone?: boolean } | null)?.introDone);
   if (progress && !progress.introSeen && !introDone) return <Navigate to="/story" replace state={{ first: true }} />;
 

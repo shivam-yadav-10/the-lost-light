@@ -17,6 +17,10 @@ URLs, nested-route refreshes, images and fonts.
 
 ## Gameplay
 
+Exiting the opening story (Escape, Skip, or finishing it) refreshes team progress
+before returning to the dashboard. The handoff also bypasses the intro redirect
+so stale progress or a failed completion write cannot immediately reopen the story.
+
 - Questions I through VI unlock sequentially at the confirmed event times below.
   Schedule overrides do not bypass prerequisites. Questions VII (Convergence) and
   VIII (Final Vault) have no clock release; their existing prerequisite gates remain.
