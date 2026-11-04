@@ -5,17 +5,19 @@ import { Diya } from './Diya';
 import { FloatingEmbers } from './FloatingEmbers';
 import { Toran } from './Toran';
 import { GameClock } from './GameClock';
+import { FloatingLanterns } from './FloatingLanterns';
 
 interface LayoutProps {
   children: ReactNode;
   /** Hide the team header (landing/login). */
   bare?: boolean;
+  lanterns?: boolean;
 }
 
 // Pages that already show the code form inline.
 const INLINE_CODE_ROUTES = ['/dashboard', '/checkpoint'];
 
-export function Layout({ children, bare = false }: LayoutProps) {
+export function Layout({ children, bare = false, lanterns = false }: LayoutProps) {
   const { session, signOut } = useTeam();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -25,6 +27,7 @@ export function Layout({ children, bare = false }: LayoutProps) {
     <div className="relative min-h-dvh overflow-hidden">
       <Toran />
       <FloatingEmbers />
+      {lanterns && <FloatingLanterns />}
       <div
         aria-hidden="true"
         className="rangoli pointer-events-none absolute -top-72 left-1/2 h-[900px] w-[900px] -translate-x-1/2 animate-spin-slow opacity-50"

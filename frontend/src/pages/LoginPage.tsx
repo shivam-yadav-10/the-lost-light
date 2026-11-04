@@ -40,7 +40,7 @@ export function LoginPage() {
   }
 
   return (
-    <Layout bare>
+    <Layout bare lanterns>
       <section className="flex min-h-dvh flex-col items-center justify-center py-24">
         <Diya size={84} className="animate-rise" />
         <h1 className="mt-10 text-4xl text-ember-glow lg:text-5xl animate-rise">Speak the word</h1>

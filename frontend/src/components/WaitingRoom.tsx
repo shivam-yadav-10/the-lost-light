@@ -1,14 +1,7 @@
-import type { CSSProperties, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTeam } from '../store/team';
-
-const LANTERNS = Array.from({ length: 14 }, (_, index) => ({
-  left: `${4 + (index * 37) % 92}%`,
-  top: `${8 + (index * 23) % 78}%`,
-  '--drift': `${18 + index % 5 * 4}s`,
-  '--delay': `${-index * 3}s`,
-  '--size': `${14 + index % 4 * 5}px`,
-}));
+import { FloatingLanterns } from './FloatingLanterns';
 
 export function WaitingRoom({ children }: { children: ReactNode }) {
   const { signOut } = useTeam();
@@ -26,10 +19,7 @@ export function WaitingRoom({ children }: { children: ReactNode }) {
           <path d="M0 -129V-120" stroke="currentColor" />
         </g>)}
       </svg>
-      {LANTERNS.map((style, index) => <div key={index} className="waiting-lantern" style={style as CSSProperties}>
-        <span className="waiting-lantern-paper" />
-        <span className="waiting-lantern-flame" />
-      </div>)}
+      <FloatingLanterns />
       <div className="waiting-horizon" />
     </div>
     <button type="button" className="waiting-logout" onClick={() => {

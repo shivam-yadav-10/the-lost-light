@@ -7,7 +7,7 @@ export function LandingPage() {
   const { session } = useTeam();
 
   return (
-    <Layout bare>
+    <Layout bare lanterns>
       <section className="flex min-h-dvh flex-col items-center justify-center py-24 text-center">
         <div className="animate-rise">
           <DiyaLamp state="SOLVED" size={150} igniteDelay={300} className="mx-auto drop-shadow-[0_0_40px_rgba(251,191,36,0.45)]" />

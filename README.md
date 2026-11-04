@@ -64,6 +64,8 @@ Signed-out users can still reach login and organiser authentication.
 The waiting screen has a dedicated teal-and-copper lantern-night backdrop and a logout button
 that clears the local team session without resetting progress or browser bindings.
 Countdown digits roll smoothly; ambient and digit animations respect reduced-motion preferences.
+The same decorative floating lanterns appear on the landing and login pages, while those pages
+retain their existing layout and backgrounds.
 Each locked core question also shows its scheduled IST release beneath its diya, alongside
 a reminder that earlier questions must be completed. Release labels disappear once the diya unlocks.
 Release status refreshes at scheduled boundaries without a manual page reload. A release never
