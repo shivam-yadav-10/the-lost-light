@@ -6,7 +6,6 @@ import { DiyaLamp } from '../components/DiyaLamp';
 import { FragmentCard } from '../components/FragmentCard';
 import { HintSection } from '../components/HintSection';
 import { LanternCourtyard } from '../components/LanternCourtyard';
-import { Layout } from '../components/Layout';
 import { PuzzleBlocks } from '../components/PuzzleBlocks';
 import { SparkBurst } from '../components/SparkBurst';
 import { SuccessOverlay } from '../components/SuccessOverlay';
@@ -68,22 +67,21 @@ export function PuzzlePage() {
 
   if (loadError) {
     return (
-      <Layout>
         <div role="alert" className="card mt-10 text-center">
           <p className="text-marigold">{loadError}</p>
           <Link to="/dashboard" className="btn-ghost mt-5">
             Back to the fragments
           </Link>
         </div>
-      </Layout>
     );
   }
 
   if (!puzzle) {
     return (
-      <Layout>
-        <p className="mt-16 text-center text-parchment/50">Approaching the light…</p>
-      </Layout>
+      <div role="status" className="flex min-h-[60dvh] flex-col items-center justify-center gap-5">
+        <span aria-hidden="true" className="h-8 w-8 animate-spin rounded-full border border-ember/20 border-t-ember-glow" />
+        <p className="text-sm text-parchment/50">Approaching the light…</p>
+      </div>
     );
   }
 
@@ -166,7 +164,7 @@ export function PuzzlePage() {
   );
 
   return (
-    <Layout>
+    <div className="game-page-enter">
       {celebrate && (
         <SuccessOverlay
           eyebrow={`Fragment ${numeral} recovered`}
@@ -200,7 +198,7 @@ export function PuzzlePage() {
           <div className="lg:sticky lg:top-8">{action}</div>
         </article>
       )}
-    </Layout>
+    </div>
   );
 }
 

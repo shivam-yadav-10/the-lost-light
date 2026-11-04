@@ -562,6 +562,14 @@ h3,
   from { transform: translate(0, 25px) rotate(-5deg); opacity: .25; }
   to { transform: translate(18px, -45px) rotate(5deg); opacity: .6; }
 }
+@keyframes game-page-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.game-page-enter {
+  animation: game-page-enter 420ms ease-out both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

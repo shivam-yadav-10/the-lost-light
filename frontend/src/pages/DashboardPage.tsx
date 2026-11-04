@@ -2,7 +2,6 @@ import { Link, Navigate, useLocation } from 'react-router-dom';
 import type { FragmentState } from '../api/types';
 import { CheckpointForm } from '../components/CheckpointForm';
 import { DiyaRow } from '../components/DiyaRow';
-import { Layout } from '../components/Layout';
 import { useProgress } from '../store/useProgress';
 import { useTeam } from '../store/team';
 import { FragmentLedger } from './EndgamePages';
@@ -24,7 +23,7 @@ export function DashboardPage() {
   if (progress && !progress.introSeen && !introDone) return <Navigate to="/story" replace state={{ first: true }} />;
 
   return (
-    <Layout>
+    <>
       {/* 70:30. Desktop: progress + diyas on the left, a sticky sidebar for code entry and the endgame.
           Mobile stacks: team name, code entry, then the diyas. */}
       <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,3fr)] lg:gap-x-12 lg:gap-y-14">
@@ -137,7 +136,7 @@ export function DashboardPage() {
           )}
         </div>
       </div>
-    </Layout>
+    </>
   );
 }
 

@@ -12,7 +12,7 @@ import { PuzzlePage } from './pages/PuzzlePage';
 import { StoryPage } from './pages/StoryPage';
 import { VaultPage } from './pages/VaultPage';
 import { TeamProvider, useTeam } from './store/team';
-import { useProgress } from './store/useProgress';
+import { ProgressProvider, useProgress } from './store/useProgress';
 import { hasReleasedQuestion, nextRelease } from './services/gameClock';
 import { ReleaseCountdown, useClockNow } from './components/GameClock';
 import { WaitingRoom } from './components/WaitingRoom';
@@ -26,12 +26,23 @@ function RequireTeam() {
 function TeamReleaseBoundary() {
   const { session } = useTeam();
   const { pathname } = useLocation();
-  return session && pathname !== '/admin' ? <ReleaseGate /> : <Outlet />;
+  return session && pathname !== '/admin'
+    ? <ProgressProvider key={session.teamDocId}><ReleaseGate /></ProgressProvider>
+    : <Outlet />;
 }
 
 function PublicEntry() {
   const { session } = useTeam();
   return session ? <Navigate to="/dashboard" replace /> : <Layout bare lanterns><Outlet /></Layout>;
+}
+
+function GamePageLayout() {
+  const { pathname } = useLocation();
+  return <Layout>
+    <div key={pathname} className="game-page-enter min-h-[60dvh]">
+      <Outlet />
+    </div>
+  </Layout>;
 }
 
 function ReleaseGate() {
@@ -77,9 +88,11 @@ export function App() {
           <Route path="/admin" element={<AdminPage />} />
           <Route element={<RequireTeam />}>
             <Route path="/waiting" element={null} />
-            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route element={<GamePageLayout />}>
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/puzzle/:id" element={<PuzzlePage />} />
+            </Route>
             <Route path="/story" element={<StoryPage />} />
-            <Route path="/puzzle/:id" element={<PuzzlePage />} />
             <Route path="/checkpoint" element={<CheckpointPage />} />
             <Route path="/checkpoint/:code" element={<CheckpointPage />} />
             <Route path="/convergence" element={<ConvergencePage />} />

@@ -63,6 +63,11 @@ navigation and unknown paths, except `/admin`, which retains its organiser authe
 Signed-out users can still reach login and organiser authentication.
 During the initial release-status check, a neutral loading state is shown instead of the waiting
 room; teams with an open question go directly to their destination without a timer-screen flash.
+The release gate, countdown, and game pages use one team-scoped progress source, so the timer
+and dashboard render together without a second fetch shifting the content down.
+Dashboard and core puzzle routes also retain the same background, header, and countdown during
+navigation. Only the page content fades in, with a centered loading state while a puzzle is fetched;
+reduced-motion preferences disable the reveal animation.
 The waiting screen has a dedicated teal-and-copper lantern-night backdrop and a logout button
 that clears the local team session without resetting progress or browser bindings.
 Countdown digits roll smoothly; ambient and digit animations respect reduced-motion preferences.

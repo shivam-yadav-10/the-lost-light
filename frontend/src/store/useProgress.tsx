@@ -1,10 +1,23 @@
-import { useCallback, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { getTeamProgress } from '../services/progressService';
 import { TeamLoginError } from '../services/teamService';
 import type { TeamProgress } from '../api/types';
 import { useTeam } from './team';
 
+const ProgressContext = createContext<ReturnType<typeof useProgressState> | null>(null);
+
+export function ProgressProvider({ children }: { children: ReactNode }) {
+  const value = useProgressState();
+  return <ProgressContext.Provider value={value}>{children}</ProgressContext.Provider>;
+}
+
 export function useProgress() {
+  const value = useContext(ProgressContext);
+  if (!value) throw new Error('useProgress must be used inside ProgressProvider');
+  return value;
+}
+
+function useProgressState() {
   const { session, signOut } = useTeam();
   const [progress, setProgress] = useState<TeamProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
