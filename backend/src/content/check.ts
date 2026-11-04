@@ -59,7 +59,7 @@ check('Lit lamps, left to right, spell the answer', streetWord.toLowerCase() ===
 // ---------- II. The Errand ----------
 const errand = protectedPuzzle(2);
 const errandCodes = ERRAND_GROUPS.map((g) => errand.answersByGroup?.[g]?.[0] ?? '');
-check('Each errand group has its own code', errandCodes.every(Boolean) && new Set(errandCodes).size === 3, errandCodes.join(', '));
+check('Six errand groups have distinct codes', errandCodes.length === 6 && errandCodes.every(Boolean) && new Set(errandCodes).size === 6, errandCodes.join(', '));
 const errandPuzzle = PUBLIC_PUZZLES.find((p) => p.id === 2)!;
 check('Each errand group has its own riddle', ERRAND_GROUPS.every((g) => (errandPuzzle.variants?.[g]?.length ?? 0) > 0));
 const groupCounts = ERRAND_GROUPS.map((g) => Array.from({ length: 15 }, (_, i) => errandGroup(i + 1)).filter((x) => x === g).length);

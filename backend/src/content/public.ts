@@ -200,6 +200,39 @@ export const PUBLIC_PUZZLES: PublicPuzzle[] = [
           ],
         },
       ],
+      D: [
+        {
+          type: 'verse',
+          lines: [
+            'When midday calls, the desks grow still,',
+            'and hungry footsteps come to fill.',
+            'Where trays and tables welcome you,',
+            'a little diya holds your clue.',
+          ],
+        },
+      ],
+      E: [
+        {
+          type: 'verse',
+          lines: [
+            'Three wheels, a roof, a seat behind,',
+            'a little city ride to find.',
+            'In Phase 2, seek this waiting ride;',
+            'a diya card rests by its side.',
+          ],
+        },
+      ],
+      F: [
+        {
+          type: 'verse',
+          lines: [
+            'Before a visitor finds their way,',
+            'a first hello begins their day.',
+            'Where guests are welcomed, pause and see:',
+            'a little flame keeps company.',
+          ],
+        },
+      ],
     },
   },
   {

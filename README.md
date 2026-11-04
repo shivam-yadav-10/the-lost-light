@@ -26,6 +26,9 @@ so stale progress or a failed completion write cannot immediately reopen the sto
   VIII (Final Vault) have no clock release; their existing prerequisite gates remain.
 - Teams have 12 hints across the entire game, with at most three per question.
 - Up to three browsers/devices may be linked to a team.
+- The Errand cycles teams across six locations: coffee machine, printer, water
+  dispenser, cafeteria, the auto-rickshaw in Phase 2, and reception. Existing
+  A–C card codes remain valid; D–F add three new cards.
 - Question IV assigns each team one of nine numbered QR posters. A location riddle
   leads to its poster; any four distinct hidden words from that picture unlock the
   fragment. Word order and letter case do not matter; at most six words are accepted.
@@ -47,6 +50,23 @@ so stale progress or a failed completion write cannot immediately reopen the sto
   appears; reduced-motion preferences disable the fade.
 
 ### QR picture assets and puzzle IV content
+
+The Errand has six cards A–F. For an existing Firestore roster, preview its update with
+`npm run firestore:seed --prefix backend -- --errands-only`; add `--apply` to
+update puzzle-II content, group assignments, organiser locations, hints, and
+the six claimable checkpoints. Assignments cycle A–F by stable team number
+(team 4 now uses D rather than A). Existing solves, hint usage, browser bindings,
+and release overrides are preserved. No frontend deployment is needed for this
+content-only update; do not run a full seed or progress reset.
+
+Gameplay resets clear team solves, hints used, checkpoint visits, Convergence
+arrivals/seal verifications, and story-seen flags. Team keys, browser bindings,
+partner assignments, and Vault proof keys are retained. Clear `gameConfig/main`
+manual unlock overrides to restore the 10 November schedule below; Q7–Q8 remain
+prerequisite-gated. A reset does not delete browser-local riddle drafts.
+Regenerate the ignored local `ANSWER-KEY.md` with `npm run answer-key --prefix backend`
+after applying local content changes. It reflects the local SQLite roster, not
+automatically the live Firestore roster; keep it private.
 
 Vite serves the repository's `assets` directory as public static files. Printed
 QR codes should open the image directly, without a hash route or team login:

@@ -75,15 +75,18 @@ export const PROTECTED_PUZZLES: ProtectedPuzzle[] = [
       A: ['GLOW-7K4M'],
       B: ['GLOW-2P9X'],
       C: ['GLOW-5T3R'],
+      D: ['GLOW-8N6V'],
+      E: ['GLOW-4H7Q'],
+      F: ['GLOW-9W2S'],
     },
     otherGroupMessage: "That card belongs to another team's errand. Your light is waiting somewhere else.",
     nearMisses: [],
     incorrectMessage: 'That is not the code on your card. Check the riddle again and look closely around the place it describes.',
     completionMessage: 'Errand done. A violet light stirs in the places you pass every day.',
     hints: corePenalties(
-      'Your riddle describes an everyday office machine, not a room.',
-      'Think of what you use before your first meeting, after you press Print, or when you are thirsty.',
-      'The card is fixed close to the machine itself: at eye level, on its side, or just beside it.',
+      'Your riddle points to a familiar office place or object. Think about what happens there.',
+      'It may describe coffee, printed pages, drinking water, meals, a three-wheeled ride in Phase 2, or welcoming visitors.',
+      'Look for a small diya card at the place your riddle describes. Leave it there and enter its code here.',
     ),
     rateLimit: CORE_LIMIT,
     fragment: { symbol: 'crescent', number: 4, direction: 'W', keyword: 'SHADOW', colour: 'Violet' },
@@ -213,7 +216,7 @@ export const PROTECTED_PUZZLES: ProtectedPuzzle[] = [
   },
 ];
 
-export const ERRAND_GROUPS: ErrandGroup[] = ['A', 'B', 'C'];
+export const ERRAND_GROUPS: ErrandGroup[] = ['A', 'B', 'C', 'D', 'E', 'F'];
 
 /** Each team's errand location group, spread evenly across teams by id. */
 export function errandGroup(teamId: number): ErrandGroup {
@@ -230,6 +233,9 @@ export const ERRAND_LOCATIONS: Record<ErrandGroup, string> = {
   A: '[LOCATION_A: coffee machine]',
   B: '[LOCATION_B: printer]',
   C: '[LOCATION_C: water dispenser]',
+  D: 'Cafeteria',
+  E: 'Auto-rickshaw in Phase 2',
+  F: 'Reception area',
 };
 
 /** Stable public image URLs for printed QR codes. Answers stay in organiser content. */

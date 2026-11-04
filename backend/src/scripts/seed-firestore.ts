@@ -3,7 +3,7 @@ import { FieldValue, getFirestore, Timestamp, type DocumentData } from 'firebase
 import { createHash } from 'node:crypto';
 import { existsSync, realpathSync } from 'node:fs';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
-import { CHECKPOINTS, ERRAND_LOCATIONS, errandGroup, protectedPuzzle, riddleSet, variantKey } from '../content/protected.js';
+import { CHECKPOINTS, ERRAND_GROUPS, ERRAND_LOCATIONS, errandGroup, protectedPuzzle, riddleSet, variantKey } from '../content/protected.js';
 import { LIGHT_MESSAGES, PUBLIC_PUZZLES } from '../content/public.js';
 import { SEED_TEAMS } from '../content/teams.js';
 import type { ShardType } from '../content/types.js';
@@ -11,12 +11,14 @@ import { buildLantern, keeperSeal, shardContent, teamKey, teamSeal } from '../se
 import { normaliseAnswer } from '../services/normalise.js';
 import { provisionConvergence } from './provision-convergence.js';
 import { provisionWordPuzzles } from './provision-word-puzzles.js';
+import { provisionErrands } from './provision-errands.js';
 
 const applyChanges = process.argv.slice(2).includes('--apply');
 const includeLocalTestTeams = process.argv.slice(2).includes('--include-local-test-teams');
 const convergenceOnly = process.argv.slice(2).includes('--convergence-only');
 const wordPuzzlesOnly = process.argv.slice(2).includes('--word-puzzles-only');
-const supportedArguments = new Set(['--apply', '--help', '--include-local-test-teams', '--convergence-only', '--word-puzzles-only']);
+const errandsOnly = process.argv.slice(2).includes('--errands-only');
+const supportedArguments = new Set(['--apply', '--help', '--include-local-test-teams', '--convergence-only', '--word-puzzles-only', '--errands-only']);
 const SHARD_TYPES: ShardType[] = ['A', 'B', 'C', 'D'];
 
 function hashValue(value: string): string {
@@ -133,8 +135,8 @@ function makeTeamPuzzleHints(): Array<{ id: string; data: DocumentData }> {
 }
 
 function makeCheckpointDocuments(): Map<string, DocumentData> {
-  if (CHECKPOINTS.length !== 4) {
-    throw new Error(`Expected exactly 4 checkpoint records; found ${CHECKPOINTS.length}.`);
+  if (CHECKPOINTS.length !== ERRAND_GROUPS.length + 1) {
+    throw new Error(`Expected ${ERRAND_GROUPS.length + 1} checkpoint records; found ${CHECKPOINTS.length}.`);
   }
 
   return new Map(
@@ -211,6 +213,7 @@ async function seedFirestore(): Promise<void> {
     console.log('--include-local-test-teams adds four local-only fixtures as teamNumber 1–4.');
     console.log('--convergence-only reads the roster and reports a targeted read-only plan; add --apply to provision puzzle 7 only.');
     console.log('--word-puzzles-only reads the roster and prepares puzzle IV only; add --apply to write without resetting progress or schedules.');
+    console.log('--errands-only prepares six Errand groups and checkpoints; add --apply to write without resetting progress or schedules.');
     return;
   }
 
@@ -218,13 +221,14 @@ async function seedFirestore(): Promise<void> {
   if (!projectId) {
     throw new Error('VITE_FIREBASE_PROJECT_ID is missing; check frontend/.env.');
   }
-  if (convergenceOnly || wordPuzzlesOnly) {
-    if (includeLocalTestTeams || (convergenceOnly && wordPuzzlesOnly)) throw new Error('Choose exactly one targeted provisioning mode; it cannot create test teams.');
+  if (convergenceOnly || wordPuzzlesOnly || errandsOnly) {
+    if (includeLocalTestTeams || [convergenceOnly, wordPuzzlesOnly, errandsOnly].filter(Boolean).length !== 1) throw new Error('Choose exactly one targeted provisioning mode; it cannot create test teams.');
     if (convergenceOnly && !process.env.GAME_SECRET?.trim()) throw new Error('GAME_SECRET must be set before provisioning Convergence.');
     validateCredentialsLocation();
     const app = initializeApp({ credential: applicationDefault(), projectId });
     try {
-      if (wordPuzzlesOnly) await provisionWordPuzzles(getFirestore(app), applyChanges);
+      if (errandsOnly) await provisionErrands(getFirestore(app), applyChanges);
+      else if (wordPuzzlesOnly) await provisionWordPuzzles(getFirestore(app), applyChanges);
       else await provisionConvergence(getFirestore(app), applyChanges);
     }
     finally { await deleteApp(app); }

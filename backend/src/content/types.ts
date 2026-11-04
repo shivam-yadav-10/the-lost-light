@@ -34,7 +34,7 @@ export interface SceneLamp {
   lit: boolean;
 }
 
-export type ErrandGroup = 'A' | 'B' | 'C';
+export type ErrandGroup = 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
 
 /** One line of a multi-riddle puzzle: the answer's word lengths and which letter (1-based) is marked. */
 export interface RiddleLine {
