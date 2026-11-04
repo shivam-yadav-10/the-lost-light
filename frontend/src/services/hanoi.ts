@@ -1,4 +1,4 @@
-export const HANOI_DISKS = 7;
+export const HANOI_DISKS = 6;
 export const MAX_HANOI_MOVES = 4096;
 export type HanoiPegs = [number[], number[], number[]];
 
@@ -31,11 +31,11 @@ export function parseVaultProof(raw: string | undefined): { code: string; moves:
     value = JSON.parse(raw ?? '');
   } catch (error) {
     if (!(error instanceof SyntaxError)) throw error;
-    throw new Error('Complete the seven-disk tower before opening the Vault.');
+    throw new Error('Complete the six-disk tower before opening the Vault.');
   }
   if (!value || typeof value !== 'object' || !('code' in value) || typeof value.code !== 'string'
     || !('moves' in value) || typeof value.moves !== 'string' || !hanoiSolved(value.moves)) {
-    throw new Error('Complete the seven-disk tower before opening the Vault.');
+    throw new Error('Complete the six-disk tower before opening the Vault.');
   }
   return { code: value.code.replace(/\D/g, ''), moves: value.moves };
 }

@@ -11,9 +11,15 @@ function diskPosition(moves: string, disk: number) {
   return { x: 150 + peg * 300, y: 330 - pegs[peg].indexOf(disk) * 29 };
 }
 
-export function HanoiTower({ moves, onChange }: { moves: string; onChange: (moves: string) => void }) {
+export function HanoiTower({ moves, onChange, disabled = false }: {
+  moves: string;
+  onChange: (moves: string) => Promise<void>;
+  disabled?: boolean;
+}) {
   const [selected, setSelected] = useState<number | null>(null);
   const [travelling, setTravelling] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const savingLock = useRef(false);
   const [message, setMessage] = useState('Choose a tower to lift its top disk, then choose its destination.');
   const elements = useRef(new Map<number, SVGGElement>());
   const previousMoves = useRef(moves);
@@ -38,6 +44,7 @@ export function HanoiTower({ moves, onChange }: { moves: string; onChange: (move
     }
     const start = diskPosition(previous, disk);
     const end = diskPosition(moves, disk);
+    setTravelling(true);
     const animation = element.animate([
       { transform: `translate(${start.x}px, ${start.y}px)`, offset: 0 },
       { transform: `translate(${start.x}px, 60px)`, offset: .28 },
@@ -48,8 +55,8 @@ export function HanoiTower({ moves, onChange }: { moves: string; onChange: (move
     return () => animation.cancel();
   }, [moves]);
 
-  function choosePeg(peg: number) {
-    if (travelling || solved) return;
+  async function choosePeg(peg: number) {
+    if (disabled || savingLock.current || travelling || solved) return;
     if (selected === null) {
       if (pegs[peg].length === 0) {
         setMessage('That tower is empty. Choose a tower with a disk.');
@@ -75,24 +82,48 @@ export function HanoiTower({ moves, onChange }: { moves: string; onChange: (move
       setMessage(error instanceof Error ? error.message : 'That move is not allowed.');
       return;
     }
-    setTravelling(true);
-    onChange(next);
-    setSelected(null);
-    setMessage(hanoiSolved(next)
-      ? 'The seven flames have crossed. The final word and proof code are now revealed below.'
-      : `Disk moved to ${PEG_NAMES[peg]}. Choose the next tower.`);
+    savingLock.current = true;
+    setSaving(true);
+    try {
+      await onChange(next);
+      setSelected(null);
+      setMessage(hanoiSolved(next)
+        ? 'The six flames have crossed. The final word and proof code are now revealed below.'
+        : `Disk moved to ${PEG_NAMES[peg]}. Choose the next tower.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not save that move. Load the saved tower to try again.');
+    } finally {
+      savingLock.current = false;
+      setSaving(false);
+    }
+  }
+
+  async function restart() {
+    if (disabled || savingLock.current || travelling) return;
+    savingLock.current = true;
+    setSaving(true);
+    try {
+      await onChange('');
+      setSelected(null);
+      setMessage('Tower restarted and saved. Carry all six disks to the Vault on the right.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not save the restart. Your tower has not changed.');
+    } finally {
+      savingLock.current = false;
+      setSaving(false);
+    }
   }
 
   return (
     <section className={`hanoi-chamber card border-ember/40 ${solved && !travelling ? 'hanoi-complete' : ''}`} aria-labelledby="hanoi-title">
-      <p className="eyebrow">The last crossing · Seven disks</p>
-      <h2 id="hanoi-title" className="mt-3 text-3xl text-ember-glow">Seven flames. One final crossing.</h2>
+      <p className="eyebrow">The last crossing · Six disks</p>
+      <h2 id="hanoi-title" className="mt-3 text-3xl text-ember-glow">Six flames. One final crossing.</h2>
       <p className="mt-4 text-sm leading-relaxed text-parchment/75">
-        Carry all seven disks from the first tower to the Vault on the right. Choose a tower, then a destination;
+        Carry all six disks from the first tower to the Vault on the right. Choose a tower, then a destination;
         watch its top disk rise and cross. A larger disk can never rest on a smaller one.
-        All legal solutions count; 127 moves is the shortest.
+        All legal solutions count; 63 moves is the shortest. Each move is saved to your team's tower before it travels.
       </p>
-      <div className="hanoi-board relative mt-8" role="group" aria-label="Tower of Hanoi" aria-busy={travelling}>
+      <div className="hanoi-board relative mt-8" role="group" aria-label="Tower of Hanoi" aria-busy={travelling || saving}>
         <svg viewBox="0 0 900 410" className="pointer-events-none block w-full" aria-hidden="true">
           {[150, 450, 750].map((x, peg) => <g key={x}>
             <ellipse cx={x} cy="366" rx="119" ry="12" fill="#f59e0b" opacity={selected === peg ? '.16' : '.05'} />
@@ -122,10 +153,10 @@ export function HanoiTower({ moves, onChange }: { moves: string; onChange: (move
           <button
             key={peg}
             type="button"
-            disabled={solved || travelling}
+            disabled={disabled || solved || travelling || saving}
             aria-pressed={selected === peg}
             aria-label={`${PEG_NAMES[peg]}. ${disks.length ? `Disks bottom to top: ${disks.join(', ')}.` : 'Empty.'}${selected === peg ? ' Selected.' : ''}`}
-            onClick={() => choosePeg(peg)}
+            onClick={() => void choosePeg(peg)}
             className={`min-w-0 rounded-xl border bg-transparent transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ember-glow ${selected === peg ? 'border-ember-glow/60' : 'border-transparent enabled:hover:border-ember/30'}`}
           >
             <span className="sr-only">{PEG_NAMES[peg]}</span>
@@ -141,13 +172,9 @@ export function HanoiTower({ moves, onChange }: { moves: string; onChange: (move
         <p className="text-xs text-parchment/60">{moveCount} moves{solved ? ' · Crossing complete' : ''}</p>
         <button
           type="button"
-          disabled={travelling || (!moves && selected === null)}
+          disabled={disabled || travelling || saving || (!moves && selected === null)}
           className="text-sm text-parchment/70 underline hover:text-ember-glow disabled:opacity-40"
-          onClick={() => {
-            onChange('');
-            setSelected(null);
-            setMessage('Tower restarted. Carry all seven disks to the Vault on the right.');
-          }}
+          onClick={() => void restart()}
         >
           Restart tower
         </button>

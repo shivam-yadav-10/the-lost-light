@@ -36,6 +36,7 @@ import {
 import { checkRiddleAnswers, parseRiddleProof } from '../services/riddleAnswers';
 import { checkHiddenWords } from '../services/hiddenWords';
 import { parseVaultProof } from '../services/hanoi';
+import { parseHanoiDraft } from '../services/hanoiProgress';
 import { alignmentProof, parseMemberIds, parseOverlayCard } from '../services/convergenceOverlay';
 import { checkConvergenceAnswer } from '../services/convergenceAnswer';
 
@@ -407,6 +408,10 @@ export const api = {
         const progressSnapshot = await transaction.get(progressRef);
         const progress = progressSnapshot.exists() ? progressSnapshot.data() : {};
         if (progress.status === 'solved') throw new ApiError(409, 'This fragment has already been solved.');
+        if (vaultProof && progress.hanoiDraft !== undefined
+          && parseHanoiDraft(progress.hanoiDraft).moves !== vaultProof.moves) {
+          throw new ApiError(409, 'Your team changed the tower. Load the saved tower before opening the Vault.');
+        }
         if (id === 7) await validateConvergenceSubmission(teamDocId, proof, transaction);
         const now = serverTimestamp();
         const data = {
@@ -486,7 +491,7 @@ export const api = {
           hintsUsed: nextCount,
           startedAt: progress.startedAt ?? now,
           solvedAt: null,
-        });
+        }, { merge: true });
         return { hintsUsed: nextCount, teamHintsUsed: teamHintsUsed + 1 };
       });
       window.dispatchEvent(new Event('lostlight:progress-updated'));

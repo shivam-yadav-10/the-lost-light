@@ -66,13 +66,13 @@ test('both words, alignment and every seal are required; Vault stays compatible'
   assert.equal(result.correct, true);
   assert.match(result.message, new RegExp(teamKey(1)));
   assert.equal(getTeamProgress(1).puzzles[7].state, 'AVAILABLE');
-  assert.throws(() => submitAnswer(1, 8, protectedPuzzle(8).answers[0], teamKey(1)), /seven-disk tower/);
+  assert.throws(() => submitAnswer(1, 8, protectedPuzzle(8).answers[0], teamKey(1)), /six-disk tower/);
   const solution = (n, from = 0, to = 2, spare = 1) => n
     ? solution(n - 1, from, spare, to) + `${from}${to}` + solution(n - 1, spare, to, from) : '';
-  const moves = solution(7);
+  const moves = solution(6);
   const vaultProof = (code, history = moves) => JSON.stringify({ code, moves: history });
   assert.throws(() => submitAnswer(1, 8, protectedPuzzle(8).answers[0], vaultProof(teamKey(1), '01')),
-    /seven-disk tower/);
+    /six-disk tower/);
   assert.equal(submitAnswer(1, 8, protectedPuzzle(8).answers[0], vaultProof('wrong')).correct, false);
   getDb().prepare("UPDATE submissions SET submitted_at = '2020-01-01T00:00:00Z'").run();
   assert.equal(submitAnswer(1, 8, 'wrong', vaultProof(teamKey(1))).correct, false);

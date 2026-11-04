@@ -9,19 +9,20 @@ function solution(n, from = 0, to = 2, spare = 1) {
 }
 
 for (const [name, engine] of [['browser', browser], ['reference', reference]]) {
-  test(`${name}: seven disks start on the left and require 127 legal moves to the right`, () => {
-    assert.equal(engine.HANOI_DISKS, 7);
-    assert.deepEqual(engine.hanoiPegs(''), [[7, 6, 5, 4, 3, 2, 1], [], []]);
-    const moves = solution(7);
-    assert.equal(moves.length / 2, 127);
+  test(`${name}: six disks start on the left and require 63 legal moves to the right`, () => {
+    assert.equal(engine.HANOI_DISKS, 6);
+    assert.deepEqual(engine.hanoiPegs(''), [[6, 5, 4, 3, 2, 1], [], []]);
+    const moves = solution(6);
+    assert.equal(moves.length / 2, 63);
     for (let i = 0; i < moves.length; i += 2) {
       assert.equal(engine.hanoiSolved(moves.slice(0, i)), false);
     }
-    assert.deepEqual(engine.hanoiPegs(moves), [[], [], [7, 6, 5, 4, 3, 2, 1]]);
+    assert.deepEqual(engine.hanoiPegs(moves), [[], [], [6, 5, 4, 3, 2, 1]]);
     assert.equal(engine.hanoiSolved(moves), true);
     assert.equal(engine.hanoiSolved(solution(4)), false, 'old four-disk solutions no longer unlock');
-    assert.equal(engine.hanoiSolved(solution(6)), false);
-    assert.equal(engine.hanoiSolved(solution(7, 0, 1, 2)), false);
+    assert.equal(engine.hanoiSolved(solution(5)), false);
+    assert.equal(engine.hanoiSolved(solution(6, 0, 1, 2)), false);
+    assert.throws(() => engine.hanoiPegs(solution(7)), /top disk/);
     assert.equal(engine.hanoiSolved(`0110${moves}`), true, 'non-minimal solutions count');
   });
 
@@ -32,7 +33,7 @@ for (const [name, engine] of [['browser', browser], ['reference', reference]]) {
   });
 
   test(`${name}: submission requires a replayable solution plus a separate proof code`, () => {
-    const moves = solution(7);
+    const moves = solution(6);
     assert.deepEqual(engine.parseVaultProof(JSON.stringify({ code: '123-456', moves })),
       { code: '123456', moves });
     for (const value of [undefined, '', '123456', 'null', '[]', '{}', 'true',
