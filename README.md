@@ -56,8 +56,8 @@ intentionally omitted from this README.
 Signed-in game pages display a live festival clock with ember-styled countdown tiles for the next
 scheduled release, an IST release label, and elapsed/adjusted time once the event starts.
 Hint penalties update after a hint is used; completion freezes the scoring display.
-Each unfinished core question also shows its scheduled IST release beneath its diya, alongside
-a reminder that locked questions still require earlier questions to be completed.
+Each locked core question also shows its scheduled IST release beneath its diya, alongside
+a reminder that earlier questions must be completed. Release labels disappear once the diya unlocks.
 Release status refreshes at scheduled boundaries without a manual page reload. A release never
 bypasses prerequisites. The countdown uses the device clock and is not an authoritative time source.
 

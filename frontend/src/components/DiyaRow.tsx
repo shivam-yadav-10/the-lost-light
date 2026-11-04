@@ -72,7 +72,7 @@ function Lamp({ puzzle, igniteDelay }: { puzzle: PuzzleSummary; igniteDelay: num
       >
         {STATE_LABEL[state]}
       </span>
-      {state !== 'SOLVED' && puzzle.unlockAt && (
+      {locked && puzzle.unlockAt && (
         <span className="mt-2 text-xs leading-relaxed text-parchment/60">
           Scheduled{' '}
           <time dateTime={puzzle.unlockAt}>
