@@ -23,7 +23,8 @@ function RequireTeam() {
 
 function TeamReleaseBoundary() {
   const { session } = useTeam();
-  return session ? <ReleaseGate /> : <Outlet />;
+  const { pathname } = useLocation();
+  return session && pathname !== '/admin' ? <ReleaseGate /> : <Outlet />;
 }
 
 function PublicEntry({ login = false }: { login?: boolean }) {

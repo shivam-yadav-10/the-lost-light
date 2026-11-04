@@ -59,7 +59,8 @@ and disappears when all six scheduled releases have passed. Scoring details rema
 view, not player pages. Before any core question releases, signed-in players are redirected to a dark
 waiting screen with only the countdown and anticipatory text. That screen checks for manual releases
 every 15 seconds. The release gate covers every route for signed-in teams, including direct URL
-navigation and unknown paths. Signed-out users can still reach login and organiser authentication.
+navigation and unknown paths, except `/admin`, which retains its organiser authentication.
+Signed-out users can still reach login and organiser authentication.
 Each locked core question also shows its scheduled IST release beneath its diya, alongside
 a reminder that earlier questions must be completed. Release labels disappear once the diya unlocks.
 Release status refreshes at scheduled boundaries without a manual page reload. A release never
