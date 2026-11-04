@@ -53,9 +53,13 @@ and per-hint penalty amounts are unchanged.
 Puzzle solutions, seal values, team credentials and organiser walkthroughs are
 intentionally omitted from this README.
 
-Signed-in game pages display a live festival clock with ember-styled countdown tiles for the next
-scheduled release, an IST release label, and elapsed/adjusted time once the event starts.
-Hint penalties update after a hint is used; completion freezes the scoring display.
+Signed-in game pages display a centered glowing countdown to the next core-question release,
+with a short caption. It follows effective release overrides, not a separate event-start countdown,
+and disappears when all six scheduled releases have passed. Scoring details remain in the organiser
+view, not player pages. Before any core question releases, signed-in players are redirected to a dark
+waiting screen with only the countdown and anticipatory text. That screen checks for manual releases
+every 15 seconds. The release gate covers every route for signed-in teams, including direct URL
+navigation and unknown paths. Signed-out users can still reach login and organiser authentication.
 Each locked core question also shows its scheduled IST release beneath its diya, alongside
 a reminder that earlier questions must be completed. Release labels disappear once the diya unlocks.
 Release status refreshes at scheduled boundaries without a manual page reload. A release never

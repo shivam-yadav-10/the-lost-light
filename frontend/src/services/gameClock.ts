@@ -2,8 +2,14 @@ import type { PuzzleSummary } from '../api/types';
 
 export function nextRelease(puzzles: PuzzleSummary[], now: number): PuzzleSummary | null {
   return puzzles
-    .filter((puzzle) => puzzle.state !== 'SOLVED' && puzzle.unlockAt !== null && Date.parse(puzzle.unlockAt) > now)
+    .filter((puzzle) => puzzle.id <= 6 && puzzle.state === 'LOCKED' && puzzle.unlockAt !== null && Date.parse(puzzle.unlockAt) > now)
     .sort((a, b) => Date.parse(a.unlockAt!) - Date.parse(b.unlockAt!) || a.id - b.id)[0] ?? null;
+}
+
+export function hasReleasedQuestion(puzzles: PuzzleSummary[], now: number): boolean {
+  return puzzles.some((puzzle) => puzzle.id <= 6 && (
+    puzzle.state !== 'LOCKED' || puzzle.unlockAt === null || Date.parse(puzzle.unlockAt) <= now
+  ));
 }
 
 export function countdownParts(target: number, now: number): { label: string; value: string }[] {

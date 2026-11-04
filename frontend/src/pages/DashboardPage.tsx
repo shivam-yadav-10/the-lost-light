@@ -6,7 +6,7 @@ import { Layout } from '../components/Layout';
 import { useProgress } from '../store/useProgress';
 import { useTeam } from '../store/team';
 import { FragmentLedger } from './EndgamePages';
-import { CORE_QUESTION_SCHEDULE, formatDuration, MAX_TEAM_HINTS } from '../services/gameRules';
+import { MAX_TEAM_HINTS } from '../services/gameRules';
 
 export function DashboardPage() {
   const { session } = useTeam();
@@ -43,21 +43,6 @@ export function DashboardPage() {
               <p className="mt-2 text-sm text-parchment/60">
                 {Math.max(0, MAX_TEAM_HINTS - progress.puzzles.reduce((sum, puzzle) => sum + puzzle.hintsUsed, 0))} of 12 team hints remain. Maximum 3 per question. Complete each question before the next.
               </p>
-              <p className="mt-2 max-w-2xl text-xs leading-relaxed text-parchment/45">
-                Questions I–VI are scheduled for {CORE_QUESTION_SCHEDULE.map(({ unlockAt }) =>
-                  new Date(unlockAt).toLocaleTimeString('en-IN', {
-                    timeZone: 'Asia/Kolkata',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: false,
-                  }),
-                ).join(', ')} IST on 10 November. Each still requires the preceding question. Ranking time begins at 13:00 IST for everyone, not when you log in.
-              </p>
-              {progress.gameComplete && (
-                <p className="mt-2 text-sm text-ember-glow">
-                  Adjusted time: {formatDuration(progress.adjustedElapsedMs)} · {progress.penaltyMinutes} minutes of hint penalties
-                </p>
-              )}
               <div className="mt-4 h-1 w-full max-w-sm overflow-hidden rounded-full bg-white/5" aria-hidden="true">
                 <div
                   className="relative h-full overflow-hidden rounded-full bg-gradient-to-r from-ember-deep via-ember to-ember-glow transition-all duration-700"
