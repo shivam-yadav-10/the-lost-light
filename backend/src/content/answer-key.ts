@@ -44,7 +44,7 @@ function aliasesSection(): string[] {
   out.push(`| V ${title(5)} | own set's word only |`);
   out.push(`| VI ${title(6)} | ${accepted(6)} |`);
   out.push(`| VII ${title(7)} | own circle word + UNITE, either order, after all partner seals and aligned overlay cards |`);
-  out.push(`| VIII ${title(8)} | solve the four-disk Tower of Hanoi, then word ${accepted(8)} **and** the team's own key as proof code |`);
+  out.push(`| VIII ${title(8)} | solve the seven-disk Tower of Hanoi (127 moves minimum), then word ${accepted(8)} **and** the team's own key as proof code |`);
   out.push('', 'Answers ignore case, accents and punctuation.', '');
   return out;
 }
@@ -141,9 +141,9 @@ try {
     '|---|---|---|---|---|---|---|---|---|---|',
     ...perTeam,
     '',
-    'VII: exchange every partner seal. Solve your circle riddle, then align all overlay cards at x=0, y=0, rotation=0 and read UNITE in the dark spaces. Enter both words separated by a space, in either order. Focus the overlay and press Ctrl+R to rotate, or use Rotate. VIII: solve four-disk Hanoi, then enter SHARED and the awarded proof key.',
+    'VII: exchange every partner seal. Solve your circle riddle, then align all overlay cards at x=0, y=0, rotation=0 and read UNITE in the dark spaces. Enter both words separated by a space, in either order. Focus the overlay and press Ctrl+R to rotate, or use Rotate. VIII: solve seven-disk Hanoi (127 moves minimum), then enter SHARED and the awarded proof key.',
     ...CONVERGENCE_RIDDLES.map((riddle) => `${riddle.id}: **${riddle.answer} UNITE** — ${riddle.clues.map((clue) => clue.title).join(' / ')}.`),
-    'Hanoi shortest solution (A = left, B = middle, C = right): A-B, A-C, B-C, A-B, C-A, C-B, A-B, A-C, B-C, B-A, C-A, B-C, A-B, A-C, B-C.',
+    'Hanoi shortest strategy: move the top six disks A→B using C, move disk 7 A→C, then move the six disks B→C using A. Recursively use the same strategy for each smaller stack. A = left, B = middle, C = right. Never place a larger disk onto a smaller one.',
     'Convergence circles are persisted mutual pairs, with one triple for an odd initial roster. Keeper shard seals are obsolete.',
     '',
     ...aliasesSection(),

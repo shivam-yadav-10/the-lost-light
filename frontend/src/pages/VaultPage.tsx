@@ -112,17 +112,25 @@ function VaultOpen({ puzzleId, fragments }: { puzzleId: number; fragments: Earne
       <Link to="/dashboard" className="text-xs text-parchment/60 hover:text-ember-glow">
         ← All fragments
       </Link>
-      <section className="mx-auto mt-14 flex max-w-3xl flex-col items-center text-center animate-rise">
-        <div className="relative">
+      <section className="vault-entrance relative isolate mx-auto mt-14 flex max-w-3xl flex-col items-center text-center">
+        <div className="vault-doorway" aria-hidden="true">
+          <div className="vault-door vault-door-left" />
+          <div className="vault-door vault-door-right" />
+          <div className="vault-door-light" />
+        </div>
+        <div className="vault-beacon relative">
           <DiyaLamp state={solved ? 'SOLVED' : 'AVAILABLE'} size={130} igniteDelay={200} />
           {opened && <SparkBurst loop count={22} radius={140} />}
         </div>
-        <p className="eyebrow mt-10">VIII · {puzzle.fragmentName}</p>
-        <h1 className="text-shimmer mt-4 text-5xl lg:text-7xl">{puzzle.title}</h1>
-        <p className="mt-8 max-w-xl text-xl font-light leading-relaxed text-parchment/75">{puzzle.intro}</p>
+        <p className="vault-title eyebrow mt-10">VIII · {puzzle.fragmentName}</p>
+        <h1 className="vault-title text-shimmer mt-4 text-5xl lg:text-7xl">{puzzle.title}</h1>
+        <p className="vault-invitation mt-8 max-w-xl text-xl font-light leading-relaxed text-parchment/75">{puzzle.intro}</p>
+        {!solved && <p className="vault-invitation mt-5 text-xs uppercase tracking-[.25em] text-ember/60">
+          Every fragment led you here. Carry the last seven flames.
+        </p>}
       </section>
 
-      <div className="mx-auto mt-14 max-w-2xl">
+      <div className="vault-challenge mx-auto mt-14 max-w-3xl">
         {solved ? (
           <div className="card border-ember/60 text-center shadow-ember">
             <p className="text-xl text-ember-glow">{puzzle.completionMessage}</p>
@@ -134,7 +142,7 @@ function VaultOpen({ puzzleId, fragments }: { puzzleId: number; fragments: Earne
           <div className="space-y-8">
             <HanoiTower moves={moves} onChange={setMoves} />
             {hanoiSolved(moves) && (
-            <form onSubmit={onSubmit} className="card space-y-6 border-ember/40" noValidate>
+            <form onSubmit={onSubmit} className="vault-final-form card space-y-6 border-ember/40" noValidate>
               <div>
                 <label htmlFor="vault-word" className="eyebrow block">
                   Final word

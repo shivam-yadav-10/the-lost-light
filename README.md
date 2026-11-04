@@ -38,10 +38,14 @@ so stale progress or a failed completion write cannot immediately reopen the sto
   with an inline error; submit requires four distinct words in separate fields
   and no outstanding field errors.
 - Question V requires checking all five riddle answers before final submission.
-- The Final Vault first requires a four-disk Tower of Hanoi: move the stack from
+- The Final Vault opens with a slow parting-door, light, and title reveal, then
+  requires a seven-disk Tower of Hanoi: move the stack from
   the left peg to the right, one top disk at a time, never larger onto smaller.
   Select a source tower and then its destination (mouse, touch, or keyboard).
-  Any legal solution counts; the minimum is 15 moves. Completing the tower reveals
+  Disks visibly lift above the pegs, travel across, and settle onto their destination.
+  Moves and restart are locked during the 950ms crossing so animations cannot overlap.
+  Reduced-motion users get instant moves and a shortened entrance.
+  Any legal solution counts; the minimum is 127 moves. Completing the tower reveals
   the existing final-word and team proof-code form. The move history is replayed
   during submission, not just checked by the UI. Restarting or leaving the page
   resets the tower; already-solved Vaults remain open. No Firestore migration is required.

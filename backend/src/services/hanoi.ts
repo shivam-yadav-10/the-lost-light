@@ -1,4 +1,4 @@
-export const HANOI_DISKS = 4;
+export const HANOI_DISKS = 7;
 export const MAX_HANOI_MOVES = 4096;
 export type HanoiPegs = [number[], number[], number[]];
 
@@ -6,7 +6,7 @@ export function hanoiPegs(moves: string): HanoiPegs {
   if (!/^(?:[0-2]{2})*$/.test(moves) || moves.length > MAX_HANOI_MOVES * 2) {
     throw new Error('The tower move record is invalid. Restart the tower.');
   }
-  const pegs: HanoiPegs = [[4, 3, 2, 1], [], []];
+  const pegs: HanoiPegs = [Array.from({ length: HANOI_DISKS }, (_, index) => HANOI_DISKS - index), [], []];
   for (let i = 0; i < moves.length; i += 2) {
     const from = Number(moves[i]);
     const to = Number(moves[i + 1]);
@@ -31,11 +31,11 @@ export function parseVaultProof(raw: string | undefined): { code: string; moves:
     value = JSON.parse(raw ?? '');
   } catch (error) {
     if (!(error instanceof SyntaxError)) throw error;
-    throw new Error('Complete the four-disk tower before opening the Vault.');
+    throw new Error('Complete the seven-disk tower before opening the Vault.');
   }
   if (!value || typeof value !== 'object' || !('code' in value) || typeof value.code !== 'string'
     || !('moves' in value) || typeof value.moves !== 'string' || !hanoiSolved(value.moves)) {
-    throw new Error('Complete the four-disk tower before opening the Vault.');
+    throw new Error('Complete the seven-disk tower before opening the Vault.');
   }
   return { code: value.code.replace(/\D/g, ''), moves: value.moves };
 }
