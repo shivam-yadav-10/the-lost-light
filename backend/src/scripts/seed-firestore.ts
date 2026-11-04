@@ -10,11 +10,13 @@ import type { ShardType } from '../content/types.js';
 import { buildLantern, keeperSeal, shardContent, teamKey, teamSeal } from '../services/convergence.js';
 import { normaliseAnswer } from '../services/normalise.js';
 import { provisionConvergence } from './provision-convergence.js';
+import { provisionWordPuzzles } from './provision-word-puzzles.js';
 
 const applyChanges = process.argv.slice(2).includes('--apply');
 const includeLocalTestTeams = process.argv.slice(2).includes('--include-local-test-teams');
 const convergenceOnly = process.argv.slice(2).includes('--convergence-only');
-const supportedArguments = new Set(['--apply', '--help', '--include-local-test-teams', '--convergence-only']);
+const wordPuzzlesOnly = process.argv.slice(2).includes('--word-puzzles-only');
+const supportedArguments = new Set(['--apply', '--help', '--include-local-test-teams', '--convergence-only', '--word-puzzles-only']);
 const SHARD_TYPES: ShardType[] = ['A', 'B', 'C', 'D'];
 
 function hashValue(value: string): string {
@@ -208,6 +210,7 @@ async function seedFirestore(): Promise<void> {
     console.log('Without --apply, validates and reports the documents without writing.');
     console.log('--include-local-test-teams adds four local-only fixtures as teamNumber 1–4.');
     console.log('--convergence-only reads the roster and reports a targeted read-only plan; add --apply to provision puzzle 7 only.');
+    console.log('--word-puzzles-only reads the roster and prepares puzzle IV only; add --apply to write without resetting progress or schedules.');
     return;
   }
 
@@ -215,12 +218,15 @@ async function seedFirestore(): Promise<void> {
   if (!projectId) {
     throw new Error('VITE_FIREBASE_PROJECT_ID is missing; check frontend/.env.');
   }
-  if (convergenceOnly) {
-    if (includeLocalTestTeams) throw new Error('--convergence-only cannot create test teams.');
-    if (!process.env.GAME_SECRET?.trim()) throw new Error('GAME_SECRET must be set before provisioning Convergence.');
+  if (convergenceOnly || wordPuzzlesOnly) {
+    if (includeLocalTestTeams || (convergenceOnly && wordPuzzlesOnly)) throw new Error('Choose exactly one targeted provisioning mode; it cannot create test teams.');
+    if (convergenceOnly && !process.env.GAME_SECRET?.trim()) throw new Error('GAME_SECRET must be set before provisioning Convergence.');
     validateCredentialsLocation();
     const app = initializeApp({ credential: applicationDefault(), projectId });
-    try { await provisionConvergence(getFirestore(app), applyChanges); }
+    try {
+      if (wordPuzzlesOnly) await provisionWordPuzzles(getFirestore(app), applyChanges);
+      else await provisionConvergence(getFirestore(app), applyChanges);
+    }
     finally { await deleteApp(app); }
     return;
   }

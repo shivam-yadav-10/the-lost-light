@@ -11,6 +11,7 @@ import { SparkBurst } from '../components/SparkBurst';
 import { SuccessOverlay } from '../components/SuccessOverlay';
 import { usePuzzle } from '../store/usePuzzle';
 import { useTeam } from '../store/team';
+import { parseHiddenWords } from '../services/hiddenWords';
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
 
@@ -20,6 +21,7 @@ export function PuzzlePage() {
   const { session } = useTeam();
   const { puzzle, setPuzzle, loadError } = usePuzzle(puzzleId);
   const [answer, setAnswer] = useState('');
+  const [hiddenWords, setHiddenWords] = useState<string[]>(Array(6).fill(''));
   const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
@@ -27,6 +29,7 @@ export function PuzzlePage() {
   useEffect(() => {
     setRiddleAnswers(null);
     setAnswer('');
+    setHiddenWords(Array(6).fill(''));
     setFeedback(null);
   }, [puzzleId, session?.teamDocId]);
   const closeCelebration = useCallback(() => setCelebrate(false), []);
@@ -62,7 +65,7 @@ export function PuzzlePage() {
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
-    void submitAnswer(answer);
+    void submitAnswer(puzzleId === 4 ? hiddenWords.filter((word) => word.trim()).join(', ') : answer);
   }
 
   if (loadError) {
@@ -86,6 +89,8 @@ export function PuzzlePage() {
   }
 
   const solved = puzzle.state === 'SOLVED';
+  const isWordPuzzle = puzzle.id === 4;
+  const enoughWords = new Set(parseHiddenWords(hiddenWords.join(' '))).size >= 4;
   const numeral = ROMAN[puzzle.sortOrder - 1];
   // Visual blocks (rangoli, cipher, table, lamps) get their own column; prose sits with the story.
   const visualBlocks = puzzle.blocks.filter((b) => VISUAL_BLOCKS.has(b.type));
@@ -130,6 +135,18 @@ export function PuzzlePage() {
   ) : (
     <div className="space-y-8">
       {!hasCourtyard && <form onSubmit={onSubmit} className="card space-y-4 !p-6" noValidate>
+        {isWordPuzzle ? <fieldset className="space-y-4">
+          <legend className="eyebrow">Words you found</legend>
+          <p className="text-sm text-parchment/60">Find any four of the six hidden words in your assigned picture. Enter one word per box, in any order.</p>
+          <div className="grid grid-cols-2 gap-3">
+            {hiddenWords.map((word, index) => <label key={index} className="block text-xs text-parchment/60">
+              Word {index + 1}{index >= 4 ? ' (optional)' : ''}
+              <input className="input-ember mt-2" value={word} maxLength={24} autoComplete="off"
+                spellCheck={false} pattern="[A-Za-z]*" aria-describedby={feedback ? 'answer-feedback' : undefined}
+                onChange={(event) => setHiddenWords((current) => current.map((value, i) => i === index ? event.target.value : value))} />
+            </label>)}
+          </div>
+        </fieldset> : <>
         <label htmlFor="answer" className="eyebrow block">
           Your answer
         </label>
@@ -143,9 +160,10 @@ export function PuzzlePage() {
           placeholder="Type your answer"
           aria-describedby={feedback ? 'answer-feedback' : undefined}
         />
+        </>}
         {puzzle.id === 5 && !riddleAnswers && <p className="text-sm text-parchment/60">Solve all five day riddles and select "Check five answers" before submitting the final word.</p>}
-        <button type="submit" className="btn-ember w-full" disabled={busy || answer.trim().length === 0 || (puzzle.id === 5 && !riddleAnswers)}>
-          {busy ? 'Offering…' : 'Offer answer'}
+        <button type="submit" className="btn-ember w-full" disabled={busy || (isWordPuzzle ? !enoughWords : answer.trim().length === 0) || (puzzle.id === 5 && !riddleAnswers)}>
+          {busy ? 'Offering…' : isWordPuzzle ? 'Offer words' : 'Offer answer'}
         </button>
         {feedback && (
           <p id="answer-feedback" role="status" className={`text-sm ${feedback.ok ? 'text-ember-glow' : 'text-marigold'}`}>

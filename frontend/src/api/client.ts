@@ -34,6 +34,7 @@ import {
   puzzleRequirements,
 } from '../services/gameRules';
 import { checkRiddleAnswers, parseRiddleProof } from '../services/riddleAnswers';
+import { checkHiddenWords } from '../services/hiddenWords';
 import { alignmentProof, parseMemberIds, parseOverlayCard } from '../services/convergenceOverlay';
 
 const ERROR_STATUS: Record<string, number> = {
@@ -196,6 +197,15 @@ async function isAnswerCorrect(
   const secret = asRecord(secretSnapshot.data());
   const answer = answerForRules(puzzleId, rawAnswer);
   const acceptedAnswers = Array.isArray(secret.acceptedAnswers) ? secret.acceptedAnswers as unknown[] : [];
+
+  if (puzzleId === 4) {
+    const teamSnapshot = await getDoc(teamRef);
+    const teamNumber = teamSnapshot.get('teamNumber');
+    if (!Number.isInteger(teamNumber) || teamNumber < 1) throw new ApiError(503, 'Your team number is missing.');
+    const group = `W${((teamNumber - 1) % 9) + 1}`;
+    const byGroup = asRecord(secret.hiddenWordsByGroup);
+    return checkHiddenWords(rawAnswer, byGroup[group]);
+  }
 
   if (puzzleId === 7) {
     await validateConvergenceSubmission(teamDocId, rawProof);

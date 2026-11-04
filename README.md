@@ -22,11 +22,42 @@ URLs, nested-route refreshes, images and fonts.
   VIII (Final Vault) have no clock release; their existing prerequisite gates remain.
 - Teams have 12 hints across the entire game, with at most three per question.
 - Up to three browsers/devices may be linked to a team.
+- Question IV assigns each team one of nine numbered QR posters. A location riddle
+  leads to its poster; any four distinct hidden words from that picture unlock the
+  fragment. Word order and letter case do not matter; at most six words are accepted.
 - Question V requires checking all five riddle answers before final submission.
 - The Lantern Courtyard has 20 rotating mirrors, team-specific positions,
   click-to-cycle symbols and a responsive 70/30 desktop layout.
 - Convergence uses assigned partner circles and an interactive lantern-card puzzle.
   Partner assignments remain stable across browsers and refreshes.
+
+### QR picture assets and puzzle IV content
+
+Vite serves the repository's `assets` directory as public static files. Printed
+QR codes should open the image directly, without a hash route or team login:
+`https://shivam-yadav-10.github.io/the-lost-light/word-puzzle-1.webp`.
+Pictures 1 and 3–9 use `.webp`; picture 2 uses `.jpg`. Keep these filenames stable
+after printing. These pictures are public; do not put credentials in `assets`.
+Keep organiser answer mappings in backend content, not in frontend source.
+
+Assignments cycle through posters 1–9 by the team's stable `teamNumber`.
+Multiple teams can use the same poster; do not remove posters after scanning.
+Poster locations and riddles live in `backend/src/content/public.ts`.
+The organiser overview shows each team's QR poster number beside its other variant groups.
+
+Deploying the frontend alone does not update existing Firestore puzzle content.
+With Admin SDK credentials stored outside the repository and the Firebase project
+environment configured, preview the targeted update:
+
+```bash
+npm run firestore:seed --prefix backend -- --word-puzzles-only
+```
+
+Add `--apply` to update puzzle IV's team content, answer data, hints, rewards,
+and emergency picture links. This mode preserves progress (including existing
+puzzle-IV solves), hint usage, browser bindings, release schedules/overrides,
+and all other puzzles. Do not use a full seed or progress reset for this change.
+Deploy this content update together with the frontend word-entry form.
 
 ### Event schedule and scoring
 

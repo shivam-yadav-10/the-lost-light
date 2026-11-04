@@ -4,7 +4,7 @@ import { config } from '../src/config.ts';
 import { applySchema, closeDb, getDb } from '../src/db/connection.ts';
 import { seed } from '../src/db/seed.ts';
 import { getPuzzleForTeam, getTeamProgress, requestHint, submitAnswer } from '../src/services/gameEngine.ts';
-import { FIVE_DAWNS_SETS } from '../src/content/protected.ts';
+import { FIVE_DAWNS_SETS, WORD_PUZZLE_ANSWERS } from '../src/content/protected.ts';
 
 beforeEach(() => {
   config.dbPath = ':memory:';
@@ -26,6 +26,31 @@ test('only question one is available on a fresh team even after all release time
     ['AVAILABLE', 'LOCKED', 'LOCKED', 'LOCKED', 'LOCKED', 'LOCKED', 'LOCKED', 'LOCKED']);
   assert.throws(() => getPuzzleForTeam(1, 2), /still hidden/);
   assert.throws(() => requestHint(1, 2), /still hidden/);
+});
+
+for (let team = 1; team <= 4; team++) {
+  test(`team ${team} receives its own QR riddle and can solve with four hidden words`, () => {
+    for (const id of [1, 2, 3]) saveProgress(id, 0, 'solved', team);
+    const puzzle = getPuzzleForTeam(team, 4);
+    assert.equal(puzzle.blocks.some((block) => block.type === 'note' && block.text.includes(`poster ${team}.`)), true);
+    const words = WORD_PUZZLE_ANSWERS[`W${team}`];
+    const result = submitAnswer(team, 4, words.slice(0, 4).reverse().join(', ').toUpperCase());
+    assert.equal(result.correct, true);
+    assert.equal(getPuzzleForTeam(team, 4).state, 'SOLVED');
+    assert.equal(getPuzzleForTeam(team, 5).state, 'AVAILABLE');
+  });
+}
+
+test('QR challenge rejects too few distinct words and preserves hint usage on solve', () => {
+  for (const id of [1, 2, 3]) saveProgress(id, 0);
+  const words = WORD_PUZZLE_ANSWERS.W1;
+  assert.equal(submitAnswer(1, 4, [words[0], words[0], words[1], words[2]].join(', ')).correct, false);
+  assert.notEqual(getPuzzleForTeam(1, 4).state, 'SOLVED');
+  getDb().prepare('UPDATE submissions SET submitted_at = ? WHERE team_id = 1 AND puzzle_id = 4')
+    .run(new Date(Date.now() - 10_000).toISOString());
+  requestHint(1, 4);
+  assert.equal(submitAnswer(1, 4, words.slice(0, 4).join('; ')).correct, true);
+  assert.equal(getPuzzleForTeam(1, 4).hintsUsed, 1);
 });
 
 test('solving the first question makes the second available but not the third', () => {

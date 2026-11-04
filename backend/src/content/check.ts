@@ -6,7 +6,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { FIVE_DAWNS_RIDDLES, PUBLIC_PUZZLES, STREET_LAMPS, STREET_RANGOLI } from './public.js';
+import { FIVE_DAWNS_RIDDLES, PUBLIC_PUZZLES, STREET_LAMPS, STREET_RANGOLI, WORD_PUZZLE_POSTERS } from './public.js';
 import {
   CHECKPOINTS,
   ERRAND_GROUPS,
@@ -79,16 +79,12 @@ const darkestText = JSON.stringify(PUBLIC_PUZZLES.find((p) => p.id === 3)!.block
 check('Darkest Day story never says it was night', !/\bnight\b/.test(darkestText));
 
 // ---------- IV. Hidden in Plain Sight ----------
-const truePosters = POSTER_IMAGES.filter((p) => p.flames > 0).sort((a, b) => a.flames - b.flames);
-check('Exactly two posters show a lit diya (1 and 2 flames)', truePosters.map((p) => p.flames).join() === '1,2');
-check('Six posters in total', POSTER_IMAGES.length === 6);
-const posterAnswer = truePosters.map((p) => p.word).join(' ').toLowerCase();
-check('Poster words in flame order give the answer', posterAnswer === canonical(4), posterAnswer);
-check('Reversed order gets the "count the flames" nudge', nearMissFor(4, truePosters.map((p) => p.word).reverse().join(' ').toLowerCase()));
-check(
-  'Every decoy word triggers the false-light nudge',
-  POSTER_IMAGES.filter((p) => p.flames === 0).every((p) => nearMissFor(4, p.word.toLowerCase())),
-);
+check('Nine QR posters with nine location riddles', POSTER_IMAGES.length === 9 && WORD_PUZZLE_POSTERS.length === 9);
+for (const poster of POSTER_IMAGES) {
+  check(`Poster ${poster.poster}: six distinct hidden words`, poster.words.length === 6 && new Set(poster.words).size === 6);
+  check(`Poster ${poster.poster}: image asset exists`, fs.existsSync(path.resolve(here, '../../../assets', new URL(poster.url).pathname.split('/').pop()!)));
+  check(`Poster ${poster.poster}: team variant exists`, Boolean(PUBLIC_PUZZLES.find((p) => p.id === 4)?.variants?.[`W${poster.poster}`]));
+}
 
 // ---------- V. The Five Dawns ----------
 const finals = FIVE_DAWNS_SETS.map((s) => s.final);
@@ -203,7 +199,6 @@ const secrets = [
   ...ERRAND_GROUPS.map((g) => protectedPuzzle(2).answersByGroup![g][0]),
   ...CHECKPOINTS.map((c) => c.code),
   ...PROTECTED_PUZZLES.flatMap((p) => (p.trueFragment ? [p.trueFragment.keyword] : [])),
-  ...truePosters.map((p) => p.word),
   ...finals,
 ].map((s) => s.toLowerCase());
 const pattern = (s: string) => new RegExp(`\\b${s.replace(/[-\s]/g, '[-\\s]?')}\\b`);

@@ -103,6 +103,27 @@ export const FIVE_DAWNS_RIDDLES: Record<string, RiddleLine[]> = {
 
 // ---------- Puzzles ----------
 
+export const WORD_PUZZLE_POSTERS = [
+  { id: 1, file: 'word-puzzle-1.webp', location: 'Reception',
+    lines: ['Before a guest can find their way,', 'I greet the names that start the day.', 'Where first hellos begin their tale,', 'seek the numbered lantern on the trail.'] },
+  { id: 2, file: 'word-puzzle-2.jpg', location: 'Reception',
+    lines: ['I welcome feet from far and near,', 'and tell new faces where to steer.', 'Return to where the greetings flow;', 'a numbered lantern waits below.'] },
+  { id: 3, file: 'word-puzzle-3.webp', location: 'Pantry area',
+    lines: ['Between the meetings, take a pause,', 'where cups and small refreshments draw us.', 'Not at your desk: let thirst be guide;', 'a numbered lantern waits inside.'] },
+  { id: 4, file: 'word-puzzle-4.webp', location: 'Pantry area',
+    lines: ['A cup, a snack, a moment away,', 'a little refuge in the working day.', 'Where colleagues stop to sip and stay,', 'find the lantern that marks your way.'] },
+  { id: 5, file: 'word-puzzle-5.webp', location: 'Near IT Helpdesk printer',
+    lines: ['Where troubled screens find helping hands,', 'a quieter neighbour takes commands.', 'It turns your files to sheets of white;', 'beside that printer, seek your light.'] },
+  { id: 6, file: 'word-puzzle-6.webp', location: 'Near Townhall area',
+    lines: ['Not one small meeting, but voices all,', 'we gather here to hear the call.', 'Where news is told to many ears,', 'your numbered lantern now appears.'] },
+  { id: 7, file: 'word-puzzle-7.webp', location: 'Phase 2 cafeteria',
+    lines: ['When lunch brings footsteps from every seat,', 'find where the second phase comes to eat.', 'Among the tables, pause and see:', 'your numbered lantern waits for thee.'] },
+  { id: 8, file: 'word-puzzle-8.webp', location: 'Phase 2 cafeteria',
+    lines: ['Beyond the work, where trays convene,', 'the second phase has a lunchtime scene.', 'Where meals and conversation meet,', 'seek your lantern near the seats.'] },
+  { id: 9, file: 'word-puzzle-9.webp', location: 'Phase 2 cafeteria',
+    lines: ['Let midday hunger lead your quest,', 'where phase two diners take their rest.', 'No screen or desk will hold this clue;', 'a numbered lantern waits for you.'] },
+];
+
 export const PUBLIC_PUZZLES: PublicPuzzle[] = [
   {
     id: 1,
@@ -215,26 +236,18 @@ export const PUBLIC_PUZZLES: PublicPuzzle[] = [
     unlockAt: '2026-11-10T09:00:00.000Z',
     requires: [3],
     intro:
-      'Six small posters have appeared around the office. Each carries a QR code, and each code opens a picture with a word hidden inside it.',
+      'A picture is waiting somewhere in the office, but first you must find it. Follow your team’s riddle to a numbered QR poster, then look for words hidden in the picture.',
     blocks: [
       {
-        type: 'list',
-        title: 'Where the posters hang',
-        items: [
-          '[POSTER_1: reception or entrance]',
-          '[POSTER_2: pantry or café]',
-          '[POSTER_3: a meeting-room door]',
-          '[POSTER_4: near the lifts or stairs]',
-          '[POSTER_5: a noticeboard]',
-          '[POSTER_6: a breakout or lounge area]',
-        ],
-      },
-      {
         type: 'note',
-        text: 'Only pictures with a lit diya can be trusted. Count the flames to know which word comes first.',
+        text: 'Scan only the poster number assigned below. Each picture hides six words. Find at least four different words and enter them below, in any order. Keep the poster in place for other teams.',
       },
-      { type: 'text', text: 'Enter the two true words, in order.' },
     ],
+    variants: Object.fromEntries(WORD_PUZZLE_POSTERS.map((poster) => [
+      `W${poster.id}`,
+      [{ type: 'verse' as const, lines: poster.lines },
+        { type: 'note' as const, text: `Your team is looking for QR poster ${poster.id}. Other posters belong to other teams.` }],
+    ])),
   },
   {
     id: 5,

@@ -95,6 +95,7 @@ export interface ProtectedPuzzle {
   /** Team-specific answers: each variant group accepts only its own entries (keys match `variants`). */
   answersByGroup?: Record<string, string[]>;
   riddleAnswersByGroup?: Record<string, string[]>;
+  hiddenWordsByGroup?: Record<string, string[]>;
   /** Shown when a team enters another group's answer. */
   otherGroupMessage?: string;
   /**

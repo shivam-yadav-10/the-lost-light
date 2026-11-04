@@ -1,4 +1,17 @@
 import type { CheckpointContent, ErrandGroup, ProtectedPuzzle, RateLimit, ShardContent } from './types.js';
+import { WORD_PUZZLE_POSTERS } from './public.js';
+
+export const WORD_PUZZLE_ANSWERS: Record<string, string[]> = {
+  W1: ['Cow', 'Apple', 'Farm', 'Sun', 'Pick', 'Barn'],
+  W2: ['Color', 'Tarp', 'Bucket', 'Paint', 'Roller', 'Brush'],
+  W3: ['Mittens', 'Boot', 'Chill', 'Sled', 'Frost', 'Snow'],
+  W4: ['Cheese', 'Hungry', 'Music', 'Red', 'Party', 'Yummy'],
+  W5: ['Score', 'Basket', 'Dunk', 'Net', 'Chops', 'Court'],
+  W6: ['Windy', 'Winter', 'White', 'Whistle', 'Wood', 'Wool'],
+  W7: ['Hot', 'Fish', 'Boy', 'Tree', 'Wave', 'Nice'],
+  W8: ['Friends', 'Balloon', 'Gift', 'Cake', 'Game', 'Party'],
+  W9: ['Mirror', 'Straw', 'Couch', 'Tiles', 'Cat', 'Cord'],
+};
 
 /**
  * PROTECTED content. Answers, aliases, hints, fragment metadata, physical codes and shard rules.
@@ -107,21 +120,15 @@ export const PROTECTED_PUZZLES: ProtectedPuzzle[] = [
   },
   {
     id: 4,
-    answers: ['marigold garland', 'marigoldgarland', 'marigold-garland', 'a marigold garland'],
-    nearMisses: [
-      { answers: ['garland marigold', 'garlandmarigold', 'garland-marigold'], message: 'Both true words, but count the flames: which word did one flame light?' },
-      { answers: ['marigold', 'garland'], message: 'One true word. There is another picture with a lit diya.' },
-      {
-        containsAny: ['candle', 'firework', 'fireworks', 'ribbon', 'moonlight'],
-        message: 'A false light whispered one of those words. Only pictures with a lit diya can be trusted.',
-      },
-    ],
-    incorrectMessage: 'The pictures keep their secret. Scan all six and look for the lit diyas.',
+    answers: [],
+    hiddenWordsByGroup: WORD_PUZZLE_ANSWERS,
+    nearMisses: [],
+    incorrectMessage: 'Find at least four different hidden words in your assigned picture. Check the poster number and your spelling.',
     completionMessage: 'Seen at last, in plain sight all along. A red glow gathers behind the glass.',
     hints: corePenalties(
-      'Scan all six posters. Note which pictures show a lit diya and which show an unlit one.',
-      'Exactly two pictures have lit diyas: one shows one flame, the other shows two.',
-      'Write the word from the one-flame picture first, then the word from the two-flame picture.',
+      'The riddle describes an office area. Find that area, then match the poster number shown on your puzzle page.',
+      'Scan the numbered QR and zoom into the picture. The hidden words are worked into the shapes and details.',
+      'You need four different words from the same picture. Enter one word per box; order and letter case do not matter.',
     ),
     rateLimit: CORE_LIMIT,
     fragment: { symbol: 'ring', number: 4, direction: 'N', keyword: 'GLASS', colour: 'Red' },
@@ -225,15 +232,13 @@ export const ERRAND_LOCATIONS: Record<ErrandGroup, string> = {
   C: '[LOCATION_C: water dispenser]',
 };
 
-/** Web-hosted pictures behind the six poster QR codes (Hidden in Plain Sight). Organiser-only. */
-export const POSTER_IMAGES = [
-  { poster: 1, url: '[IMAGE_URL_1]', word: 'CANDLE', flames: 0 },
-  { poster: 2, url: '[IMAGE_URL_2]', word: 'MARIGOLD', flames: 1 },
-  { poster: 3, url: '[IMAGE_URL_3]', word: 'FIREWORK', flames: 0 },
-  { poster: 4, url: '[IMAGE_URL_4]', word: 'RIBBON', flames: 0 },
-  { poster: 5, url: '[IMAGE_URL_5]', word: 'GARLAND', flames: 2 },
-  { poster: 6, url: '[IMAGE_URL_6]', word: 'MOONLIGHT', flames: 0 },
-];
+/** Stable public image URLs for printed QR codes. Answers stay in organiser content. */
+export const POSTER_IMAGES = WORD_PUZZLE_POSTERS.map((poster) => ({
+  poster: poster.id,
+  url: `https://shivam-yadav-10.github.io/the-lost-light/${poster.file}`,
+  location: poster.location,
+  words: WORD_PUZZLE_ANSWERS[`W${poster.id}`],
+}));
 
 export const CHECKPOINTS: CheckpointContent[] = [
   ...ERRAND_GROUPS.map((group) => ({
@@ -245,7 +250,7 @@ export const CHECKPOINTS: CheckpointContent[] = [
   {
     code: 'KEEPER-POSTERS-6W2J',
     title: "The Keeper's copy of the posters",
-    message: `The six poster pictures: ${POSTER_IMAGES.map((p) => `${p.poster}) ${p.url}`).join('  ')}`,
+    message: `Use only your assigned poster number from puzzle IV. Emergency picture links: ${POSTER_IMAGES.map((p) => `${p.poster}) ${p.url}`).join('  ')}`,
     puzzleId: 4,
   },
 ];

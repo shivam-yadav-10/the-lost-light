@@ -230,7 +230,8 @@ export function AdminPage() {
                   </th>
                 ))}
                 <th scope="col" className="py-2 pr-3">
-                  Errand · riddles                </th>
+                  Errand · riddles · QR
+                </th>
                 <th scope="col" className="py-2 pr-3">
                   Lantern key
                 </th>
@@ -257,6 +258,7 @@ export function AdminPage() {
                   ))}
                   <td className="py-3 pr-3 text-parchment/80" title={t.errandLocation}>
                     {t.errandGroup} · {t.riddleSet}
+                    <div className="text-xs text-parchment/50">QR poster {((t.id - 1) % 9) + 1}</div>
                   </td>
                   <td className="py-3 pr-3 font-code text-parchment/80">{t.lanternKey}</td>
                   <td className="py-3 pr-3 text-parchment/80">{t.penaltyMinutes} min</td>

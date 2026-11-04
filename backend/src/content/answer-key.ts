@@ -18,6 +18,7 @@ import {
   errandGroup,
   protectedPuzzle,
   riddleSet,
+  variantKey,
 } from './protected.js';
 import type { ErrandGroup } from './types.js';
 import { teamKey, teamSeal } from '../services/convergence.js';
@@ -39,7 +40,7 @@ function aliasesSection(): string[] {
   out.push(`| I ${title(1)} | ${accepted(1)} |`);
   out.push(`| II ${title(2)} | own group code only, with or without the dash (\`glow 7k4m\` works) |`);
   out.push(`| III ${title(3)} | ${accepted(3)} |`);
-  out.push(`| IV ${title(4)} | ${accepted(4)} (a comma between the words is fine) |`);
+  out.push(`| IV ${title(4)} | any four distinct words from the team's assigned picture, in any order; six words maximum |`);
   out.push(`| V ${title(5)} | own set's word only |`);
   out.push(`| VI ${title(6)} | ${accepted(6)} |`);
   out.push(`| VII ${title(7)} | ${accepted(7)} after all partner seals and aligned cards |`);
@@ -87,7 +88,7 @@ function codesSection(teams: { id: number; name: string }[]): string[] {
     out.push(`| Errand card ${g} | ${code(protectedPuzzle(2).answersByGroup![g][0])} | ${ERRAND_LOCATIONS[g]}; answer to II, also works in "Found a code?" |`);
   }
   for (const t of teams) out.push(`| ${t.name}'s seal | ${code(teamSeal(t.id))} | only works once the team has opened The Convergence |`);
-  out.push('', 'Poster pictures (IV): ' + POSTER_IMAGES.map((p) => `${p.poster}) ${p.word}${p.flames ? ` (${p.flames} lit)` : ''}`).join(' · '), '');
+  out.push('', 'Poster pictures (IV): ' + POSTER_IMAGES.map((p) => `${p.poster}) ${p.location}: ${p.words.join(', ')} — ${p.url}`).join(' · '), '');
   return out;
 }
 
@@ -113,7 +114,9 @@ try {
   const perTeam = teams.map((t) => {
     const key = teamKey(t.id);
     const dawns = FIVE_DAWNS_SETS.find((s) => s.group === riddleSet(t.id))!;
-    return `| ${t.name} | ${code(t.game_key)} | ${upper(protectedPuzzle(1).answers[0])} | ${protectedPuzzle(2).answersByGroup![errandGroup(t.id)][0]} (${errandGroup(t.id)}) | ${upper(protectedPuzzle(3).answers[0])} | ${upper(protectedPuzzle(4).answers[0])} | ${dawns.final} (${dawns.group}) | Leaf → Moon → Lotus → Bell → Star; A–J: /, \\, /, /, \\, \\, /, /, \\, \\; K–T: /, /, \\, \\, /, /, \\, \\, \\, \\ | ${OVERLAY_WORD} | SHARED + ${key} |`;
+    const wordGroup = variantKey(t.id, Object.keys(protectedPuzzle(4).hiddenWordsByGroup!));
+    const words = protectedPuzzle(4).hiddenWordsByGroup![wordGroup];
+    return `| ${t.name} | ${code(t.game_key)} | ${upper(protectedPuzzle(1).answers[0])} | ${protectedPuzzle(2).answersByGroup![errandGroup(t.id)][0]} (${errandGroup(t.id)}) | ${upper(protectedPuzzle(3).answers[0])} | ${wordGroup}: any four of ${words.join(', ')} | ${dawns.final} (${dawns.group}) | Leaf → Moon → Lotus → Bell → Star; A–J: /, \\, /, /, \\, \\, /, /, \\, \\; K–T: /, /, \\, \\, /, /, \\, \\, \\, \\ | ${OVERLAY_WORD} | SHARED + ${key} |`;
   });
 
   const markdown = [

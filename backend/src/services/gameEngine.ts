@@ -29,6 +29,7 @@ import {
   validateOverlaySubmission,
 } from './convergence.js';
 import { normaliseAnswer } from './normalise.js';
+import { checkHiddenWords } from './hiddenWords.js';
 import { EVENT_START_AT, rankTeams, scoreCompletion } from './scoring.js';
 
 const MAX_ANSWER_LENGTH = 200;
@@ -256,6 +257,14 @@ interface Verdict {
 /** Checks an answer against protected content. Never reveals partial correctness. */
 function judge(teamId: number, secret: ProtectedPuzzle, rawAnswer: string, rawProof: string | undefined): Verdict {
   const answer = normaliseAnswer(rawAnswer);
+  if (secret.id === 4) {
+    const group = variantKey(teamId, Object.keys(secret.hiddenWordsByGroup ?? {}));
+    return {
+      correct: checkHiddenWords(rawAnswer, secret.hiddenWordsByGroup?.[group]),
+      message: secret.incorrectMessage,
+      stored: answer,
+    };
+  }
   const nearMiss = secret.nearMisses.find(
     (n) =>
       n.answers?.some((a) => normaliseAnswer(a) === answer) ||
