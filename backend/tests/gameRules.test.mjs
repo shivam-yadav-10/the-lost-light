@@ -93,6 +93,21 @@ test('saved hint usage remains after a question is solved and is counted on the 
   assert.equal(requestHint(1, 2).teamHintsUsed, 3);
 });
 
+test('a late login never resets elapsed scoring from the first scheduled unlock', () => {
+  for (const id of [1, 2, 3, 4, 5, 6, 7]) saveProgress(id, id === 1 ? 3 : 0);
+  saveProgress(8, 0);
+  getDb().prepare('UPDATE team_progress SET solved_at = ? WHERE team_id = 1 AND puzzle_id = 8')
+    .run('2026-11-10T08:30:00.000Z');
+  getDb().prepare('UPDATE teams SET last_seen_at = ? WHERE id = 1').run('2026-11-10T10:45:00.000Z');
+
+  const progress = getTeamProgress(1);
+  assert.equal(progress.scheduleStartAt, '2026-11-10T07:30:00.000Z');
+  assert.equal(progress.totalHintsUsed, 3);
+  assert.equal(progress.penaltyMinutes, 30);
+  assert.equal(progress.elapsedMs, 60 * 60_000);
+  assert.equal(progress.adjustedElapsedMs, 90 * 60_000);
+});
+
 test('knowing the final word cannot bypass missing, incomplete or incorrect day answers', () => {
   for (const id of [1, 2, 3, 4]) saveProgress(id, 0);
   const set = FIVE_DAWNS_SETS[0];

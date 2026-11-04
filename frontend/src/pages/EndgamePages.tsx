@@ -4,6 +4,8 @@ import { DiyaLamp } from '../components/DiyaLamp';
 import { FragmentCard } from '../components/FragmentCard';
 import { Layout } from '../components/Layout';
 import { SparkBurst } from '../components/SparkBurst';
+import { useProgress } from '../store/useProgress';
+import { formatDuration } from '../services/gameRules';
 
 interface SealedProps {
   eyebrow: string;
@@ -51,6 +53,7 @@ export function FragmentLedger({ fragments, heading = 'What you carry' }: { frag
 }
 
 export function CompletionPage() {
+  const { progress } = useProgress();
   return (
     <Layout>
       <section className="mt-24 flex flex-col items-center text-center animate-rise">
@@ -67,6 +70,12 @@ export function CompletionPage() {
         <p className="mt-6 max-w-xl text-2xl font-medium text-ember-glow">
           The Light was never meant to be found alone.
         </p>
+        {progress?.gameComplete && (
+          <p className="mt-6 text-sm text-parchment/60">
+            Adjusted time: <span className="text-ember-glow">{formatDuration(progress.adjustedElapsedMs)}</span>
+            {' · '}includes {progress.penaltyMinutes} minutes of hint penalties
+          </p>
+        )}
         <Link to="/dashboard" className="btn-ghost mt-14">
           Back to the fragments
         </Link>

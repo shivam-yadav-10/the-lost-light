@@ -4,7 +4,7 @@ import { Timestamp, collection, doc, getCountFromServer, getDoc, getDocs, query,
 import type { DocumentData, Firestore, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { AdminOverview, FragmentState, PuzzleKind } from '../api/types';
 import { requireAdminFirebaseServices } from './firebase';
-import { puzzleRequirements } from './gameRules';
+import { EVENT_START_AT, isScheduleLocked, puzzleRequirements, rankTeams } from './gameRules';
 
 const SHARD_TYPES = ['A', 'B', 'C', 'D'] as const;
 const PUZZLE_KINDS: PuzzleKind[] = ['core', 'convergence', 'vault'];
@@ -239,6 +239,10 @@ export async function getAdminOverview(): Promise<AdminOverview> {
     if (puzzles.length === 0) throw new AdminServiceError('No puzzle documents were found in Firebase.');
     const gameConfig = asRecord(configSnapshot.data());
     parseUnlockOverrides(gameConfig.unlockOverrides, puzzles);
+    const configuredScheduleStartAt = timestampToIso(gameConfig.scheduleStartAt);
+    if (configuredScheduleStartAt && configuredScheduleStartAt !== EVENT_START_AT) {
+      throw new AdminServiceError('Organiser scoring start does not match the confirmed event schedule.');
+    }
 
     const adminTeamData = new Map(adminTeamsSnapshot.docs.map((snapshot) => [snapshot.id, asRecord(snapshot.data())]));
     const teamRows = await Promise.all(teamsSnapshot.docs.map(async (teamSnapshot) => {
@@ -265,7 +269,7 @@ export async function getAdminOverview(): Promise<AdminOverview> {
 
       const teamPuzzles = puzzles.map((puzzle) => {
         const progress = progressByPuzzle.get(puzzle.id);
-        const scheduled = puzzle.unlockAt !== null && new Date(puzzle.unlockAt).getTime() > Date.now();
+        const scheduled = isScheduleLocked(puzzle.unlockAt);
         const prerequisitesMet = puzzle.requires.every((id) => progressByPuzzle.get(id)?.status === 'solved');
         const state: FragmentState = progress?.status === 'solved'
           ? 'SOLVED'
@@ -288,7 +292,8 @@ export async function getAdminOverview(): Promise<AdminOverview> {
         return total + puzzle.hintPenalties.slice(0, progress.hintsUsed).reduce((sum, minutes) => sum + minutes, 0);
       }, 0);
       const vault = puzzles.find((puzzle) => puzzle.kind === 'vault');
-      const vaultSolvedAt = vault ? progressByPuzzle.get(vault.id)?.solvedAt : null;
+      const vaultSolvedAt = vault ? progressByPuzzle.get(vault.id)?.solvedAt ?? null : null;
+      const totalHintsUsed = [...progressByPuzzle.values()].reduce((total, progress) => total + progress.hintsUsed, 0);
       const shardType = team.shardType == null ? null : requiredString(team, 'shardType');
       if (shardType !== null && !SHARD_TYPES.includes(shardType as (typeof SHARD_TYPES)[number])) {
         throw new AdminServiceError('Organiser data in Firebase is incomplete.');
@@ -309,13 +314,23 @@ export async function getAdminOverview(): Promise<AdminOverview> {
         riddleSet: requiredString(privateData, 'riddleSet'),
         verifiedShards,
         lanternKey: requiredString(privateData, 'lanternKey'),
+        totalHintsUsed,
         penaltyMinutes,
-        adjustedVaultAt: vaultSolvedAt
-          ? new Date(new Date(vaultSolvedAt).getTime() + penaltyMinutes * 60_000).toISOString()
-          : null,
+        vaultSolvedAt,
         puzzles: teamPuzzles,
       };
     }));
+    const scores = rankTeams(teamRows.map((team) => ({
+      id: team.id,
+      completedAt: team.vaultSolvedAt,
+      penaltyMinutes: team.penaltyMinutes,
+      totalHintsUsed: team.totalHintsUsed,
+    })), EVENT_START_AT);
+    const scoresByTeam = new Map(scores.map((score) => [score.team.id, score]));
+    const rankedTeams = teamRows.map((team) => {
+      const score = scoresByTeam.get(team.id)!;
+      return { ...team, rank: score.rank, elapsedMs: score.elapsedMs, adjustedElapsedMs: score.adjustedElapsedMs };
+    }).sort((left, right) => left.rank - right.rank);
 
     const gameData = asRecord(gameDataSnapshot.data());
     const keeperSealRecords = gameData.keeperSeals;
@@ -344,10 +359,10 @@ export async function getAdminOverview(): Promise<AdminOverview> {
         fragmentName: puzzle.fragmentName,
         kind: puzzle.kind,
         unlockAt: puzzle.unlockAt,
-        scheduleLocked: puzzle.unlockAt !== null && new Date(puzzle.unlockAt).getTime() > Date.now(),
+        scheduleLocked: isScheduleLocked(puzzle.unlockAt),
       })),
       keeperSeals,
-      teams: teamRows.sort((left, right) => left.name.localeCompare(right.name)),
+      teams: rankedTeams,
     };
   } catch (error) {
     if (error instanceof AdminServiceError) throw error;

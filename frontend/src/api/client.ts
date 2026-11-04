@@ -23,7 +23,16 @@ import type {
 import { initializeSession } from '../services/authService';
 import { compactAnswer, hashText, normalizeAnswer, normalizeSeal } from '../services/gameCrypto';
 import { GameServicesUnavailableError, requireFirebaseServices } from '../services/firebase';
-import { assertHintAvailable, hintCount, PUZZLE_IDS, puzzleHintLimit, puzzleRequirements } from '../services/gameRules';
+import {
+  assertHintAvailable,
+  CORE_QUESTION_SCHEDULE,
+  EVENT_START_AT,
+  hintCount,
+  isScheduleLocked,
+  PUZZLE_IDS,
+  puzzleHintLimit,
+  puzzleRequirements,
+} from '../services/gameRules';
 import { checkRiddleAnswers, parseRiddleProof } from '../services/riddleAnswers';
 import { alignmentProof, parseMemberIds, parseOverlayCard } from '../services/convergenceOverlay';
 
@@ -151,9 +160,16 @@ async function isPuzzleOpen(
     : {};
   const overrideValue = overrides[String(puzzleId)];
   const now = Date.now();
-  const released = overrideValue instanceof Timestamp
-    ? overrideValue.toMillis() <= now
-    : metadata.unlockAt == null || (metadata.unlockAt instanceof Timestamp && metadata.unlockAt.toMillis() <= now);
+  const hasMetadataSchedule = metadata.unlockAt == null || metadata.unlockAt instanceof Timestamp;
+  if (!(overrideValue instanceof Timestamp) && !hasMetadataSchedule) {
+    throw new ApiError(503, 'Puzzle release schedule is incomplete.');
+  }
+  const releaseAt = overrideValue instanceof Timestamp
+    ? overrideValue.toDate().toISOString()
+    : metadata.unlockAt instanceof Timestamp
+      ? metadata.unlockAt.toDate().toISOString()
+      : null;
+  const released = !isScheduleLocked(releaseAt, now);
   if (!released) return false;
 
   if (!Array.isArray(metadata.requires) || !metadata.requires.every((id) => Number.isInteger(id) && id > 0)) {
@@ -337,7 +353,15 @@ export const api = {
       throw firebaseApiError(error, 'Could not check the five day answers.');
     }
   },
-  status: async () => ({ name: 'The Lost Light', serverTime: new Date().toISOString(), eventDate: '2026-11-10' }),
+  status: async () => ({
+    name: 'The Lost Light',
+    serverTime: new Date().toISOString(),
+    eventDate: '2026-11-10',
+    timezone: 'Asia/Kolkata',
+    scheduleStartAt: EVENT_START_AT,
+    questionSchedule: CORE_QUESTION_SCHEDULE,
+    scoringRule: 'elapsed-from-schedule-start-plus-hint-penalties',
+  }),
 
   puzzle: async (id: number, teamDocId: string, teamNumber: number) => {
     if (!Number.isInteger(id) || id < 1 || !teamDocId.trim()) throw new ApiError(400, 'Invalid puzzle.');
@@ -379,6 +403,7 @@ export const api = {
         return data.hintsUsed;
       });
       const detail = await loadPuzzleDetail(teamDocId, teamNumber, id);
+      window.dispatchEvent(new Event('lostlight:progress-updated'));
       return {
         correct: true,
         message: detail.completionMessage ?? 'The fragment is yours.',
@@ -446,6 +471,7 @@ export const api = {
         });
         return { hintsUsed: nextCount, teamHintsUsed: teamHintsUsed + 1 };
       });
+      window.dispatchEvent(new Event('lostlight:progress-updated'));
       return { ...result, maxHints, hints: await hintDocuments(teamDocId, id, result.hintsUsed) };
     } catch (error) {
       throw firebaseApiError(error, 'Could not reveal a hint.');

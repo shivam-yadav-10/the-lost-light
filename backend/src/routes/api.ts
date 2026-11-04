@@ -18,6 +18,8 @@ import {
 } from '../services/gameEngine.js';
 import { verifySeal } from '../services/convergence.js';
 import { HttpError } from '../types.js';
+import { EVENT_START_AT } from '../services/scoring.js';
+import { PUBLIC_PUZZLES } from '../content/public.js';
 
 export const api = Router();
 
@@ -51,6 +53,10 @@ api.get('/game/status', (_req, res) => {
     name: 'The Lost Light',
     serverTime: config.now().toISOString(),
     eventDate: '2026-11-10',
+    timezone: 'Asia/Kolkata',
+    scheduleStartAt: EVENT_START_AT,
+    questionSchedule: PUBLIC_PUZZLES.filter((puzzle) => puzzle.kind === 'core').map(({ id, unlockAt }) => ({ id, unlockAt })),
+    scoringRule: 'elapsed-from-schedule-start-plus-hint-penalties',
   });
 });
 

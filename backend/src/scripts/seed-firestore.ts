@@ -298,6 +298,8 @@ async function seedFirestore(): Promise<void> {
         name: 'The Lost Light',
         eventDate: '2026-11-10',
         timezone: 'Asia/Kolkata',
+        scheduleStartAt: Timestamp.fromDate(new Date('2026-11-10T07:30:00.000Z')),
+        scoringRule: 'elapsed-from-schedule-start-plus-hint-penalties',
         updatedAt: FieldValue.serverTimestamp(),
         lightMessages: LIGHT_MESSAGES,
       };

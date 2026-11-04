@@ -89,6 +89,12 @@ export interface TeamProgress {
   lightMessage: string | null;
   fragments: EarnedFragment[];
   checkpoints: { code: string; title: string; visitedAt: string }[];
+  scheduleStartAt: string;
+  totalHintsUsed: number;
+  penaltyMinutes: number;
+  vaultSolvedAt: string | null;
+  elapsedMs: number | null;
+  adjustedElapsedMs: number | null;
 }
 
 export interface SubmitResult {
@@ -155,8 +161,12 @@ export interface AdminOverview {
     riddleSet: string;
     verifiedShards: string[];
     lanternKey: string;
+    rank: number;
+    totalHintsUsed: number;
     penaltyMinutes: number;
-    adjustedVaultAt: string | null;
+    vaultSolvedAt: string | null;
+    elapsedMs: number | null;
+    adjustedElapsedMs: number | null;
     puzzles: {
       puzzleId: number;
       state: FragmentState;

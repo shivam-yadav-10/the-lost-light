@@ -72,6 +72,22 @@ function Lamp({ puzzle, igniteDelay }: { puzzle: PuzzleSummary; igniteDelay: num
       >
         {STATE_LABEL[state]}
       </span>
+      {state !== 'SOLVED' && puzzle.unlockAt && (
+        <span className="mt-2 text-xs leading-relaxed text-parchment/60">
+          Scheduled{' '}
+          <time dateTime={puzzle.unlockAt}>
+            {new Date(puzzle.unlockAt).toLocaleString('en-IN', {
+              timeZone: 'Asia/Kolkata',
+              day: 'numeric',
+              month: 'short',
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true,
+            })} IST
+          </time>
+          {locked && <span className="mt-1 block text-[10px] text-parchment/45">Also requires earlier questions</span>}
+        </span>
+      )}
     </div>
   );
 

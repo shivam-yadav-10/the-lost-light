@@ -17,8 +17,9 @@ URLs, nested-route refreshes, images and fonts.
 
 ## Gameplay
 
-- Questions I through VIII unlock sequentially, subject to their release times.
-  Schedule overrides do not bypass prerequisites.
+- Questions I through VI unlock sequentially at the confirmed event times below.
+  Schedule overrides do not bypass prerequisites. Questions VII (Convergence) and
+  VIII (Final Vault) have no clock release; their existing prerequisite gates remain.
 - Teams have 12 hints across the entire game, with at most three per question.
 - Up to three browsers/devices may be linked to a team.
 - Question V requires checking all five riddle answers before final submission.
@@ -27,8 +28,38 @@ URLs, nested-route refreshes, images and fonts.
 - Convergence uses assigned partner circles and an interactive lantern-card puzzle.
   Partner assignments remain stable across browsers and refreshes.
 
+### Event schedule and scoring
+
+On 10 November 2026, the six scheduled releases are:
+
+| Question | IST | UTC (`unlockAt`) |
+| --- | --- | --- |
+| Q1 | 13:00 | 07:30Z |
+| Q2 | 13:30 | 08:00Z |
+| Q3 | 14:00 | 08:30Z |
+| Q4 | 14:30 | 09:00Z |
+| Q5 | 15:00 | 09:30Z |
+| Q6 | 15:30 | 10:00Z |
+
+The ranking clock starts for every team at the fixed first release, 13:00 IST
+(07:30Z), regardless of when a team logs in or first opens a question. A team's
+adjusted time is elapsed time from that start until Final Vault completion plus
+the cumulative penalty for all hints used. Lower adjusted time ranks first;
+fewer total hints break an exact adjusted-time tie, then the lower stable team
+number breaks any remaining tie. Teams that have not completed the Vault rank
+after all finishers. Existing limits (12 team hints, at most three per question)
+and per-hint penalty amounts are unchanged.
+
 Puzzle solutions, seal values, team credentials and organiser walkthroughs are
 intentionally omitted from this README.
+
+Signed-in game pages display a live festival clock with ember-styled countdown tiles for the next
+scheduled release, an IST release label, and elapsed/adjusted time once the event starts.
+Hint penalties update after a hint is used; completion freezes the scoring display.
+Each unfinished core question also shows its scheduled IST release beneath its diya, alongside
+a reminder that locked questions still require earlier questions to be completed.
+Release status refreshes at scheduled boundaries without a manual page reload. A release never
+bypasses prerequisites. The countdown uses the device clock and is not an authoritative time source.
 
 ## Requirements
 
@@ -158,6 +189,25 @@ deploying frontend changes that require it.
 
 General seeding and local reset commands have broader effects. Do not run them
 against live event data as a substitute for a targeted content update.
+
+The schedule/scoring metadata is sourced from `backend/src/content/public.ts`
+and `backend/src/scripts/seed-firestore.ts`. For a live Firestore cutover, the
+minimum relevant fields are `puzzles/1.unlockAt` through `puzzles/6.unlockAt`
+(the UTC timestamps above), `puzzles/7.unlockAt` and `puzzles/8.unlockAt` (both null),
+and `gameConfig/main.eventDate` (`2026-11-10`), `gameConfig/main.timezone`
+(`Asia/Kolkata`), `gameConfig/main.scheduleStartAt` (Firestore Timestamp for
+2026-11-10 07:30Z), and `gameConfig/main.scoringRule`
+(`elapsed-from-schedule-start-plus-hint-penalties`). Store all non-null
+`unlockAt` and `scheduleStartAt` values as Firestore Timestamps.
+Keep each puzzle's existing `requires` sequential prerequisites and
+`hintPenalties` unchanged. The admin release controls store active overrides in
+`gameConfig/main.unlockOverrides`; preserve the complete existing map when
+updating schedule/config fields. The normal seed operation merges this document
+and only initializes `unlockOverrides` when the field is absent. Do not replace
+the config document or clear overrides as part of the cutover. Each override is
+keyed by puzzle ID and contains its effective Firestore Timestamp; review any
+retained overrides since they take precedence over the new base schedule. No
+live Firestore writes are performed by this implementation.
 
 ## Repository layout
 

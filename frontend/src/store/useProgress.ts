@@ -37,11 +37,25 @@ export function useProgress() {
 
     document.addEventListener('visibilitychange', refreshWhenActive);
     window.addEventListener('focus', refreshWhenActive);
+    const refreshAfterUpdate = () => void refresh();
+    window.addEventListener('lostlight:progress-updated', refreshAfterUpdate);
     return () => {
       document.removeEventListener('visibilitychange', refreshWhenActive);
       window.removeEventListener('focus', refreshWhenActive);
+      window.removeEventListener('lostlight:progress-updated', refreshAfterUpdate);
     };
   }, [refresh]);
+
+  useEffect(() => {
+    if (!progress) return;
+    const next = progress.puzzles
+      .filter((puzzle) => puzzle.state !== 'SOLVED' && puzzle.unlockAt && Date.parse(puzzle.unlockAt) > Date.now())
+      .map((puzzle) => Date.parse(puzzle.unlockAt!))
+      .sort((a, b) => a - b)[0];
+    if (next === undefined) return;
+    const timer = window.setTimeout(() => void refresh(), Math.min(2147483647, Math.max(0, next - Date.now()) + 100));
+    return () => window.clearTimeout(timer);
+  }, [progress, refresh]);
 
   return { progress, error, loading, refresh };
 }

@@ -2,11 +2,17 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   assertHintAvailable,
+  CORE_QUESTION_SCHEDULE,
+  EVENT_START_AT,
+  formatDuration,
+  isScheduleLocked,
   hintCount,
   MAX_TEAM_HINTS,
   PUZZLE_IDS,
   puzzleHintLimit,
   puzzleRequirements,
+  rankTeams,
+  scoreCompletion,
 } from '../src/services/gameRules.ts';
 import { isInspectionShortcut, restrictInspection } from '../src/services/browserRestrictions.ts';
 
@@ -31,6 +37,49 @@ test('Convergence and Vault still require the preceding question', () => {
 
 test('invalid puzzle IDs are rejected', () => {
   for (const id of [0, -1, 9, 1.5, NaN]) assert.throws(() => puzzleRequirements(id, []));
+});
+
+test('questions I–VI unlock at the confirmed IST times and exact UTC boundaries', () => {
+  assert.deepEqual(CORE_QUESTION_SCHEDULE.map(({ unlockAt }) => unlockAt), [
+    '2026-11-10T07:30:00.000Z',
+    '2026-11-10T08:00:00.000Z',
+    '2026-11-10T08:30:00.000Z',
+    '2026-11-10T09:00:00.000Z',
+    '2026-11-10T09:30:00.000Z',
+    '2026-11-10T10:00:00.000Z',
+  ]);
+  assert.equal(EVENT_START_AT, CORE_QUESTION_SCHEDULE[0].unlockAt);
+  const q2 = Date.parse(CORE_QUESTION_SCHEDULE[1].unlockAt);
+  assert.equal(isScheduleLocked(CORE_QUESTION_SCHEDULE[1].unlockAt, q2 - 1), true);
+  assert.equal(isScheduleLocked(CORE_QUESTION_SCHEDULE[1].unlockAt, q2), false);
+  assert.equal(isScheduleLocked(null, q2 - 1), false);
+});
+
+test('ranking starts from the fixed first unlock and never from late login', () => {
+  assert.deepEqual(scoreCompletion('2026-11-10T08:30:00.000Z', 15), {
+    elapsedMs: 60 * 60_000,
+    adjustedElapsedMs: 75 * 60_000,
+  });
+  assert.equal(scoreCompletion('2026-11-10T07:00:00.000Z', 0).elapsedMs, 0);
+  assert.equal(scoreCompletion(null, 0), null);
+});
+
+test('finished teams rank by adjusted elapsed, then hints, then stable ID; unfinished stay behind', () => {
+  const ranked = rankTeams([
+    { id: 8, completedAt: null, penaltyMinutes: 0, totalHintsUsed: 0 },
+    { id: 4, completedAt: '2026-11-10T08:30:00.000Z', penaltyMinutes: 15, totalHintsUsed: 2 },
+    { id: 3, completedAt: '2026-11-10T08:35:00.000Z', penaltyMinutes: 10, totalHintsUsed: 1 },
+    { id: 2, completedAt: '2026-11-10T08:30:00.000Z', penaltyMinutes: 15, totalHintsUsed: 1 },
+    { id: 1, completedAt: null, penaltyMinutes: 0, totalHintsUsed: 4 },
+  ]);
+  assert.deepEqual(ranked.map(({ team, rank }) => [team.id, rank]), [[2, 1], [3, 2], [4, 3], [8, 4], [1, 5]]);
+  assert.equal(ranked[3].adjustedElapsedMs, null);
+});
+
+test('duration formatting keeps score display readable', () => {
+  assert.equal(formatDuration(7_384_000), '2h 3m 4s');
+  assert.equal(formatDuration(45_000), '45s');
+  assert.equal(formatDuration(null), '—');
 });
 
 test('question hints are capped at three and never exceed provisioned content', () => {

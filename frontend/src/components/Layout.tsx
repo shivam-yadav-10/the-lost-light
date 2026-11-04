@@ -4,6 +4,7 @@ import { useTeam } from '../store/team';
 import { Diya } from './Diya';
 import { FloatingEmbers } from './FloatingEmbers';
 import { Toran } from './Toran';
+import { GameClock } from './GameClock';
 
 interface LayoutProps {
   children: ReactNode;
@@ -56,7 +57,10 @@ export function Layout({ children, bare = false }: LayoutProps) {
           )}
         </header>
       )}
-      <main className="relative z-10 mx-auto w-full max-w-[96rem] px-5 pb-24 pt-6 sm:px-6 lg:px-10">{children}</main>
+      <main className="relative z-10 mx-auto w-full max-w-[96rem] px-5 pb-24 pt-6 sm:px-6 lg:px-10">
+        {!bare && session && pathname !== '/admin' && <GameClock />}
+        {children}
+      </main>
     </div>
   );
 }

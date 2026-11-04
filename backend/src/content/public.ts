@@ -111,7 +111,7 @@ export const PUBLIC_PUZZLES: PublicPuzzle[] = [
     fragmentName: 'Fragment of the Street',
     kind: 'core',
     sortOrder: 1,
-    unlockAt: '2026-11-10T04:00:00.000Z',
+    unlockAt: '2026-11-10T07:30:00.000Z',
     requires: [],
     intro:
       'Last night the whole street glowed. This morning every lamp is dark, except five little flames that slipped away and hid.',
@@ -135,7 +135,7 @@ export const PUBLIC_PUZZLES: PublicPuzzle[] = [
     fragmentName: 'Fragment of the Errand',
     kind: 'core',
     sortOrder: 2,
-    unlockAt: '2026-11-10T05:00:00.000Z',
+    unlockAt: '2026-11-10T08:00:00.000Z',
     requires: [1],
     intro:
       'A fragment has been tucked beside something you use every day. The Keeper has written your team a riddle. Other teams were sent somewhere else.',
@@ -188,7 +188,7 @@ export const PUBLIC_PUZZLES: PublicPuzzle[] = [
     fragmentName: 'Fragment of the Darkest Day',
     kind: 'core',
     sortOrder: 3,
-    unlockAt: '2026-11-10T06:00:00.000Z',
+    unlockAt: '2026-11-10T08:30:00.000Z',
     requires: [2],
     intro: 'Some puzzles are not about what you see, but about what you assume.',
     blocks: [
@@ -212,7 +212,7 @@ export const PUBLIC_PUZZLES: PublicPuzzle[] = [
     fragmentName: 'Fragment of the Glass',
     kind: 'core',
     sortOrder: 4,
-    unlockAt: '2026-11-10T07:30:00.000Z',
+    unlockAt: '2026-11-10T09:00:00.000Z',
     requires: [3],
     intro:
       'Six small posters have appeared around the office. Each carries a QR code, and each code opens a picture with a word hidden inside it.',
@@ -243,7 +243,7 @@ export const PUBLIC_PUZZLES: PublicPuzzle[] = [
     fragmentName: 'Fragment of the Five Dawns',
     kind: 'core',
     sortOrder: 5,
-    unlockAt: '2026-11-10T08:30:00.000Z',
+    unlockAt: '2026-11-10T09:30:00.000Z',
     requires: [4],
     intro: 'The festival lasts five days, and each day has kept a secret. Your team has been given its own five riddles.',
     blocks: [
@@ -263,7 +263,7 @@ export const PUBLIC_PUZZLES: PublicPuzzle[] = [
     fragmentName: 'Fragment of the Courtyard',
     kind: 'core',
     sortOrder: 6,
-    unlockAt: '2026-11-10T09:30:00.000Z',
+    unlockAt: '2026-11-10T10:00:00.000Z',
     requires: [1, 2, 3, 4, 5],
     intro: 'The Diwali courtyard has gone dark. Five lanterns wait beside a rangoli, and one diya still burns at its heart. Restore their places, then carry its light to the waiting beacon.',
     blocks: [

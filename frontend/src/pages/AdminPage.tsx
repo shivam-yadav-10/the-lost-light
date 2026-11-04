@@ -8,6 +8,7 @@ import {
   signOutAdmin,
 } from '../services/adminService';
 import type { AdminOverview } from '../api/types';
+import { EVENT_START_AT, formatDuration } from '../services/gameRules';
 
 const REFRESH_MS = 15_000;
 
@@ -177,7 +178,7 @@ export function AdminPage() {
                   <div className="text-xs uppercase tracking-wider text-parchment/50">Fragment {p.id}</div>
                   <div className="mt-1 font-medium text-parchment">{p.fragmentName}</div>
                   <div className={`mt-1 text-xs ${p.scheduleLocked ? 'text-parchment/50' : 'text-ember-glow'}`}>
-                    {p.scheduleLocked ? `Locked · opens ${fmt(p.unlockAt)}` : 'Unlocked'}
+                    {p.scheduleLocked ? `Locked · opens ${fmt(p.unlockAt)} IST` : 'Unlocked'}
                   </div>
                   <button
                     type="button"
@@ -194,6 +195,10 @@ export function AdminPage() {
             Overrides the scheduled release time for every team at once, not question prerequisites. Each team must
             solve the preceding question before moving on, including Convergence and the Vault.
           </p>
+          <p className="mt-1 text-xs text-parchment/40">
+            Ranking time starts at {fmt(EVENT_START_AT)} IST for every team, independent of login. Final elapsed time
+            plus cumulative hint penalties decides rank; fewer hints break score ties.
+          </p>
         </section>
       )}
 
@@ -206,10 +211,13 @@ export function AdminPage() {
 
       {data && (
         <div className="mt-5 overflow-x-auto">
-          <table className="w-full min-w-[1080px] border-collapse text-sm">
+          <table className="w-full min-w-[1220px] border-collapse text-sm">
             <caption className="sr-only">Team progress by puzzle</caption>
             <thead>
               <tr className="border-b border-ember/30 text-left text-xs uppercase tracking-wider text-parchment/60">
+                <th scope="col" className="py-2 pr-3">
+                  Rank
+                </th>
                 <th scope="col" className="py-2 pr-3">
                   Team
                 </th>
@@ -230,13 +238,14 @@ export function AdminPage() {
                   Penalty
                 </th>
                 <th scope="col" className="py-2 pr-3">
-                  Adjusted Vault
+                  Adjusted elapsed
                 </th>
               </tr>
             </thead>
             <tbody>
               {data.teams.map((t) => (
                 <tr key={t.id} className="border-b border-white/5 align-top">
+                  <td className="py-3 pr-3 font-semibold text-ember-glow">#{t.rank}</td>
                   <th scope="row" className="py-3 pr-3 text-left font-medium text-parchment">
                     {t.name}
                   </th>
@@ -251,7 +260,10 @@ export function AdminPage() {
                   </td>
                   <td className="py-3 pr-3 font-code text-parchment/80">{t.lanternKey}</td>
                   <td className="py-3 pr-3 text-parchment/80">{t.penaltyMinutes} min</td>
-                  <td className="py-3 pr-3 text-ember-glow">{fmt(t.adjustedVaultAt)}</td>
+                  <td className="py-3 pr-3 text-ember-glow">
+                    {t.adjustedElapsedMs === null ? 'Unfinished' : formatDuration(t.adjustedElapsedMs)}
+                    <div className="text-xs text-parchment/50">{t.totalHintsUsed} hints</div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -290,5 +302,10 @@ function Cell({
 
 function fmt(iso: string | null): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return new Date(iso).toLocaleTimeString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
 }

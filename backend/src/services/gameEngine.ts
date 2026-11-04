@@ -29,6 +29,7 @@ import {
   validateOverlaySubmission,
 } from './convergence.js';
 import { normaliseAnswer } from './normalise.js';
+import { EVENT_START_AT, rankTeams, scoreCompletion } from './scoring.js';
 
 const MAX_ANSWER_LENGTH = 200;
 const MAX_CHECKPOINT_CODE_LENGTH = 64;
@@ -153,6 +154,13 @@ export function getTeamProgress(teamId: number) {
   const coreSolved = core.filter((p) => p.state === 'SOLVED').length;
   const convergenceSolved = puzzles.some((p) => p.kind === 'convergence' && p.state === 'SOLVED');
   const allCoreSolved = core.length > 0 && coreSolved === core.length;
+  const vault = rows.find((puzzle) => puzzle.kind === 'vault');
+  const vaultSolvedAt = vault ? progress.get(vault.id)?.solved_at ?? null : null;
+  const penaltyMinutes = [...progress.values()].reduce(
+    (sum, row) => sum + hintPenaltyMinutes(row.puzzle_id, row.hints_used),
+    0,
+  );
+  const score = scoreCompletion(vaultSolvedAt, penaltyMinutes);
   const checkpoints = queryAll<{ code: string; title: string; visitedAt: string }>(
     `SELECT c.code, c.title, v.visited_at AS visitedAt
      FROM checkpoint_visits v JOIN checkpoints c ON c.id = v.checkpoint_id
@@ -171,6 +179,12 @@ export function getTeamProgress(teamId: number) {
     lightMessage: allCoreSolved && !convergenceSolved ? LIGHT_MESSAGES.partial : null,
     fragments: earnedFragments(progress, rows),
     checkpoints,
+    scheduleStartAt: EVENT_START_AT,
+    totalHintsUsed: [...progress.values()].reduce((sum, row) => sum + row.hints_used, 0),
+    penaltyMinutes,
+    vaultSolvedAt,
+    elapsedMs: score?.elapsedMs ?? null,
+    adjustedElapsedMs: score?.adjustedElapsedMs ?? null,
   };
 }
 
@@ -440,6 +454,47 @@ export function adminOverview() {
     'SELECT team_id, shard_type FROM convergence_verified ORDER BY shard_type',
   );
   const vault = puzzles.find((p) => p.kind === 'vault');
+  const teamRows = teams.map((t) => {
+    const progress = new Map(allProgress.filter((r) => r.team_id === t.id).map((r) => [r.puzzle_id, r]));
+    const penaltyMinutes = [...progress.values()].reduce(
+      (sum, r) => sum + hintPenaltyMinutes(r.puzzle_id, r.hints_used),
+      0,
+    );
+    const vaultSolvedAt = vault ? progress.get(vault.id)?.solved_at ?? null : null;
+    const totalHintsUsed = [...progress.values()].reduce((sum, row) => sum + row.hints_used, 0);
+    return {
+      id: t.id,
+      name: t.name,
+      lastSeenAt: t.last_seen_at,
+      shardType: shards.get(t.id) ?? null,
+      errandGroup: errandGroup(t.id),
+      errandLocation: ERRAND_LOCATIONS[errandGroup(t.id)],
+      riddleSet: riddleSet(t.id),
+      verifiedShards: verified.filter((v) => v.team_id === t.id).map((v) => v.shard_type),
+      lanternKey: teamKey(t.id),
+      penaltyMinutes,
+      totalHintsUsed,
+      vaultSolvedAt,
+      puzzles: puzzles.map((p) => {
+        const row = progress.get(p.id);
+        return {
+          puzzleId: p.id,
+          state: resolveState(p, progress),
+          hintsUsed: row?.hints_used ?? 0,
+          attempts: attemptMap.get(`${t.id}:${p.id}`) ?? 0,
+          startedAt: row?.started_at ?? null,
+          solvedAt: row?.solved_at ?? null,
+        };
+      }),
+    };
+  });
+  const ranked = rankTeams(teamRows.map((team) => ({
+    id: team.id,
+    completedAt: team.vaultSolvedAt,
+    penaltyMinutes: team.penaltyMinutes,
+    totalHintsUsed: team.totalHintsUsed,
+  })));
+  const ranks = new Map(ranked.map((entry) => [entry.team.id, entry]));
 
   return {
     generatedAt: new Date().toISOString(),
@@ -457,39 +512,15 @@ export function adminOverview() {
       seal: keeperSeal(type),
       holders: [...shards.values()].filter((t) => t === type).length,
     })),
-    teams: teams.map((t) => {
-      const progress = new Map(allProgress.filter((r) => r.team_id === t.id).map((r) => [r.puzzle_id, r]));
-      const penaltyMinutes = [...progress.values()].reduce(
-        (sum, r) => sum + hintPenaltyMinutes(r.puzzle_id, r.hints_used),
-        0,
-      );
-      const vaultSolvedAt = vault ? progress.get(vault.id)?.solved_at ?? null : null;
+    scheduleStartAt: EVENT_START_AT,
+    teams: teamRows.map((team) => {
+      const score = ranks.get(team.id)!;
       return {
-        id: t.id,
-        name: t.name,
-        lastSeenAt: t.last_seen_at,
-        shardType: shards.get(t.id) ?? null,
-        errandGroup: errandGroup(t.id),
-        errandLocation: ERRAND_LOCATIONS[errandGroup(t.id)],
-        riddleSet: riddleSet(t.id),
-        verifiedShards: verified.filter((v) => v.team_id === t.id).map((v) => v.shard_type),
-        lanternKey: teamKey(t.id),
-        penaltyMinutes,
-        adjustedVaultAt: vaultSolvedAt
-          ? new Date(new Date(vaultSolvedAt).getTime() + penaltyMinutes * 60_000).toISOString()
-          : null,
-        puzzles: puzzles.map((p) => {
-          const row = progress.get(p.id);
-          return {
-            puzzleId: p.id,
-            state: resolveState(p, progress),
-            hintsUsed: row?.hints_used ?? 0,
-            attempts: attemptMap.get(`${t.id}:${p.id}`) ?? 0,
-            startedAt: row?.started_at ?? null,
-            solvedAt: row?.solved_at ?? null,
-          };
-        }),
+        ...team,
+        rank: score.rank,
+        elapsedMs: score.elapsedMs,
+        adjustedElapsedMs: score.adjustedElapsedMs,
       };
-    }),
+    }).sort((left, right) => left.rank - right.rank),
   };
 }

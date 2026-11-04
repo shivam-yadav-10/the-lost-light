@@ -10,7 +10,7 @@ import type { EarnedFragment, FragmentMeta, FragmentState, PuzzleKind, PuzzleSum
 import { initializeSession } from './authService';
 import { GameServicesUnavailableError, requireFirebaseServices } from './firebase';
 import { TeamLoginError } from './teamService';
-import { puzzleHintLimit, puzzleRequirements } from './gameRules';
+import { EVENT_START_AT, isScheduleLocked, puzzleHintLimit, puzzleRequirements, scoreCompletion } from './gameRules';
 
 const ROMAN_NUMERALS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
 const PUZZLE_KINDS: PuzzleKind[] = ['core', 'convergence', 'vault'];
@@ -19,6 +19,7 @@ const FRAGMENT_DIRECTIONS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 
 interface PuzzleRecord extends PuzzleSummary {
   requires: number[];
+  hintPenalties: number[];
 }
 
 interface PuzzleProgressRecord {
@@ -96,6 +97,13 @@ function parsePuzzle(documentId: string, rawData: unknown): PuzzleRecord {
   }
 
   const unlockAt = timestampToIso(data.unlockAt);
+  const hintPenalties = data.hintPenalties;
+  if (
+    !Array.isArray(hintPenalties) ||
+    !hintPenalties.every((value) => typeof value === 'number' && Number.isInteger(value) && value >= 0)
+  ) {
+    throw new GameServicesUnavailableError();
+  }
   return {
     id,
     slug: requiredString(data, 'slug'),
@@ -109,6 +117,7 @@ function parsePuzzle(documentId: string, rawData: unknown): PuzzleRecord {
     hintsUsed: 0,
     maxHints: puzzleHintLimit(requiredInteger(data, 'maxHints')),
     requires: puzzleRequirements(id, requires),
+    hintPenalties,
   };
 }
 
@@ -141,7 +150,7 @@ function toPuzzleSummaries(
   const now = Date.now();
   return puzzles.map((puzzle) => {
     const progress = progressByPuzzle.get(puzzle.id);
-    const scheduled = puzzle.unlockAt !== null && new Date(puzzle.unlockAt).getTime() > now;
+    const scheduled = isScheduleLocked(puzzle.unlockAt, now);
     const prerequisitesMet = puzzle.requires.every((id) => progressByPuzzle.get(id)?.status === 'solved');
     const state: FragmentState = progress?.status === 'solved'
       ? 'SOLVED'
@@ -195,6 +204,11 @@ function toTeamProgress(
   if (puzzles.length === 0) throw new GameServicesUnavailableError();
 
   const config = rawConfig == null ? {} : asRecord(rawConfig);
+  const configuredScheduleStartAt = timestampToIso(config.scheduleStartAt);
+  if (configuredScheduleStartAt && configuredScheduleStartAt !== EVENT_START_AT) {
+    throw new GameServicesUnavailableError();
+  }
+  const scheduleStartAt = EVENT_START_AT;
   if (config.unlockOverrides != null) {
     const overrides = asRecord(config.unlockOverrides);
     for (const [rawId, value] of Object.entries(overrides)) {
@@ -230,6 +244,15 @@ function toTeamProgress(
       const fragment = parseFragment(asRecord(earnedData.data()).fragment);
       return fragment ? [toFragment(fragment, puzzle)] : [];
     });
+  const totalHintsUsed = [...progressByPuzzle.values()].reduce((sum, progress) => sum + progress.hintsUsed, 0);
+  const penaltyMinutes = [...progressByPuzzle.entries()].reduce((total, [puzzleId, progress]) => {
+    const puzzle = puzzles.find((candidate) => candidate.id === puzzleId);
+    if (!puzzle) throw new GameServicesUnavailableError();
+    return total + puzzle.hintPenalties.slice(0, progress.hintsUsed).reduce((sum, penalty) => sum + penalty, 0);
+  }, 0);
+  const vault = puzzles.find((puzzle) => puzzle.kind === 'vault');
+  const vaultSolvedAt = vault ? progressByPuzzle.get(vault.id)?.solvedAt ?? null : null;
+  const score = scoreCompletion(vaultSolvedAt, penaltyMinutes, scheduleStartAt);
   return {
     teamId: teamNumber,
     teamName: requiredString(team, 'teamName'),
@@ -243,6 +266,12 @@ function toTeamProgress(
     lightMessage: typeof lightMessage === 'string' ? lightMessage : null,
     fragments,
     checkpoints: toCheckpoints(visitDocuments),
+    scheduleStartAt,
+    totalHintsUsed,
+    penaltyMinutes,
+    vaultSolvedAt,
+    elapsedMs: score?.elapsedMs ?? null,
+    adjustedElapsedMs: score?.adjustedElapsedMs ?? null,
   };
 }
 
