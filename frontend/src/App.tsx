@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { HashRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { restrictInspection } from './services/browserRestrictions';
 import { AdminPage } from './pages/AdminPage';
@@ -17,6 +17,19 @@ import { hasReleasedQuestion, nextRelease } from './services/gameClock';
 import { ReleaseCountdown, useClockNow } from './components/GameClock';
 import { WaitingRoom } from './components/WaitingRoom';
 import { Layout } from './components/Layout';
+import { FloatingLanterns } from './components/FloatingLanterns';
+
+function LoadingLanterns({ loading }: { loading: boolean }) {
+  const [visible, setVisible] = useState(true);
+  if (!visible) return null;
+  return <div aria-hidden="true"
+    className={`pointer-events-none fixed inset-0 z-0 ${loading ? '' : 'loading-lanterns-depart'}`}
+    onAnimationEnd={(event) => {
+      if (event.target === event.currentTarget && !loading) setVisible(false);
+    }}>
+    <FloatingLanterns />
+  </div>;
+}
 
 function RequireTeam() {
   const { session } = useTeam();
@@ -54,10 +67,11 @@ function ReleaseGate() {
     const timer = window.setInterval(() => void refresh(), 15000);
     return () => window.clearInterval(timer);
   }, [pathname, refresh]);
+  function content(): ReactNode {
   if (error) return <WaitingRoom>
     <p role="alert" className="text-sm text-marigold">{error} <button className="underline" onClick={() => void refresh()}>Retry</button></p>
   </WaitingRoom>;
-  if (!progress) return <Layout bare lanterns>
+  if (!progress) return <Layout bare>
     <div role="status" className="flex min-h-[80dvh] flex-col items-center justify-center gap-5">
       <span aria-hidden="true" className="h-8 w-8 animate-spin rounded-full border border-ember/20 border-t-ember-glow" />
       <p className="text-xs tracking-wide text-parchment/50">Opening your team&apos;s path…</p>
@@ -71,6 +85,11 @@ function ReleaseGate() {
     </WaitingRoom>;
   }
   return pathname === '/waiting' ? <Navigate to="/dashboard" replace /> : <Outlet />;
+  }
+  return <>
+    <LoadingLanterns loading={!progress && !error} />
+    {content()}
+  </>;
 }
 
 // HashRouter so deep links work on GitHub Pages without server-side rewrites.

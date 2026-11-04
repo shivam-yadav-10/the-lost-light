@@ -67,7 +67,12 @@ function ConvergenceOpen({ puzzleId, fragments }: { puzzleId: number; fragments:
     finally { setBusy(false); }
   }
   if (loadError) return <Layout><p role="alert" className="card mt-10 text-marigold">{loadError}</p></Layout>;
-  if (!puzzle) return <Layout><p className="mt-16 text-center">The lanterns are gathering…</p></Layout>;
+  if (!puzzle || (!state && !stateError)) return <Layout>
+    <div role="status" className="flex min-h-[60dvh] flex-col items-center justify-center gap-5">
+      <span aria-hidden="true" className="h-8 w-8 animate-spin rounded-full border border-ember/20 border-t-ember-glow" />
+      <p className="text-sm text-parchment/50">Gathering your lanterns…</p>
+    </div>
+  </Layout>;
   const solved = puzzle.state === 'SOLVED';
   const ready = state && state.partners.every((p) => p.verified)
     && cardsAligned(placements, state.partners.map((p) => p.teamId));
@@ -79,6 +84,7 @@ function ConvergenceOpen({ puzzleId, fragments }: { puzzleId: number; fragments:
   </header>;
   return (
     <Layout>
+      <div className="game-page-enter">
       {celebrate && <SuccessOverlay eyebrow="The Convergence" title="The lanterns become one!"
         subtitle="Your key is now your proof. The Vault awaits." onClose={closeCelebration} />}
       <Link to="/dashboard" className="text-xs text-parchment/60 hover:text-ember-glow">← All fragments</Link>
@@ -141,6 +147,7 @@ function ConvergenceOpen({ puzzleId, fragments }: { puzzleId: number; fragments:
         {!state && feedback && <p role="status" className="mt-5 text-marigold">{feedback}</p>}
       </>}
       <div className="mt-20"><FragmentLedger fragments={fragments} /></div>
+      </div>
     </Layout>
   );
 }

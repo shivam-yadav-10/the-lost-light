@@ -566,6 +566,13 @@ h3,
   from { opacity: 0; }
   to { opacity: 1; }
 }
+@keyframes loading-lanterns-depart {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+.loading-lanterns-depart {
+  animation: loading-lanterns-depart 1800ms ease-out forwards;
+}
 .game-page-enter {
   animation: game-page-enter 420ms ease-out both;
 }

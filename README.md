@@ -38,6 +38,9 @@ URLs, nested-route refreshes, images and fonts.
   Desktop uses a 70/30 split: the introduction and lantern puzzle on the left, with
   a sticky circle/seal, word submission, and hints sidebar aligned to the heading
   on the right. On smaller screens the sidebar stacks above the introduction and board.
+  Convergence reveals its table and sidebar together once puzzle and circle data are
+  ready. Initial release-check lanterns fade out over 1.8 seconds as the destination
+  appears; reduced-motion preferences disable the fade.
 
 ### QR picture assets and puzzle IV content
 
