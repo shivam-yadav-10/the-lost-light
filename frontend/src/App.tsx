@@ -55,10 +55,15 @@ function ReleaseGate() {
     return () => window.clearInterval(timer);
   }, [pathname, refresh]);
   function content(): ReactNode {
-  if (error) return <WaitingRoom>
+  if (error) return <Layout bare>
     <p role="alert" className="text-sm text-marigold">{error} <button className="underline" onClick={() => void refresh()}>Retry</button></p>
-  </WaitingRoom>;
-  if (!progress) return <WaitingRoom><span role="status" className="sr-only">Opening your team&apos;s path…</span></WaitingRoom>;
+  </Layout>;
+  if (!progress) return <Layout>
+    <div role="status" className="flex min-h-[60dvh] flex-col items-center justify-center gap-5">
+      <span aria-hidden="true" className="h-8 w-8 animate-spin rounded-full border border-ember/20 border-t-ember-glow" />
+      <p className="text-sm text-parchment/50">Opening your team&apos;s path…</p>
+    </div>
+  </Layout>;
   if (!hasReleasedQuestion(progress.puzzles, now)) {
     const next = nextRelease(progress.puzzles, now);
     return <WaitingRoom>

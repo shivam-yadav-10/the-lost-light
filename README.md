@@ -72,8 +72,10 @@ so stale progress or a failed completion write cannot immediately reopen the sto
   a sticky circle/seal, word submission, and hints sidebar aligned to the heading
   on the right. On smaller screens the sidebar stacks above the introduction and board.
   Convergence reveals its table and sidebar together once puzzle and circle data are
-  ready. Release checks use the waiting view's continuous lantern-night backdrop
-  rather than flashing a separate spinner screen; reduced-motion preferences are respected.
+  ready. Initial release checks use a neutral loader on the game backdrop; the
+  lantern-night waiting view appears only after progress confirms no question
+  has been released. Reloading a playable dashboard or puzzle never uses the
+  waiting backdrop as a loading placeholder. Reduced-motion preferences are respected.
 
 ### QR picture assets and puzzle IV content
 
