@@ -13,7 +13,7 @@ import { useProgress } from '../store/useProgress';
 import { usePuzzle } from '../store/usePuzzle';
 import { useTeam } from '../store/team';
 import { hanoiSolved } from '../services/hanoi';
-import { loadHanoiProgress, saveHanoiProgress, type HanoiDraft } from '../services/hanoiProgress';
+import { getHanoiQueue, type HanoiQueue, type HanoiQueueState } from '../services/hanoiQueue';
 import { FragmentLedger, SealedChamber } from './EndgamePages';
 
 export function VaultPage() {
@@ -55,10 +55,11 @@ function VaultOpen({ puzzleId, fragments }: { puzzleId: number; fragments: Earne
   const { puzzle, setPuzzle, loadError } = usePuzzle(puzzleId);
   const [word, setWord] = useState('');
   const [proof, setProof] = useState('');
-  const [draft, setDraft] = useState<HanoiDraft | null>(null);
+  const [queueState, setQueueState] = useState<HanoiQueueState | null>(null);
+  const queue = useRef<HanoiQueue | null>(null);
+  const unsubscribe = useRef<(() => void) | null>(null);
   const [towerError, setTowerError] = useState<string | null>(null);
   const [loadingTower, setLoadingTower] = useState(true);
-  const [savingTower, setSavingTower] = useState(false);
   const [restoreVersion, setRestoreVersion] = useState(0);
   const loadRequest = useRef(0);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -66,7 +67,7 @@ function VaultOpen({ puzzleId, fragments }: { puzzleId: number; fragments: Earne
   const [busy, setBusy] = useState(false);
   const solved = puzzle?.state === 'SOLVED';
   const teamDocId = session?.teamDocId;
-  const moves = draft?.moves ?? '';
+  const moves = queueState?.moves ?? '';
 
   const restoreTower = useCallback(async () => {
     if (!teamDocId) return;
@@ -74,9 +75,12 @@ function VaultOpen({ puzzleId, fragments }: { puzzleId: number; fragments: Earne
     setLoadingTower(true);
     setTowerError(null);
     try {
-      const saved = await loadHanoiProgress(teamDocId);
+      const saved = await getHanoiQueue(teamDocId);
       if (request !== loadRequest.current) return;
-      setDraft(saved);
+      unsubscribe.current?.();
+      queue.current = saved;
+      unsubscribe.current = saved.subscribe((next) => setQueueState((previous) =>
+        previous?.moves === next.moves && previous.storageError === next.storageError ? previous : next));
       setRestoreVersion((version) => version + 1);
     } catch (error) {
       if (request === loadRequest.current) {
@@ -89,32 +93,24 @@ function VaultOpen({ puzzleId, fragments }: { puzzleId: number; fragments: Earne
 
   useEffect(() => {
     if (puzzle && !solved) void restoreTower();
-    return () => { loadRequest.current++; };
+    return () => { loadRequest.current++; unsubscribe.current?.(); };
   }, [Boolean(puzzle), solved, restoreTower]);
 
   async function saveTower(next: string) {
-    if (!teamDocId || !draft || towerError || loadingTower || savingTower || busy) {
+    if (!queue.current || towerError || loadingTower || busy) {
       throw new Error('Load your saved tower before continuing.');
     }
-    setSavingTower(true);
-    try {
-      const saved = await saveHanoiProgress(teamDocId, draft, next);
-      setDraft(saved);
-    } catch (error) {
-      setTowerError(error instanceof Error ? error.message : 'Could not save your tower. Load the saved tower to try again.');
-      throw error;
-    } finally {
-      setSavingTower(false);
-    }
+    queue.current.enqueue(next);
   }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!session || !puzzle || !draft || towerError || loadingTower || savingTower
+    if (!session || !puzzle || !queue.current || towerError || queueState?.storageError || loadingTower
       || !word.trim() || !proof.trim() || !hanoiSolved(moves)) return;
     setBusy(true);
     setFeedback(null);
     try {
+      await queue.current.finishSync();
       const result = await api.submit(
         puzzle.id, session.teamDocId, session.teamId, word.trim(),
         JSON.stringify({ code: proof.trim(), moves }),
@@ -122,11 +118,12 @@ function VaultOpen({ puzzleId, fragments }: { puzzleId: number; fragments: Earne
       if (result.correct) {
         setOpened(true);
         setPuzzle({ ...puzzle, state: 'SOLVED', solvedAt: result.puzzle.solvedAt, completionMessage: result.message });
+        queue.current.clear();
       } else {
         setFeedback(result.message);
       }
     } catch (err) {
-      setFeedback(err instanceof ApiError ? err.message : 'Something went wrong.');
+      setFeedback(err instanceof Error ? err.message : 'Something went wrong.');
       if (err instanceof ApiError && err.status === 409) setTowerError(err.message);
     } finally {
       setBusy(false);
@@ -189,19 +186,21 @@ function VaultOpen({ puzzleId, fragments }: { puzzleId: number; fragments: Earne
         ) : (
           <div className="space-y-8">
             <div className="space-y-4">
-              <p role="status" className="text-center text-xs text-parchment/60">
-                {loadingTower ? 'Restoring your team’s tower…' : savingTower
-                  ? 'Saving your move…' : !towerError && draft ? 'Team tower saved · Safe to leave and return' : ''}
-              </p>
               {towerError && <div role="alert" className="card border-marigold/40 text-sm text-marigold">
                 <p>{towerError}</p>
-                <button type="button" className="mt-4 underline" disabled={loadingTower || savingTower || busy}
+                <button type="button" className="mt-4 underline" disabled={loadingTower || busy}
                   onClick={() => void restoreTower()}>Load saved tower</button>
               </div>}
-              {draft && !loadingTower && <HanoiTower key={restoreVersion} moves={moves} onChange={saveTower}
-                disabled={Boolean(towerError) || busy || savingTower} />}
+              {queueState?.storageError && <div role="alert" className="text-sm text-marigold">
+                <p>{queueState.storageError}</p>
+                <button type="button" className="mt-3 underline" onClick={() => {
+                  try { queue.current?.retryStorage(); } catch { /* The queue publishes the storage error. */ }
+                }}>Retry local save</button>
+              </div>}
+              {queueState && !loadingTower && <HanoiTower key={restoreVersion} moves={moves} onChange={saveTower}
+                disabled={Boolean(towerError || queueState.storageError) || busy} />}
             </div>
-            {draft && !loadingTower && !towerError && hanoiSolved(moves) && (
+            {queueState && !loadingTower && !towerError && hanoiSolved(moves) && (
             <form onSubmit={onSubmit} className="vault-final-form card space-y-6 border-ember/40" noValidate>
               <div>
                 <label htmlFor="vault-word" className="eyebrow block">
@@ -236,7 +235,8 @@ function VaultOpen({ puzzleId, fragments }: { puzzleId: number; fragments: Earne
                   {feedback}
                 </p>
               )}
-              <button type="submit" className="btn-ember w-full" disabled={busy || savingTower || !word.trim() || !proof.trim()}>
+              <button type="submit" className="btn-ember w-full"
+                disabled={busy || Boolean(queueState.storageError) || !word.trim() || !proof.trim()}>
                 {busy ? 'The Vault listens…' : 'Open the Vault'}
               </button>
             </form>

@@ -62,7 +62,7 @@ test('every move and restart survives a fresh service instance, preserving team 
   let draft = await first.loadHanoiProgress('team-a');
   assert.equal(draft.moves, '');
   assert.equal(draft.disks, 6);
-  draft = await first.saveHanoiProgress('team-a', draft, '01');
+  draft = await first.saveHanoiProgress('team-a', '01');
   assert.equal(draft.revision, 1);
   assert.equal(f.documents.get(ref).status, 'in_progress');
   assert.equal(f.documents.get(ref).hintsUsed, 0);
@@ -70,9 +70,9 @@ test('every move and restart survives a fresh service instance, preserving team 
   f.documents.set(ref, { ...f.documents.get(ref), hintsUsed: 2, startedAt: 'original', extra: 'preserve' });
   const restored = await f.service().loadHanoiProgress('team-a');
   assert.equal(restored.moves, '01');
-  draft = await first.saveHanoiProgress('team-a', restored, '0102');
+  draft = await first.saveHanoiProgress('team-a', '0102');
   assert.equal(draft.revision, 2);
-  draft = await first.saveHanoiProgress('team-a', draft, '');
+  draft = await first.saveHanoiProgress('team-a', '');
   assert.equal(draft.revision, 3);
   assert.equal((await f.service().loadHanoiProgress('team-a')).moves, '');
   assert.equal(f.documents.get(ref).hintsUsed, 2);
@@ -81,30 +81,29 @@ test('every move and restart survives a fresh service instance, preserving team 
   assert.equal((await first.loadHanoiProgress('team-b')).moves, '', 'team drafts are isolated');
 });
 
-test('stale tabs, including moves made before a restart, cannot overwrite newer tower state', async () => {
+test('one batch can contain multiple moves and the latest active-device batch replaces the saved tower', async () => {
   const f = fixture();
   const service = f.service();
-  const stale = await service.loadHanoiProgress('a');
-  let current = await service.saveHanoiProgress('a', stale, '01');
-  await assert.rejects(service.saveHanoiProgress('a', stale, '02'), /another tab or device/);
-  current = await service.saveHanoiProgress('a', current, '');
-  await assert.rejects(service.saveHanoiProgress('a', stale, '02'), /another tab or device/);
+  let current = await service.saveHanoiProgress('a', '0102');
+  assert.equal(current.moves, '0102');
+  current = await service.saveHanoiProgress('a', '');
+  current = await service.saveHanoiProgress('a', '02');
   assert.equal((await service.loadHanoiProgress('a')).revision, current.revision);
-  assert.equal(f.writes.length, 2);
+  assert.equal(f.writes.length, 3);
 });
 
-test('malformed drafts and illegal or multi-move writes fail without replacing saved progress', async () => {
+test('malformed drafts and illegal batch histories fail without replacing saved progress', async () => {
   const f = fixture();
   const service = f.service();
-  const empty = await service.loadHanoiProgress('a');
-  for (const moves of ['00', '10', '0101', '0102']) {
-    await assert.rejects(service.saveHanoiProgress('a', empty, moves));
+  for (const moves of ['00', '10', '0101']) {
+    await assert.rejects(service.saveHanoiProgress('a', moves));
   }
+  const empty = await service.loadHanoiProgress('a');
   for (const invalid of [null, {}, { ...empty, revision: 1, disks: 7 }, { ...empty, revision: -1 },
     { ...empty, revision: 1.5 }, { ...empty, revision: 1, version: 2 }, { ...empty, revision: 1, moves: '00' }]) {
     f.documents.set('teams/a/progress/8', { hanoiDraft: invalid });
     await assert.rejects(service.loadHanoiProgress('a'));
-    await assert.rejects(service.saveHanoiProgress('a', empty, '01'));
+    await assert.rejects(service.saveHanoiProgress('a', '01'));
   }
   assert.equal(f.writes.length, 0);
 });
@@ -112,13 +111,12 @@ test('malformed drafts and illegal or multi-move writes fail without replacing s
 test('network failures are explicit and a solved Vault cannot be replaced with a draft', async () => {
   const f = fixture();
   const service = f.service();
-  const empty = await service.loadHanoiProgress('a');
   f.documents.set('teams/a/progress/8', { status: 'solved', hintsUsed: 3 });
   await assert.rejects(service.loadHanoiProgress('a'), /already open/);
-  await assert.rejects(service.saveHanoiProgress('a', empty, '01'), /already open/);
+  await assert.rejects(service.saveHanoiProgress('a', '01'), /already open/);
   f.fail();
   await assert.rejects(service.loadHanoiProgress('a'), /Network unavailable/);
-  await assert.rejects(service.saveHanoiProgress('a', empty, '01'), /Network unavailable/);
+  await assert.rejects(service.saveHanoiProgress('a', '01'), /Network unavailable/);
   assert.equal(f.writes.length, 0);
 });
 
@@ -130,7 +128,7 @@ test('a completed 63-move tower is restored ready for the final form', async () 
   const moves = solve(6);
   let draft = await service.loadHanoiProgress('a');
   for (let i = 2; i <= moves.length; i += 2) {
-    draft = await service.saveHanoiProgress('a', draft, moves.slice(0, i));
+    draft = await service.saveHanoiProgress('a', moves.slice(0, i));
   }
   const restored = await f.service().loadHanoiProgress('a');
   assert.equal(restored.moves, moves);

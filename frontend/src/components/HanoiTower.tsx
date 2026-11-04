@@ -105,7 +105,7 @@ export function HanoiTower({ moves, onChange, disabled = false }: {
     try {
       await onChange('');
       setSelected(null);
-      setMessage('Tower restarted and saved. Carry all six disks to the Vault on the right.');
+      setMessage('Tower restarted. Carry all six disks to the Vault on the right.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Could not save the restart. Your tower has not changed.');
     } finally {
@@ -121,7 +121,7 @@ export function HanoiTower({ moves, onChange, disabled = false }: {
       <p className="mt-4 text-sm leading-relaxed text-parchment/75">
         Carry all six disks from the first tower to the Vault on the right. Choose a tower, then a destination;
         watch its top disk rise and cross. A larger disk can never rest on a smaller one.
-        All legal solutions count; 63 moves is the shortest. Each move is saved to your team's tower before it travels.
+        All legal solutions count; 63 moves is the shortest.
       </p>
       <div className="hanoi-board relative mt-8" role="group" aria-label="Tower of Hanoi" aria-busy={travelling || saving}>
         <svg viewBox="0 0 900 410" className="pointer-events-none block w-full" aria-hidden="true">

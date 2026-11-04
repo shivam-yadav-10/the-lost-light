@@ -16,7 +16,7 @@ export function parseHanoiDraft(value: unknown): HanoiDraft {
     || !('version' in value) || value.version !== 1
     || !('disks' in value) || value.disks !== HANOI_DISKS
     || !('revision' in value) || typeof value.revision !== 'number'
-    || !Number.isSafeInteger(value.revision) || value.revision < 1
+    || !Number.isSafeInteger(value.revision) || value.revision < 0
     || !('moves' in value) || typeof value.moves !== 'string') {
     throw new Error('Your saved tower data is invalid. Ask a Keeper for help; it has not been overwritten.');
   }
@@ -37,11 +37,8 @@ export async function loadHanoiProgress(teamId: string): Promise<HanoiDraft> {
   return parseHanoiDraft(snapshot.get('hanoiDraft'));
 }
 
-export async function saveHanoiProgress(teamId: string, expected: HanoiDraft, moves: string): Promise<HanoiDraft> {
+export async function saveHanoiProgress(teamId: string, moves: string): Promise<HanoiDraft> {
   hanoiPegs(moves);
-  if (moves !== '' && (moves.length !== expected.moves.length + 2 || !moves.startsWith(expected.moves))) {
-    throw new Error('Save one tower move at a time, or restart the tower.');
-  }
   await initializeSession();
   const progressRef = reference(teamId);
   const { firestore } = requireFirebaseServices();
@@ -49,9 +46,6 @@ export async function saveHanoiProgress(teamId: string, expected: HanoiDraft, mo
     const snapshot = await transaction.get(progressRef);
     if (snapshot.get('status') === 'solved') throw new Error('This Vault is already open. Reload the page.');
     const current = parseHanoiDraft(snapshot.get('hanoiDraft'));
-    if (current.revision !== expected.revision || current.moves !== expected.moves) {
-      throw new Error('Your team changed the tower in another tab or device. Load the saved tower before continuing.');
-    }
     const draft: HanoiDraft = { version: 1, disks: HANOI_DISKS, revision: current.revision + 1, moves };
     const now = serverTimestamp();
     transaction.set(progressRef, {

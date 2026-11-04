@@ -88,7 +88,7 @@ function mount({ moves = '', reducedMotion = false, save = async () => {} } = {}
   };
 }
 
-test('a move waits for durable save, then travels above the pegs and locks overlapping input', async () => {
+test('a move waits only for its local-save callback, then travels above the pegs and locks overlapping input', async () => {
   let acknowledge;
   let saves = 0;
   const tower = mount({ save: () => { saves++; return new Promise((resolve) => { acknowledge = resolve; }); } });

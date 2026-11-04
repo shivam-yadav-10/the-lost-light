@@ -39,21 +39,29 @@ so stale progress or a failed completion write cannot immediately reopen the sto
   and no outstanding field errors.
 - Question V requires checking all five riddle answers before final submission.
 - The Final Vault opens with engraved latticework, lotus medallions, golden arches,
-  a breaking light seal, perspective-opening doors, drifting embers and a staged title reveal,
+  a breaking light seal, doors swinging outward into the side space, drifting embers and a staged title reveal,
   then requires a six-disk Tower of Hanoi: move the stack from
   the left peg to the right, one top disk at a time, never larger onto smaller.
   Select a source tower and then its destination (mouse, touch, or keyboard).
   Disks visibly lift above the pegs, travel across, and settle onto their destination.
-  Moves and restart are locked while saving and during the 950ms crossing so animations cannot overlap.
+  Moves and restart are locked during the 950ms crossing so animations cannot overlap,
+  but never wait for the database during normal play.
   Reduced-motion users get instant moves, a shortened entrance, and no drifting embers or rotating rays.
   Any legal solution counts; the minimum is 63 moves. Completing the tower reveals
   the existing final-word and team proof-code form. The move history is replayed
-  during submission, not just checked by the UI. Every move and explicit restart is committed
-  to `teams/{teamId}/progress/8.hanoiDraft` before appearing on the board. Navigation and
-  browser reload restore the team's saved move history from Firestore, including completed towers.
-  Revision checks prevent a stale tab/device from overwriting newer moves; failures visibly
-  block play until **Load saved tower** succeeds. Hints preserve the tower draft.
-  The normal gameplay reset clears it along with other progress; already-solved Vaults remain open.
+  during submission, not just checked by the UI. Every move and explicit restart is queued
+  immediately in per-team `sessionStorage` before appearing on the board. Every 15 seconds,
+  a nonempty queue is coalesced into one Firestore transaction at
+  `teams/{teamId}/progress/8.hanoiDraft`; idle towers cause no periodic database reads or writes.
+  Background sync continues across in-app navigation. Reload restores this tab's queue;
+  a new tab without local state restores from Firestore. Normal synchronization is invisible
+  to players. Network failures are logged, retain the queue, and retry on the next tick
+  without blocking play; local storage failures explicitly block further moves.
+  Opening the Vault flushes pending moves before submitting the existing word/proof.
+  This assumes one active device per team: the latest batch replaces the saved tower.
+  Closing the tab clears unsynced session data. Hints preserve the database draft.
+  After a gameplay reset, use a new tab, or clear that team's
+  `lostlight.hanoi.{teamId}` session key and reload; already-solved Vaults remain open.
   No Firestore migration or reseeding is required.
 - The Lantern Courtyard has 20 rotating mirrors, team-specific positions,
   click-to-cycle symbols and a responsive 70/30 desktop layout.

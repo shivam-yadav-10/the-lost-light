@@ -41,8 +41,17 @@ function DoorEngraving({ id }: { id: string }) {
 export function VaultDoor() {
   const id = useId();
   return <div className="vault-doorway" aria-hidden="true">
-    <div className="vault-rays" />
-    <div className="vault-door-light" />
+    <div className="vault-door-interior">
+      <div className="vault-rays" />
+      <div className="vault-door-light" />
+      <div className="vault-motes">
+        {Array.from({ length: 14 }, (_, i) => <span key={i} style={{
+          left: `${8 + (i * 37) % 84}%`,
+          animationDelay: `${1.2 + i * .31}s`,
+          animationDuration: `${5 + (i % 4)}s`,
+        }} />)}
+      </div>
+    </div>
     <div className="vault-door vault-door-left"><DoorEngraving id={`${id}-left`} /></div>
     <div className="vault-door vault-door-right"><DoorEngraving id={`${id}-right`} /></div>
     <div className="vault-seam" />
@@ -52,12 +61,5 @@ export function VaultDoor() {
       <path d="M42 598V290C42-28 758-28 758 290V598" fill="none"
         stroke="#e9b96a" strokeOpacity=".4" strokeWidth="3" strokeDasharray="2 10" />
     </svg>
-    <div className="vault-motes">
-      {Array.from({ length: 14 }, (_, i) => <span key={i} style={{
-        left: `${8 + (i * 37) % 84}%`,
-        animationDelay: `${1.2 + i * .31}s`,
-        animationDuration: `${5 + (i % 4)}s`,
-      }} />)}
-    </div>
   </div>;
 }
