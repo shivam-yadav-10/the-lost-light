@@ -22,7 +22,7 @@ import {
 } from './protected.js';
 import type { ErrandGroup } from './types.js';
 import { teamKey, teamSeal } from '../services/convergence.js';
-import { OVERLAY_WORD } from '../services/convergenceOverlay.js';
+const CONVERGENCE_WORD = 'MATCH';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const outFile = path.resolve(here, '../../../ANSWER-KEY.md');
@@ -43,7 +43,7 @@ function aliasesSection(): string[] {
   out.push(`| IV ${title(4)} | any four distinct words from the team's assigned picture, in any order; six words maximum |`);
   out.push(`| V ${title(5)} | own set's word only |`);
   out.push(`| VI ${title(6)} | ${accepted(6)} |`);
-  out.push(`| VII ${title(7)} | ${accepted(7)} after all partner seals and aligned cards |`);
+  out.push(`| VII ${title(7)} | ${accepted(7)} after all partner seals; no alignment required |`);
   out.push(`| VIII ${title(8)} | solve the four-disk Tower of Hanoi, then word ${accepted(8)} **and** the team's own key as proof code |`);
   out.push('', 'Answers ignore case, accents and punctuation.', '');
   return out;
@@ -116,7 +116,7 @@ try {
     const dawns = FIVE_DAWNS_SETS.find((s) => s.group === riddleSet(t.id))!;
     const wordGroup = variantKey(t.id, Object.keys(protectedPuzzle(4).hiddenWordsByGroup!));
     const words = protectedPuzzle(4).hiddenWordsByGroup![wordGroup];
-    return `| ${t.name} | ${code(t.game_key)} | ${upper(protectedPuzzle(1).answers[0])} | ${protectedPuzzle(2).answersByGroup![errandGroup(t.id)][0]} (${errandGroup(t.id)}) | ${upper(protectedPuzzle(3).answers[0])} | ${wordGroup}: any four of ${words.join(', ')} | ${dawns.final} (${dawns.group}) | Leaf → Moon → Lotus → Bell → Star; A–J: /, \\, /, /, \\, \\, /, /, \\, \\; K–T: /, /, \\, \\, /, /, \\, \\, \\, \\ | ${OVERLAY_WORD} | SHARED + ${key} |`;
+    return `| ${t.name} | ${code(t.game_key)} | ${upper(protectedPuzzle(1).answers[0])} | ${protectedPuzzle(2).answersByGroup![errandGroup(t.id)][0]} (${errandGroup(t.id)}) | ${upper(protectedPuzzle(3).answers[0])} | ${wordGroup}: any four of ${words.join(', ')} | ${dawns.final} (${dawns.group}) | Leaf → Moon → Lotus → Bell → Star; A–J: /, \\, /, /, \\, \\, /, /, \\, \\; K–T: /, /, \\, \\, /, /, \\, \\, \\, \\ | ${CONVERGENCE_WORD} | SHARED + ${key} |`;
   });
 
   const markdown = [
@@ -140,7 +140,7 @@ try {
     '|---|---|---|---|---|---|---|---|---|---|',
     ...perTeam,
     '',
-    `VII: exchange every partner seal, align the cards at x=0, y=0, rotation=0 and read **${OVERLAY_WORD}** in the dark spaces. VIII: move four Hanoi disks from left to right, then enter **SHARED** and the awarded team key as the proof code.`,
+    `VII: exchange every partner seal and combine the illustrated clues: flame-maker, identical tiles, and (in triples) a contest. Answer **${CONVERGENCE_WORD}**. No dragging or rotation. VIII: move four Hanoi disks from left to right, then enter **SHARED** and the awarded team key as the proof code.`,
     'Hanoi shortest solution (A = left, B = middle, C = right): A-B, A-C, B-C, A-B, C-A, C-B, A-B, A-C, B-C, B-A, C-A, B-C, A-B, A-C, B-C.',
     'Convergence circles are persisted mutual pairs, with one triple for an odd initial roster. Keeper shard seals are obsolete.',
     '',

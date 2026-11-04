@@ -47,9 +47,17 @@ so stale progress or a failed completion write cannot immediately reopen the sto
   resets the tower; already-solved Vaults remain open. No Firestore migration is required.
 - The Lantern Courtyard has 20 rotating mirrors, team-specific positions,
   click-to-cycle symbols and a responsive 70/30 desktop layout.
-- Convergence uses assigned partner circles and an interactive lantern-card puzzle.
+- Convergence uses assigned partner circles and illustrated complementary clue cards.
+  Exchange every partner seal after they arrive, then find the five-letter word
+  shared by the pictures' different meanings. Pairs see a flame-maker and identical
+  tiles; triples add a sporting contest. No dragging, rotation, or alignment proof.
+  Clues are assigned by the persisted circle's member order; partner clues remain
+  sealed until their seals are verified. The targeted `--convergence-only --apply`
+  migration updates instructions, hints, and accepted answers without changing
+  seals, keys, progress, or circles. Legacy mask data is retained only for migration
+  compatibility and is not displayed or required to solve.
   Partner assignments remain stable across browsers and refreshes.
-  Desktop uses a 70/30 split: the introduction and lantern puzzle on the left, with
+  Desktop uses a 70/30 split: the introduction and illustrated cards on the left, with
   a sticky circle/seal, word submission, and hints sidebar aligned to the heading
   on the right. On smaller screens the sidebar stacks above the introduction and board.
   Convergence reveals its table and sidebar together once puzzle and circle data are

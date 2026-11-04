@@ -302,7 +302,7 @@ function judge(teamId: number, secret: ProtectedPuzzle, rawAnswer: string, rawPr
   }
 
   if (secret.id === 7) {
-    validateOverlaySubmission(teamId, rawProof);
+    validateOverlaySubmission(teamId);
     const correct = secret.answers.some((candidate) => answer === normaliseAnswer(candidate));
     return {
       correct,

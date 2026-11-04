@@ -179,16 +179,16 @@ export const PROTECTED_PUZZLES: ProtectedPuzzle[] = [
   },
   {
     id: 7,
-    answers: ['unite'],
+    answers: ['match'],
     nearMisses: [],
-    incorrectMessage: 'The lantern keeps its silence. Check the corners, and look between the lights.',
+    incorrectMessage: 'That word does not belong to every story. Read the illustrated clues together.',
     completionMessage:
       'The lanterns become one. The false flame was a reflection all along: its true colour is green, its true word REWARD. Your key, {key}, is now your proof. The Vault will ask for it.',
     hints: [
       { text: 'Find the teams named in your circle. All must reach this chamber and exchange their own seals.', penaltyMinutes: 10 },
-      { text: 'Rotate and slide every partner card until its corner marks meet those on your fixed card.', penaltyMinutes: 15 },
+      { text: 'The pictures show different meanings of the same word: a small flame-maker and two things that belong together.', penaltyMinutes: 15 },
       {
-        text: 'The gold is not the message. Read the five dark letters left in the unlit spaces when every card is aligned.',
+        text: 'You can strike one to make a flame, find one for a patterned tile, or play one against a rival. The word has five letters.',
         penaltyMinutes: 20,
       },
     ],

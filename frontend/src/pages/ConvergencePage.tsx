@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { api, ApiError } from '../api/client';
-import type { ConvergenceState, EarnedFragment, OverlayPlacement } from '../api/types';
+import type { ConvergenceState, EarnedFragment } from '../api/types';
 import { HintSection } from '../components/HintSection';
-import { LanternOverlay } from '../components/LanternOverlay';
+import { ConvergenceCards } from '../components/ConvergenceCards';
 import { Layout } from '../components/Layout';
 import { PuzzleBlocks } from '../components/PuzzleBlocks';
 import { SuccessOverlay } from '../components/SuccessOverlay';
-import { cardsAligned } from '../services/convergenceOverlay';
 import { useProgress } from '../store/useProgress';
 import { usePuzzle } from '../store/usePuzzle';
 import { useTeam } from '../store/team';
@@ -28,7 +27,6 @@ function ConvergenceOpen({ puzzleId, fragments }: { puzzleId: number; fragments:
   const { puzzle, setPuzzle, loadError } = usePuzzle(puzzleId);
   const [state, setState] = useState<ConvergenceState | null>(null);
   const [stateError, setStateError] = useState<string | null>(null);
-  const [placements, setPlacements] = useState<OverlayPlacement[]>([]);
   const [seal, setSeal] = useState('');
   const [word, setWord] = useState('');
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -58,7 +56,7 @@ function ConvergenceOpen({ puzzleId, fragments }: { puzzleId: number; fragments:
     if (!session || !puzzle || busy) return;
     setBusy(true); setFeedback(null);
     try {
-      const result = await api.submit(puzzleId, session.teamDocId, session.teamId, word.trim(), JSON.stringify(placements));
+      const result = await api.submit(puzzleId, session.teamDocId, session.teamId, word.trim());
       if (result.correct) {
         setPuzzle({ ...puzzle, state: 'SOLVED', solvedAt: result.puzzle.solvedAt, completionMessage: result.message });
         setCelebrate(true);
@@ -74,8 +72,7 @@ function ConvergenceOpen({ puzzleId, fragments }: { puzzleId: number; fragments:
     </div>
   </Layout>;
   const solved = puzzle.state === 'SOLVED';
-  const ready = state && state.partners.every((p) => p.verified)
-    && cardsAligned(placements, state.partners.map((p) => p.teamId));
+  const ready = state && state.partners.every((p) => p.verified);
   const introduction = <header className="max-w-3xl">
     <p className="eyebrow">VII · {puzzle.fragmentName}</p>
     <h1 className="mt-4 text-5xl text-ember-glow">{puzzle.title}</h1>
@@ -123,9 +120,9 @@ function ConvergenceOpen({ puzzleId, fragments }: { puzzleId: number; fragments:
             </div>
           </form>}
           <form onSubmit={submit} className="card space-y-4 !p-6">
-            <label htmlFor="lantern-word" className="eyebrow">The word in the lantern</label>
-            <p className="text-sm text-parchment/60">{ready ? 'The corners meet. What does the lantern say?'
-              : 'Unlock every partner card and align its corners before offering the word.'}</p>
+            <label htmlFor="lantern-word" className="eyebrow">One word for every story</label>
+            <p className="text-sm text-parchment/60">{ready ? 'What five-letter word fits every illustrated clue?'
+              : 'Unlock every partner card before offering the word.'}</p>
             <div className="flex flex-col gap-3">
               <input id="lantern-word" className="input-ember min-w-0 font-code uppercase"
                 value={word} onChange={(e) => setWord(e.target.value)} maxLength={30} autoComplete="off" spellCheck={false} />
@@ -141,7 +138,7 @@ function ConvergenceOpen({ puzzleId, fragments }: { puzzleId: number; fragments:
           </aside>
           <div className="min-w-0 lg:col-start-1 lg:row-start-1">
             {introduction}
-            <LanternOverlay state={state} placements={placements} onChange={setPlacements} />
+            <ConvergenceCards state={state} />
           </div>
         </div>}
         {!state && feedback && <p role="status" className="mt-5 text-marigold">{feedback}</p>}

@@ -28,7 +28,7 @@ import {
   teamSeal,
 } from '../services/convergence.js';
 import { normaliseAnswer } from '../services/normalise.js';
-import { buildOverlayCards, OVERLAY_WORD, planConvergenceGroups, wordPixels } from '../services/convergenceOverlay.js';
+import { buildOverlayCards, planConvergenceGroups, wordPixels } from '../services/convergenceOverlay.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 let failures = 0;
@@ -147,7 +147,7 @@ const naive = vaultWord(false);
 check('Uncorrected Vault word is the SHADED trap with a near miss', nearMissFor(8, naive.toLowerCase()), naive);
 
 // ---------- VII. The Convergence ----------
-check('Convergence hidden word matches its accepted answer', OVERLAY_WORD.toLowerCase() === canonical(7));
+check('Convergence illustrated riddle accepts MATCH', canonical(7) === 'match');
 for (const size of [2, 3]) {
   const cards = buildOverlayCards(Array.from({ length: size }, (_, i) => `check-${i}`));
   const pixels = cards.flatMap((card) => card.lit);
@@ -219,7 +219,9 @@ if (fs.existsSync(frontendSrc)) {
   for (const file of walk(frontendSrc)) {
     const text = fs.readFileSync(file, 'utf8').toLowerCase();
     for (const s of secrets) {
-      if (!FRONTEND_TOKENS.has(s) && pattern(s).test(text)) leaks.push(`${path.basename(file)}: ${s}`);
+      // MATCH is also ordinary instruction copy; still reject a standalone answer literal.
+      const answerPattern = s === 'match' ? /['"`]match['"`]/ : pattern(s);
+      if (!FRONTEND_TOKENS.has(s) && answerPattern.test(text)) leaks.push(`${path.basename(file)}: ${s}`);
     }
   }
   check('frontend/src contains no answers or codes', leaks.length === 0, leaks.join(', '));

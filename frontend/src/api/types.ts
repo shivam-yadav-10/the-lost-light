@@ -121,8 +121,9 @@ export interface LanternCell {
 export interface ConvergenceState {
   ownId: string;
   seal: string;
+  clueIndex: number;
   card: OverlayCard;
-  partners: { teamId: string; name: string; arrived: boolean; verified: boolean; card: OverlayCard | null }[];
+  partners: { teamId: string; name: string; arrived: boolean; verified: boolean; clueIndex: number | null; card: OverlayCard | null }[];
 }
 
 export interface SealResult {

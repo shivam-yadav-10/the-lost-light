@@ -24,7 +24,6 @@ function reach(team) {
   ).run(team, id);
   return getConvergence(team);
 }
-const proof = (...ids) => JSON.stringify(ids.map((id) => ({ teamId: String(id), x: 0, y: 0, rotation: 0 })));
 
 test('mutual pair seals require arrival and cannot be replaced by own, unrelated, or keeper seals', () => {
   assert.throws(() => getConvergence(1), /still hidden/);
@@ -46,18 +45,16 @@ test('mutual pair seals require arrival and cannot be replaced by own, unrelated
   assert.equal(getConvergence(2).partners[0].verified, true);
 });
 
-test('solving requires word, every seal, and correctly positioned and rotated partner cards; Vault stays compatible', () => {
+test('illustrated cards require MATCH and every seal, with no geometry proof; Vault stays compatible', () => {
   reach(1); reach(2);
-  assert.throws(() => submitAnswer(1, 7, OVERLAY_WORD, proof(2)), /Every partner/);
+  assert.throws(() => submitAnswer(1, 7, 'MATCH'), /Every partner/);
+  assert.equal(getConvergence(1).clueIndex, 0);
+  assert.equal(getConvergence(1).partners[0].clueIndex, null);
   verifySeal(1, teamSeal(2));
-  for (const rawProof of [undefined, 'bad', proof(), proof(3),
-    JSON.stringify([{ teamId: '2', x: 1, y: 0, rotation: 0 }]),
-    JSON.stringify([{ teamId: '2', x: 0, y: 0, rotation: 180 }])]) {
-    assert.throws(() => submitAnswer(1, 7, OVERLAY_WORD, rawProof), /Align every partner/);
-  }
-  assert.equal(submitAnswer(1, 7, teamKey(1), proof(2)).correct, false);
+  assert.equal(getConvergence(1).partners[0].clueIndex, 1);
+  assert.equal(submitAnswer(1, 7, 'UNITE').correct, false);
   getDb().prepare("UPDATE submissions SET submitted_at = '2020-01-01T00:00:00Z'").run();
-  const result = submitAnswer(1, 7, `  ${OVERLAY_WORD.toLowerCase()}  `, proof(2));
+  const result = submitAnswer(1, 7, '  match  ');
   assert.equal(result.correct, true);
   assert.match(result.message, new RegExp(teamKey(1)));
   assert.equal(getTeamProgress(1).puzzles[7].state, 'AVAILABLE');
@@ -79,10 +76,12 @@ test('odd rosters have one triple and all three participants are needed', () => 
   assert.deepEqual(first.partners.map((p) => p.teamId), ['4', '5']);
   reach(4); verifySeal(3, teamSeal(4));
   assert.throws(() => verifySeal(3, teamSeal(5)), /must reach/);
-  assert.throws(() => submitAnswer(3, 7, OVERLAY_WORD, proof(4, 5)), /Every partner/);
+  assert.throws(() => submitAnswer(3, 7, 'MATCH'), /Every partner/);
   reach(5); verifySeal(3, teamSeal(5));
-  assert.throws(() => submitAnswer(3, 7, OVERLAY_WORD, proof(4)), /Align every partner/);
-  assert.equal(submitAnswer(3, 7, OVERLAY_WORD, proof(4, 5)).correct, true);
+  const circle = getConvergence(3);
+  assert.deepEqual([circle.clueIndex, ...circle.partners.map((p) => p.clueIndex)], [0, 1, 2]);
+  assert.equal(getConvergence(5).clueIndex, 2);
+  assert.equal(submitAnswer(3, 7, 'MATCH').correct, true);
   assert.equal(getConvergence(4).partners.filter((p) => p.verified).length, 0);
 });
 
@@ -123,9 +122,9 @@ test('pairing validates mutual persisted assignments, odd/even sizes, and roster
   assert.throws(() => planConvergenceGroups([{ id: 'a', teamNumber: 1 }, { id: 'b', teamNumber: 1 }], new Map()), /unique/);
 });
 
-test('all pair/triple cards form exact legible five-letter dark glyphs; every card contributes and displaced cards corrupt them', () => {
+test('legacy persisted masks remain unchanged for non-destructive provisioning', () => {
   const dark = wordPixels();
-  assert.equal(OVERLAY_WORD, protectedPuzzle(7).answers[0].toUpperCase());
+  assert.equal(OVERLAY_WORD, 'UNITE');
   const top = [...Array(31)].map((_, x) => dark.has(31 + x) ? '#' : '.').join('');
   assert.equal(top, '.#...#.#...#.#####.#####.#####.');
   for (let sample = 0; sample < 30; sample++) for (const size of [2, 3]) {

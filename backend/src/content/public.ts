@@ -342,11 +342,11 @@ export const PUBLIC_PUZZLES: PublicPuzzle[] = [
     blocks: [
       {
         type: 'text',
-        text: 'Exchange seals with every team in your circle. Each must reach this chamber before their seal can open a patterned lantern card. In a circle of three, you need both partners.',
+        text: 'Exchange seals with every team in your circle. Each must reach this chamber before their seal can open an illustrated clue card. In a circle of three, you need both partners.',
       },
       {
         type: 'note',
-        text: 'Where golden voices gather, listen for what never glows. Let the corners meet, and let the silence speak.',
+        text: 'Different pictures. Different meanings. One five-letter word belongs to every story. Read your clues together; there is nothing to drag, align, or rotate.',
       },
     ],
   },

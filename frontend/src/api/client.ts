@@ -36,7 +36,7 @@ import {
 import { checkRiddleAnswers, parseRiddleProof } from '../services/riddleAnswers';
 import { checkHiddenWords } from '../services/hiddenWords';
 import { parseVaultProof } from '../services/hanoi';
-import { alignmentProof, parseMemberIds, parseOverlayCard } from '../services/convergenceOverlay';
+import { parseMemberIds, parseOverlayCard } from '../services/convergenceOverlay';
 
 const ERROR_STATUS: Record<string, number> = {
   'permission-denied': 403,
@@ -205,7 +205,7 @@ async function isAnswerCorrect(
   }
 
   if (puzzleId === 7) {
-    await validateConvergenceSubmission(teamDocId, rawProof);
+    await validateConvergenceSubmission(teamDocId);
     return acceptedAnswers.includes(answer);
   }
   if (puzzleId === 8) {
@@ -235,14 +235,12 @@ async function isAnswerCorrect(
 
 async function validateConvergenceSubmission(
   ownId: string,
-  proof: string | undefined,
   transaction?: Parameters<Parameters<typeof runTransaction>[1]>[0],
 ): Promise<void> {
   const { firestore } = requireFirebaseServices();
   const read = (reference: ReturnType<typeof doc>) => transaction ? transaction.get(reference) : getDoc(reference);
   const own = await read(doc(firestore, 'teamGameData', ownId));
   const circle = parseCircle(own.get('convergence'), ownId);
-  alignmentProof(proof, circle.memberIds, ownId);
   for (const partnerId of circle.memberIds.filter((id) => id !== ownId)) {
     const [partner, seal, arrival, progress] = await Promise.all([
       read(doc(firestore, 'teamGameData', partnerId)),
@@ -398,7 +396,7 @@ export const api = {
         const progressSnapshot = await transaction.get(progressRef);
         const progress = progressSnapshot.exists() ? progressSnapshot.data() : {};
         if (progress.status === 'solved') throw new ApiError(409, 'This fragment has already been solved.');
-        if (id === 7) await validateConvergenceSubmission(teamDocId, proof, transaction);
+        if (id === 7) await validateConvergenceSubmission(teamDocId, transaction);
         const now = serverTimestamp();
         const data = {
           status: 'solved',
@@ -557,10 +555,12 @@ export const api = {
         return {
           teamId: partnerId, name: requiredString(asRecord(team.data()), 'teamName'), arrived,
           verified: Boolean(isVerified), card: isVerified ? partnerCircle.card : null,
+          clueIndex: isVerified ? circle.memberIds.indexOf(partnerId) : null,
         };
       }));
       return {
         ownId: teamDocId, seal: circle.seal, card: circle.card, partners,
+        clueIndex: circle.memberIds.indexOf(teamDocId),
       };
     } catch (error) {
       throw firebaseApiError(error, 'The lantern will not light.');
