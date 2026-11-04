@@ -15,6 +15,7 @@ import { TeamProvider, useTeam } from './store/team';
 import { useProgress } from './store/useProgress';
 import { hasReleasedQuestion, nextRelease } from './services/gameClock';
 import { ReleaseCountdown, useClockNow } from './components/GameClock';
+import { WaitingRoom } from './components/WaitingRoom';
 
 function RequireTeam() {
   const { session } = useTeam();
@@ -41,16 +42,16 @@ function ReleaseGate() {
     const timer = window.setInterval(() => void refresh(), 15000);
     return () => window.clearInterval(timer);
   }, [pathname, refresh]);
-  if (error) return <div className="flex min-h-dvh items-center justify-center bg-black p-6 text-center">
+  if (error) return <WaitingRoom>
     <p role="alert" className="text-sm text-marigold">{error} <button className="underline" onClick={() => void refresh()}>Retry</button></p>
-  </div>;
-  if (!progress) return <div className="flex min-h-dvh items-center justify-center bg-black text-xs text-parchment/40">Gathering the light…</div>;
+  </WaitingRoom>;
+  if (!progress) return <WaitingRoom><p className="text-xs text-parchment/40">Gathering the light…</p></WaitingRoom>;
   if (!hasReleasedQuestion(progress.puzzles, now)) {
     if (pathname !== '/waiting') return <Navigate to="/waiting" replace />;
     const next = nextRelease(progress.puzzles, now);
-    return <div className="flex min-h-dvh items-center justify-center bg-black px-4">
+    return <WaitingRoom>
       {next?.unlockAt && <ReleaseCountdown target={Date.parse(next.unlockAt)} now={now} caption="Something stirs in the darkness. Your first flame is coming." />}
-    </div>;
+    </WaitingRoom>;
   }
   return pathname === '/waiting' ? <Navigate to="/dashboard" replace /> : <Outlet />;
 }

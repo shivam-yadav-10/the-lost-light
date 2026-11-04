@@ -61,6 +61,9 @@ waiting screen with only the countdown and anticipatory text. That screen checks
 every 15 seconds. The release gate covers every route for signed-in teams, including direct URL
 navigation and unknown paths, except `/admin`, which retains its organiser authentication.
 Signed-out users can still reach login and organiser authentication.
+The waiting screen has a dedicated teal-and-copper lantern-night backdrop and a logout button
+that clears the local team session without resetting progress or browser bindings.
+Countdown digits roll smoothly; ambient and digit animations respect reduced-motion preferences.
 Each locked core question also shows its scheduled IST release beneath its diya, alongside
 a reminder that earlier questions must be completed. Release labels disappear once the diya unlocks.
 Release status refreshes at scheduled boundaries without a manual page reload. A release never

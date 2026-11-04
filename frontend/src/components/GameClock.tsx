@@ -11,6 +11,17 @@ export function useClockNow() {
   return now;
 }
 
+function RollingDigit({ value }: { value: string }) {
+  const [digits, setDigits] = useState({ current: value, previous: value });
+  if (digits.current !== value) setDigits({ current: value, previous: digits.current });
+  return <span className="release-digit" aria-hidden="true">
+    <span key={digits.current} className={digits.current !== digits.previous ? 'release-digit-track release-digit-moving' : 'release-digit-track'}>
+      <span>{digits.previous}</span>
+      <span>{digits.current}</span>
+    </span>
+  </span>;
+}
+
 export function ReleaseCountdown({ target, now, caption }: { target: number; now: number; caption: string }) {
   return <section className="relative isolate mx-auto flex w-full max-w-3xl flex-col items-center justify-center py-10 sm:py-14" aria-label="Next question release">
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 flex items-center justify-center">
@@ -18,11 +29,11 @@ export function ReleaseCountdown({ target, now, caption }: { target: number; now
       <div className="absolute h-56 w-56 rounded-full border border-ember/10 sm:h-72 sm:w-72" />
       <div className="absolute h-44 w-44 rotate-45 rounded-3xl border border-ember/10 sm:h-56 sm:w-56" />
     </div>
-    <div role="timer" aria-live="off" aria-label="Time until next question" className="flex items-center justify-center gap-2 sm:gap-5">
+    <div role="timer" aria-live="off" aria-label={countdownParts(target, now).map(({ label, value }) => `${value} ${label.toLowerCase()}`).join(', ')} className="flex items-center justify-center gap-2 sm:gap-5">
       {countdownParts(target, now).map(({ label, value }, index) => <div key={label} className="flex items-center gap-2 sm:gap-5">
         {index > 0 && <span aria-hidden="true" className="pb-5 font-display text-2xl text-ember/50 sm:text-4xl">:</span>}
         <div className="text-center">
-          <span className="block bg-gradient-to-b from-parchment via-ember-glow to-ember bg-clip-text font-display text-4xl tabular-nums text-transparent drop-shadow-[0_0_18px_rgba(251,191,36,0.35)] sm:text-7xl">{value}</span>
+          <span className="release-number">{[...value].map((digit, index) => <RollingDigit key={index} value={digit} />)}</span>
           <span className="mt-3 block text-[8px] uppercase tracking-[0.15em] text-parchment/35 sm:text-[10px] sm:tracking-[0.3em]">{label}</span>
         </div>
       </div>)}
