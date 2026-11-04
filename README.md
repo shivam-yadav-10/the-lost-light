@@ -137,6 +137,9 @@ reduced-motion preferences disable the reveal animation.
 The waiting screen has a dedicated teal-and-copper lantern-night backdrop and a logout button
 that clears the local team session without resetting progress or browser bindings.
 Countdown digits roll smoothly; ambient and digit animations respect reduced-motion preferences.
+The full-screen waiting view reveals its sky over five seconds, then brings the timer
+out of a soft haze over 5.5 seconds, with a delayed caption. Logout and errors remain
+immediately available; the entrance does not delay release checks or navigation.
 The same decorative floating lanterns appear on the landing and login pages, while those pages
 retain their existing layout and backgrounds.
 Landing and login share a persistent background shell so decorative animations do not restart
