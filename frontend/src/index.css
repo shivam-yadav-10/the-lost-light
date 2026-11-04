@@ -591,6 +591,7 @@ h3,
 .word-notebook-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.3rem 1.2rem; margin-top: 1.9rem; }
 .word-notebook-field { display: block; min-width: 0; padding: .6rem .7rem .2rem; border-radius: .6rem .6rem 0 0; background: #ffffff03; transition: background .2s; }
 .word-notebook-field:focus-within { background: #e3bc7d08; }
+.word-notebook-field:focus-within .word-notebook-field-label { color: #e3bc7d; }
 .word-notebook-field-label { display: flex; justify-content: space-between; align-items: center; gap: .4rem; font-size: .65rem; color: #c9c0c1a8; }
 .word-notebook-field-number { font-size: .6rem; color: #d9b78670; font-variant-numeric: tabular-nums; }
 .word-notebook-field input {
@@ -599,8 +600,13 @@ h3,
   transition: border-color .2s;
 }
 .word-notebook-field input::placeholder { color: #bcb3bd60; font-size: .75rem; }
-.word-notebook-field input:focus-visible { outline: 2px solid #e3bc7d; outline-offset: 4px; box-shadow: none; }
 .word-notebook-field-filled input { border-bottom-color: #e3bc7d99; }
+.word-notebook-field input:focus {
+  outline: none; box-shadow: none; border-bottom-color: #f2d3a0;
+}
+.word-notebook-field input:focus-visible {
+  outline: none; box-shadow: 0 1px 0 #f2d3a0;
+}
 .word-notebook-progress { display: flex; align-items: center; gap: .75rem; margin-top: 1.7rem; }
 .word-notebook-progress p { font-size: .75rem; color: #ded0b7; }
 .word-notebook-dots { display: flex; gap: .3rem; flex-shrink: 0; }
