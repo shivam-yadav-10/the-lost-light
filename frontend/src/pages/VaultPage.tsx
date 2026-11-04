@@ -4,12 +4,14 @@ import { api, ApiError } from '../api/client';
 import type { EarnedFragment } from '../api/types';
 import { DiyaLamp } from '../components/DiyaLamp';
 import { HintSection } from '../components/HintSection';
+import { HanoiTower } from '../components/HanoiTower';
 import { Layout } from '../components/Layout';
 import { SparkBurst } from '../components/SparkBurst';
 import { SuccessOverlay } from '../components/SuccessOverlay';
 import { useProgress } from '../store/useProgress';
 import { usePuzzle } from '../store/usePuzzle';
 import { useTeam } from '../store/team';
+import { hanoiSolved } from '../services/hanoi';
 import { FragmentLedger, SealedChamber } from './EndgamePages';
 
 export function VaultPage() {
@@ -50,17 +52,21 @@ function VaultOpen({ puzzleId, fragments }: { puzzleId: number; fragments: Earne
   const { puzzle, setPuzzle, loadError } = usePuzzle(puzzleId);
   const [word, setWord] = useState('');
   const [proof, setProof] = useState('');
+  const [moves, setMoves] = useState('');
   const [feedback, setFeedback] = useState<string | null>(null);
   const [opened, setOpened] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!session || !puzzle || !word.trim() || !proof.trim()) return;
+    if (!session || !puzzle || !word.trim() || !proof.trim() || !hanoiSolved(moves)) return;
     setBusy(true);
     setFeedback(null);
     try {
-      const result = await api.submit(puzzle.id, session.teamDocId, session.teamId, word.trim(), proof.trim());
+      const result = await api.submit(
+        puzzle.id, session.teamDocId, session.teamId, word.trim(),
+        JSON.stringify({ code: proof.trim(), moves }),
+      );
       if (result.correct) {
         setOpened(true);
         setPuzzle({ ...puzzle, state: 'SOLVED', solvedAt: result.puzzle.solvedAt, completionMessage: result.message });
@@ -126,6 +132,8 @@ function VaultOpen({ puzzleId, fragments }: { puzzleId: number; fragments: Earne
           </div>
         ) : (
           <div className="space-y-8">
+            <HanoiTower moves={moves} onChange={setMoves} />
+            {hanoiSolved(moves) && (
             <form onSubmit={onSubmit} className="card space-y-6 border-ember/40" noValidate>
               <div>
                 <label htmlFor="vault-word" className="eyebrow block">
@@ -164,6 +172,7 @@ function VaultOpen({ puzzleId, fragments }: { puzzleId: number; fragments: Earne
                 {busy ? 'The Vault listens…' : 'Open the Vault'}
               </button>
             </form>
+            )}
             <HintSection
               puzzleId={puzzle.id}
               maxHints={puzzle.maxHints}

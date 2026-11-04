@@ -35,6 +35,7 @@ import {
 } from '../services/gameRules';
 import { checkRiddleAnswers, parseRiddleProof } from '../services/riddleAnswers';
 import { checkHiddenWords } from '../services/hiddenWords';
+import { parseVaultProof } from '../services/hanoi';
 import { alignmentProof, parseMemberIds, parseOverlayCard } from '../services/convergenceOverlay';
 
 const ERROR_STATUS: Record<string, number> = {
@@ -86,10 +87,6 @@ function firebaseApiError(error: unknown, fallback: string): ApiError {
 function answerForRules(puzzleId: number, rawAnswer: string): string {
   if (puzzleId === 2 || puzzleId === 5) return compactAnswer(rawAnswer);
   return normalizeAnswer(rawAnswer);
-}
-
-function digitString(value: string): string {
-  return value.replace(/\D/g, '');
 }
 
 function requiredString(record: DataRecord, key: string): string {
@@ -212,9 +209,10 @@ async function isAnswerCorrect(
     return acceptedAnswers.includes(answer);
   }
   if (puzzleId === 8) {
+    const proof = parseVaultProof(rawProof);
     const privateTeam = await getDoc(doc(firestore, 'privateTeamData', teamDocId));
     const key = privateTeam.get('lanternKey');
-    return acceptedAnswers.includes(answer) && typeof key === 'string' && digitString(rawProof ?? '') === key;
+    return acceptedAnswers.includes(answer) && typeof key === 'string' && proof.code === key;
   }
   if (puzzleId === 2 || puzzleId === 5) {
     const teamSnapshot = await getDoc(teamRef);
@@ -394,6 +392,7 @@ export const api = {
       const teamRef = doc(firestore, 'teams', teamDocId);
       const correct = await isAnswerCorrect(firestore, teamDocId, teamRef, id, answer, proof);
       if (!correct) throw new ApiError(400, INCORRECT_ANSWER_MESSAGE);
+      const vaultProof = id === 8 ? parseVaultProof(proof) : null;
       const progressRef = puzzleReference(teamDocId, id);
       const result = await runTransaction(firestore, async (transaction) => {
         const progressSnapshot = await transaction.get(progressRef);
@@ -407,7 +406,7 @@ export const api = {
           startedAt: progress.startedAt ?? now,
           solvedAt: now,
           answer: answerForRules(id, answer),
-          ...(id === 8 ? { proof: digitString(proof ?? '') } : {}),
+          ...(vaultProof ? { proof: vaultProof.code, hanoiMoves: vaultProof.moves } : {}),
         };
         transaction.set(progressRef, data);
         return data.hintsUsed;

@@ -38,6 +38,13 @@ so stale progress or a failed completion write cannot immediately reopen the sto
   with an inline error; submit requires four distinct words in separate fields
   and no outstanding field errors.
 - Question V requires checking all five riddle answers before final submission.
+- The Final Vault first requires a four-disk Tower of Hanoi: move the stack from
+  the left peg to the right, one top disk at a time, never larger onto smaller.
+  Select a source tower and then its destination (mouse, touch, or keyboard).
+  Any legal solution counts; the minimum is 15 moves. Completing the tower reveals
+  the existing final-word and team proof-code form. The move history is replayed
+  during submission, not just checked by the UI. Restarting or leaving the page
+  resets the tower; already-solved Vaults remain open. No Firestore migration is required.
 - The Lantern Courtyard has 20 rotating mirrors, team-specific positions,
   click-to-cycle symbols and a responsive 70/30 desktop layout.
 - Convergence uses assigned partner circles and an interactive lantern-card puzzle.

@@ -30,6 +30,7 @@ import {
 } from './convergence.js';
 import { normaliseAnswer } from './normalise.js';
 import { checkHiddenWords } from './hiddenWords.js';
+import { parseVaultProof } from './hanoi.js';
 import { EVENT_START_AT, rankTeams, scoreCompletion } from './scoring.js';
 
 const MAX_ANSWER_LENGTH = 200;
@@ -246,7 +247,6 @@ function enforceRateLimit(teamId: number, puzzleId: number, secret: ProtectedPuz
   }
 }
 
-const digitsOnly = (raw: string) => raw.replace(/\D/g, '');
 
 interface Verdict {
   correct: boolean;
@@ -312,9 +312,15 @@ function judge(teamId: number, secret: ProtectedPuzzle, rawAnswer: string, rawPr
   }
 
   if (secret.id === 8) {
-    const proof = digitsOnly(rawProof ?? '');
-    const correct = answer === normaliseAnswer(secret.answers[0]) && proof === teamKey(teamId);
-    return { correct, message: nearMiss?.message ?? secret.incorrectMessage, stored: `${answer} | ${proof}` };
+    let proof: ReturnType<typeof parseVaultProof>;
+    try {
+      proof = parseVaultProof(rawProof);
+    } catch (error) {
+      if (!(error instanceof Error)) throw error;
+      throw new HttpError(400, error.message);
+    }
+    const correct = answer === normaliseAnswer(secret.answers[0]) && proof.code === teamKey(teamId);
+    return { correct, message: nearMiss?.message ?? secret.incorrectMessage, stored: `${answer} | ${proof.code} | hanoi:${proof.moves}` };
   }
 
   const correct = answer.length > 0 && secret.answers.some((a) => normaliseAnswer(a) === answer);

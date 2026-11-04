@@ -61,7 +61,16 @@ test('solving requires word, every seal, and correctly positioned and rotated pa
   assert.equal(result.correct, true);
   assert.match(result.message, new RegExp(teamKey(1)));
   assert.equal(getTeamProgress(1).puzzles[7].state, 'AVAILABLE');
-  assert.equal(submitAnswer(1, 8, protectedPuzzle(8).answers[0], teamKey(1)).correct, true);
+  assert.throws(() => submitAnswer(1, 8, protectedPuzzle(8).answers[0], teamKey(1)), /four-disk tower/);
+  const moves = '010212012021010212102012010212';
+  const vaultProof = (code, history = moves) => JSON.stringify({ code, moves: history });
+  assert.throws(() => submitAnswer(1, 8, protectedPuzzle(8).answers[0], vaultProof(teamKey(1), '01')),
+    /four-disk tower/);
+  assert.equal(submitAnswer(1, 8, protectedPuzzle(8).answers[0], vaultProof('wrong')).correct, false);
+  getDb().prepare("UPDATE submissions SET submitted_at = '2020-01-01T00:00:00Z'").run();
+  assert.equal(submitAnswer(1, 8, 'wrong', vaultProof(teamKey(1))).correct, false);
+  getDb().prepare("UPDATE submissions SET submitted_at = '2020-01-01T00:00:00Z'").run();
+  assert.equal(submitAnswer(1, 8, protectedPuzzle(8).answers[0], vaultProof(teamKey(1))).correct, true);
 });
 
 test('odd rosters have one triple and all three participants are needed', () => {

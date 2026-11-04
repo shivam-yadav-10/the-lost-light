@@ -24,7 +24,7 @@ import { PUBLIC_PUZZLES } from '../content/public.js';
 export const api = Router();
 
 const loginSchema = z.object({ gameKey: z.string().min(1).max(64) });
-const answerSchema = z.object({ answer: z.string().min(1).max(200), proof: z.string().max(256).optional() });
+const answerSchema = z.object({ answer: z.string().min(1).max(200), proof: z.string().max(9000).optional() });
 const sealSchema = z.object({ seal: z.string().min(1).max(40) });
 const unlockOverrideSchema = z.object({ unlocked: z.boolean() });
 

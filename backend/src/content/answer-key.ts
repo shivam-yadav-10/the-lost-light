@@ -44,7 +44,7 @@ function aliasesSection(): string[] {
   out.push(`| V ${title(5)} | own set's word only |`);
   out.push(`| VI ${title(6)} | ${accepted(6)} |`);
   out.push(`| VII ${title(7)} | ${accepted(7)} after all partner seals and aligned cards |`);
-  out.push(`| VIII ${title(8)} | word ${accepted(8)} **and** the team's own key as proof code |`);
+  out.push(`| VIII ${title(8)} | solve the four-disk Tower of Hanoi, then word ${accepted(8)} **and** the team's own key as proof code |`);
   out.push('', 'Answers ignore case, accents and punctuation.', '');
   return out;
 }
@@ -140,7 +140,8 @@ try {
     '|---|---|---|---|---|---|---|---|---|---|',
     ...perTeam,
     '',
-    `VII: exchange every partner seal, align the cards at x=0, y=0, rotation=0 and read **${OVERLAY_WORD}** in the dark spaces. VIII: enter the word **SHARED** and the awarded team key as the proof code.`,
+    `VII: exchange every partner seal, align the cards at x=0, y=0, rotation=0 and read **${OVERLAY_WORD}** in the dark spaces. VIII: move four Hanoi disks from left to right, then enter **SHARED** and the awarded team key as the proof code.`,
+    'Hanoi shortest solution (A = left, B = middle, C = right): A-B, A-C, B-C, A-B, C-A, C-B, A-B, A-C, B-C, B-A, C-A, B-C, A-B, A-C, B-C.',
     'Convergence circles are persisted mutual pairs, with one triple for an odd initial roster. Keeper shard seals are obsolete.',
     '',
     ...aliasesSection(),
