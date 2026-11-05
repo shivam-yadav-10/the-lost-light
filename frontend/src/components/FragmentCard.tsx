@@ -1,5 +1,6 @@
 import type { FragmentMeta } from '../api/types';
 import { SymbolIcon, symbolLabel } from './SymbolShape';
+import { useProgress } from '../store/useProgress';
 
 // Swatches for the colour names a fragment can carry. Unknown names fall back to amber.
 const SWATCH: Record<string, string> = {
@@ -21,13 +22,16 @@ interface FragmentCardProps {
 
 /** The fragment details awarded on solve. Presented as an ornament; every value is also written out. */
 export function FragmentCard({ fragment, numeral, title, compact = false }: FragmentCardProps) {
-  const swatch = SWATCH[fragment.colour] ?? '#f59e0b';
+  const { progress } = useProgress();
+  const convergenceSolved = progress?.puzzles.some((puzzle) => puzzle.kind === 'convergence' && puzzle.state === 'SOLVED');
+  const colour = convergenceSolved && fragment.colour === 'Gold' ? 'Green' : fragment.colour;
+  const swatch = SWATCH[colour] ?? '#f59e0b';
   const rows: [string, string][] = [
     ['Symbol', symbolLabel(fragment.symbol)],
     ['Number', String(fragment.number)],
     ['Direction', fragment.direction],
     ['Keyword', fragment.keyword],
-    ['Colour', fragment.colour],
+    ['Colour', colour],
   ];
   return (
     <article

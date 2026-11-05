@@ -68,6 +68,9 @@ so stale progress or a failed completion write cannot immediately reopen the sto
   instead of revealing the finale. The celebration has a staged dawn/reveal, floating lanterns,
   and canvas fireworks capped at 30 FPS with bounded particles. Fireworks pause in hidden tabs
   and are disabled for reduced-motion users.
+- After Convergence is solved, the false Gold fragment's label and swatch display Green
+  throughout the fragment cards. Before Convergence (or after its reset), it remains Gold;
+  the keyword reversal remains part of the final-word puzzle.
 - The Lantern Courtyard has 20 rotating mirrors, team-specific positions,
   click-to-cycle symbols and a responsive 70/30 desktop layout.
 - Convergence uses assigned partner circles and illustrated complementary clue cards.
