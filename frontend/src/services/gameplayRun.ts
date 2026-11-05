@@ -1,4 +1,4 @@
-export const GAMEPLAY_RUN = 'production-test-2026-11-05-noon-ist';
+export const GAMEPLAY_RUN = 'production-event-2026-11-10-1300-ist';
 
 export function resetPreviousRunStorage(local: Storage, session: Storage) {
   for (const storage of [local, session]) {
