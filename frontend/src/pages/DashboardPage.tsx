@@ -151,7 +151,7 @@ function EndgameSection({ className, convergence, vault, gameComplete }: Endgame
   return (
     <section aria-label="When the six are one" className={className}>
       <h2 className="eyebrow mb-4">When the six are one</h2>
-      <div className="space-y-3">
+      <div className="flex flex-col gap-4">
         <EndgameRow title="The Convergence" subtitle="Light passed between teams" to="/convergence" state={convergence} />
         <EndgameRow title="The Final Vault" subtitle="Where the light is returned" to="/vault" state={vault} />
       </div>
