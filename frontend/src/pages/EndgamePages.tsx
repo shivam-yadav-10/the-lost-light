@@ -1,9 +1,13 @@
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, Navigate } from 'react-router-dom';
 import type { EarnedFragment } from '../api/types';
 import { DiyaLamp } from '../components/DiyaLamp';
 import { FragmentCard } from '../components/FragmentCard';
 import { Layout } from '../components/Layout';
 import { SparkBurst } from '../components/SparkBurst';
+import { FinaleFireworks } from '../components/FinaleFireworks';
+import { canEnterCompletion } from '../services/completionAccess';
+import { useTeam } from '../store/team';
 
 interface SealedProps {
   eyebrow: string;
@@ -51,23 +55,63 @@ export function FragmentLedger({ fragments, heading = 'What you carry' }: { frag
 }
 
 export function CompletionPage() {
+  const { session } = useTeam();
+  const [access, setAccess] = useState<{ teamId: string; allowed: boolean } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const teamId = session?.teamDocId;
+
+  useEffect(() => {
+    let cancelled = false;
+    setError(null);
+    setAccess(null);
+    if (teamId) {
+      void canEnterCompletion(teamId).then((allowed) => {
+        if (!cancelled) setAccess({ teamId, allowed });
+      }).catch((err: unknown) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Could not confirm that your Vault is open.');
+      });
+    }
+    return () => { cancelled = true; };
+  }, [teamId, attempt]);
+
+  if (!teamId) return <Navigate to="/login" replace />;
+  if (error) return <Layout>
+    <div role="alert" className="card mx-auto mt-16 max-w-xl text-center text-marigold">
+      <p>{error}</p>
+      <button type="button" className="mt-5 underline" onClick={() => setAttempt((value) => value + 1)}>Retry</button>
+    </div>
+  </Layout>;
+  if (!access || access.teamId !== teamId) return <Layout>
+    <div role="status" className="flex min-h-[60dvh] flex-col items-center justify-center gap-5">
+      <span aria-hidden="true" className="h-8 w-8 animate-spin rounded-full border border-ember/20 border-t-ember-glow" />
+      <p className="text-sm text-parchment/50">Beyond the last door…</p>
+    </div>
+  </Layout>;
+  if (!access.allowed) return <Navigate to="/vault" replace />;
+  return <CompletionCelebration />;
+}
+
+function CompletionCelebration() {
   return (
-    <Layout>
-      <section className="mt-24 flex flex-col items-center text-center animate-rise">
-        <div className="relative">
+    <Layout lanterns>
+      <FinaleFireworks />
+      <section className="finale-entrance relative isolate z-10 mt-20 flex min-h-[65dvh] flex-col items-center text-center">
+        <div className="finale-aura pointer-events-none absolute inset-0 -z-10" aria-hidden="true" />
+        <div className="finale-beacon relative">
           <DiyaLamp state="SOLVED" size={170} igniteDelay={300} className="drop-shadow-[0_0_48px_rgba(251,191,36,0.6)]" />
           <SparkBurst loop count={22} radius={150} />
         </div>
-        <p className="eyebrow mt-12">The light is whole</p>
-        <h1 className="text-shimmer mt-4 text-6xl lg:text-8xl">Shubh Deepavali</h1>
-        <p className="mt-10 max-w-xl text-lg font-light leading-relaxed text-parchment/70 lg:text-xl">
+        <p className="finale-title eyebrow mt-12">The light is whole</p>
+        <h1 className="finale-title text-shimmer mt-4 text-6xl lg:text-8xl">Shubh Deepavali</h1>
+        <p className="finale-message mt-10 max-w-xl text-lg font-light leading-relaxed text-parchment/70 lg:text-xl">
           The colours meet, and the light turns white again. It was never one flame. It was every flame, carried by
           every team.
         </p>
-        <p className="mt-6 max-w-xl text-2xl font-medium text-ember-glow">
+        <p className="finale-message mt-6 max-w-xl text-2xl font-medium text-ember-glow">
           The Light was never meant to be found alone.
         </p>
-        <Link to="/dashboard" className="btn-ghost mt-14">
+        <Link to="/dashboard" className="finale-return btn-ghost mt-14">
           Back to the fragments
         </Link>
       </section>

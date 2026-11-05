@@ -63,6 +63,11 @@ so stale progress or a failed completion write cannot immediately reopen the sto
   After a gameplay reset, use a new tab, or clear that team's
   `lostlight.hanoi.{teamId}` session key and reload; already-solved Vaults remain open.
   No Firestore migration or reseeding is required.
+- `/complete` checks the team's Vault progress directly with Firestore before rendering
+  any celebration. An unsolved Vault redirects to `/vault`; unavailable services show a retry
+  instead of revealing the finale. The celebration has a staged dawn/reveal, floating lanterns,
+  and canvas fireworks capped at 30 FPS with bounded particles. Fireworks pause in hidden tabs
+  and are disabled for reduced-motion users.
 - The Lantern Courtyard has 20 rotating mirrors, team-specific positions,
   click-to-cycle symbols and a responsive 70/30 desktop layout.
 - Convergence uses assigned partner circles and illustrated complementary clue cards.
