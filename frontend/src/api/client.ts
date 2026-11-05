@@ -379,7 +379,7 @@ export const api = {
     return {
       name: 'The Lost Light',
       serverTime: new Date().toISOString(),
-      eventDate: '2026-11-10',
+      eventDate: config.get('eventDate') ?? '2026-11-10',
       timezone: 'Asia/Kolkata',
       scheduleStartAt: scoringStartAt(timestampToIso(config.get('scheduleStartAt')), timestampToIso(config.get('testScoringStartAt'))),
       questionSchedule: CORE_QUESTION_SCHEDULE,

@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
 import * as hanoi from '../src/services/hanoi.ts';
+import { GAMEPLAY_RUN } from '../src/services/gameplayRun.ts';
 
 const require = createRequire(import.meta.url);
 const source = ts.transpileModule(readFileSync(new URL('../src/services/hanoiProgress.ts', import.meta.url), 'utf8'), {
@@ -17,7 +18,8 @@ function fixture() {
   let failure = false;
   const snapshot = (ref) => ({
     exists: () => documents.has(ref),
-    get: (field) => documents.get(ref)?.[field],
+    get: (field) => field === 'progressRunId' && /^teams\/[^/]+$/.test(ref)
+      ? documents.get(ref)?.progressRunId ?? GAMEPLAY_RUN : documents.get(ref)?.[field],
   });
   const sdk = {
     doc: (_db, ...segments) => segments.join('/'),
@@ -47,6 +49,7 @@ function fixture() {
         if (name === './authService') return { initializeSession: async () => ({ uid: 'test' }) };
         if (name === './firebase') return { requireFirebaseServices: () => ({ firestore: {} }) };
         if (name === './hanoi') return hanoi;
+        if (name === './gameplayRun') return { GAMEPLAY_RUN };
         return require(name);
       },
     });
@@ -134,4 +137,11 @@ test('a completed 63-move tower is restored ready for the final form', async () 
   assert.equal(restored.moves, moves);
   assert.equal(restored.revision, 63);
   assert.equal(hanoi.hanoiSolved(restored.moves), true);
+});
+
+test('a queue from a different gameplay run cannot repopulate reset progress', async () => {
+  const f = fixture();
+  f.documents.set('teams/a', { progressRunId: 'different-run' });
+  await assert.rejects(f.service().saveHanoiProgress('a', '01'), /game has been reset/);
+  assert.equal(f.writes.length, 0);
 });

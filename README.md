@@ -354,6 +354,18 @@ live Firestore writes are performed by this implementation.
 
 ### Testing the scoring clock
 
+The current production trial is **5 November 2026**, with Questions 1–6 scheduled
+for **12:00, 12:10, 12:20, 12:30, 12:40, and 12:50 PM IST** using Firestore
+`unlockOverrides`. Its shared scoring start is **12:00 PM IST**.
+`backend/src/scripts/reset-production-test.ts` is dry-run by default; `--apply`
+requires an external `--backup` path and clears all team gameplay subcollections
+except provisioned `puzzleRewards`/`puzzleHints`, resets browser bindings and story
+visits, and preserves team identities, keys, assignments, clues and rewards.
+The deployed gameplay-run marker clears prior `lostlight.*` browser drafts and
+sessions once per storage area. **Reload existing tabs after the deployment and
+sign in with the team keys again.** The app cannot remotely erase storage in
+unloaded/old pages; cleanup occurs when the new build starts.
+
 In the Admin page, manually **Unlock now** for Question 1 to start a shared test
 clock for every team. The same Firestore server timestamp sets Question 1's
 release override and `gameConfig/main.testScoringStartAt`. Admin rankings, team

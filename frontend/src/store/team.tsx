@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { resetPreviousRunStorage } from '../services/gameplayRun';
 
 const STORAGE_KEY = 'lostlight.session';
 
@@ -18,6 +19,7 @@ const TeamContext = createContext<TeamContextValue | null>(null);
 
 function readStored(): Session | null {
   try {
+    resetPreviousRunStorage(localStorage, sessionStorage);
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<Session>;

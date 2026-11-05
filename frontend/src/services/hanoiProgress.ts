@@ -2,6 +2,7 @@ import { doc, getDocFromServer, runTransaction, serverTimestamp } from 'firebase
 import { initializeSession } from './authService';
 import { requireFirebaseServices } from './firebase';
 import { HANOI_DISKS, hanoiPegs } from './hanoi';
+import { GAMEPLAY_RUN } from './gameplayRun';
 
 export interface HanoiDraft {
   version: 1;
@@ -43,7 +44,13 @@ export async function saveHanoiProgress(teamId: string, moves: string): Promise<
   const progressRef = reference(teamId);
   const { firestore } = requireFirebaseServices();
   return runTransaction(firestore, async (transaction) => {
-    const snapshot = await transaction.get(progressRef);
+    const [snapshot, team] = await Promise.all([
+      transaction.get(progressRef),
+      transaction.get(doc(firestore, 'teams', teamId)),
+    ]);
+    if (team.get('progressRunId') !== GAMEPLAY_RUN) {
+      throw new Error('The game has been reset. Reload the page and sign in again.');
+    }
     if (snapshot.get('status') === 'solved') throw new Error('This Vault is already open. Reload the page.');
     const current = parseHanoiDraft(snapshot.get('hanoiDraft'));
     const draft: HanoiDraft = { version: 1, disks: HANOI_DISKS, revision: current.revision + 1, moves };
