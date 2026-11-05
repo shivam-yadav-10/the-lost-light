@@ -26,7 +26,7 @@ import { GameServicesUnavailableError, requireFirebaseServices } from '../servic
 import {
   assertHintAvailable,
   CORE_QUESTION_SCHEDULE,
-  EVENT_START_AT,
+  scoringStartAt,
   hintCount,
   isScheduleLocked,
   PUZZLE_IDS,
@@ -371,15 +371,21 @@ export const api = {
       throw firebaseApiError(error, 'Could not check the five day answers.');
     }
   },
-  status: async () => ({
-    name: 'The Lost Light',
-    serverTime: new Date().toISOString(),
-    eventDate: '2026-11-10',
-    timezone: 'Asia/Kolkata',
-    scheduleStartAt: EVENT_START_AT,
-    questionSchedule: CORE_QUESTION_SCHEDULE,
-    scoringRule: 'elapsed-from-schedule-start-plus-hint-penalties',
-  }),
+  status: async () => {
+    const { firestore } = requireFirebaseServices();
+    await initializeSession();
+    const config = await getDoc(doc(firestore, 'gameConfig', 'main'));
+    if (!config.exists()) throw new ApiError(503, 'Game configuration is missing from Firebase.');
+    return {
+      name: 'The Lost Light',
+      serverTime: new Date().toISOString(),
+      eventDate: '2026-11-10',
+      timezone: 'Asia/Kolkata',
+      scheduleStartAt: scoringStartAt(timestampToIso(config.get('scheduleStartAt')), timestampToIso(config.get('testScoringStartAt'))),
+      questionSchedule: CORE_QUESTION_SCHEDULE,
+      scoringRule: 'elapsed-from-schedule-start-plus-hint-penalties',
+    };
+  },
 
   puzzle: async (id: number, teamDocId: string, teamNumber: number) => {
     if (!Number.isInteger(id) || id < 1 || !teamDocId.trim()) throw new ApiError(400, 'Invalid puzzle.');

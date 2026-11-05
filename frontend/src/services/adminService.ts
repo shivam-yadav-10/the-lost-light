@@ -1,10 +1,10 @@
 import { signInWithEmailAndPassword, signOut, type Auth, type UserCredential } from 'firebase/auth';
 import { FirebaseError } from 'firebase/app';
-import { Timestamp, collection, doc, getCountFromServer, getDoc, getDocs, query, runTransaction, where } from 'firebase/firestore';
+import { Timestamp, collection, deleteField, doc, getCountFromServer, getDoc, getDocs, query, runTransaction, serverTimestamp, where } from 'firebase/firestore';
 import type { DocumentData, Firestore, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { AdminOverview, FragmentState, PuzzleKind } from '../api/types';
 import { requireAdminFirebaseServices } from './firebase';
-import { EVENT_START_AT, isScheduleLocked, puzzleRequirements, rankTeams } from './gameRules';
+import { isScheduleLocked, puzzleRequirements, rankTeams, scoringStartAt } from './gameRules';
 
 const SHARD_TYPES = ['A', 'B', 'C', 'D'] as const;
 const PUZZLE_KINDS: PuzzleKind[] = ['core', 'convergence', 'vault'];
@@ -239,10 +239,8 @@ export async function getAdminOverview(): Promise<AdminOverview> {
     if (puzzles.length === 0) throw new AdminServiceError('No puzzle documents were found in Firebase.');
     const gameConfig = asRecord(configSnapshot.data());
     parseUnlockOverrides(gameConfig.unlockOverrides, puzzles);
-    const configuredScheduleStartAt = timestampToIso(gameConfig.scheduleStartAt);
-    if (configuredScheduleStartAt && configuredScheduleStartAt !== EVENT_START_AT) {
-      throw new AdminServiceError('Organiser scoring start does not match the confirmed event schedule.');
-    }
+    const testStart = timestampToIso(gameConfig.testScoringStartAt);
+    const scheduleStartAt = scoringStartAt(timestampToIso(gameConfig.scheduleStartAt), testStart);
 
     const adminTeamData = new Map(adminTeamsSnapshot.docs.map((snapshot) => [snapshot.id, asRecord(snapshot.data())]));
     const teamRows = await Promise.all(teamsSnapshot.docs.map(async (teamSnapshot) => {
@@ -325,7 +323,7 @@ export async function getAdminOverview(): Promise<AdminOverview> {
       completedAt: team.vaultSolvedAt,
       penaltyMinutes: team.penaltyMinutes,
       totalHintsUsed: team.totalHintsUsed,
-    })), EVENT_START_AT);
+    })), scheduleStartAt);
     const scoresByTeam = new Map(scores.map((score) => [score.team.id, score]));
     const rankedTeams = teamRows.map((team) => {
       const score = scoresByTeam.get(team.id)!;
@@ -353,6 +351,8 @@ export async function getAdminOverview(): Promise<AdminOverview> {
 
     return {
       generatedAt: new Date().toISOString(),
+      scheduleStartAt,
+      testScoringActive: testStart !== null,
       puzzles: puzzles.map((puzzle) => ({
         id: puzzle.id,
         title: puzzle.title,
@@ -378,7 +378,7 @@ export async function setPuzzleUnlockOverride(puzzleId: number, unlocked: boolea
   const { firestore } = requireAdminFirebaseServices();
   const puzzleRef = doc(firestore, 'puzzles', String(puzzleId));
   const configRef = doc(firestore, 'gameConfig', 'main');
-  const unlockAt = new Date(Date.now() + (unlocked ? -60_000 : 100 * 365 * 24 * 60 * 60_000));
+  const lockedUntil = new Date(Date.now() + 100 * 365 * 24 * 60 * 60_000);
 
   try {
     await runTransaction(firestore, async (transaction) => {
@@ -397,8 +397,9 @@ export async function setPuzzleUnlockOverride(puzzleId: number, unlocked: boolea
       transaction.update(configRef, {
         unlockOverrides: {
           ...currentOverrides,
-          [String(puzzleId)]: Timestamp.fromDate(unlockAt),
+          [String(puzzleId)]: unlocked ? serverTimestamp() : Timestamp.fromDate(lockedUntil),
         },
+        ...(puzzleId === 1 ? { testScoringStartAt: unlocked ? serverTimestamp() : deleteField() } : {}),
       });
     });
     return await getAdminOverview();

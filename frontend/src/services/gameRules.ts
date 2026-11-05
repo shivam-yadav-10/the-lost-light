@@ -11,6 +11,16 @@ export const CORE_QUESTION_SCHEDULE = [
   { id: 6, unlockAt: '2026-11-10T10:00:00.000Z' },
 ] as const;
 
+export function scoringStartAt(configuredStart: string | null, testStart: string | null): string {
+  if (configuredStart !== null && configuredStart !== EVENT_START_AT) {
+    throw new Error('Scoring start does not match the confirmed event schedule.');
+  }
+  if (testStart !== null && !Number.isFinite(Date.parse(testStart))) {
+    throw new Error('The testing scoring start is invalid.');
+  }
+  return testStart ?? EVENT_START_AT;
+}
+
 /** A release becomes available at its exact timestamp; prerequisites are checked separately. */
 export function isScheduleLocked(unlockAt: string | null, nowMs = Date.now()): boolean {
   return unlockAt !== null && Date.parse(unlockAt) > nowMs;

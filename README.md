@@ -352,6 +352,24 @@ keyed by puzzle ID and contains its effective Firestore Timestamp; review any
 retained overrides since they take precedence over the new base schedule. No
 live Firestore writes are performed by this implementation.
 
+### Testing the scoring clock
+
+In the Admin page, manually **Unlock now** for Question 1 to start a shared test
+clock for every team. The same Firestore server timestamp sets Question 1's
+release override and `gameConfig/main.testScoringStartAt`. Admin rankings, team
+scores, and status metadata use this test start instead of the scheduled event start.
+The Admin page labels the active clock **Test scoring**.
+
+To restart the test clock, **Re-lock** Question 1 and then **Unlock now** again.
+Other questions' release controls do not change the scoring clock. This does not
+clear progress, Vault completions, or hint penalties; reset those separately for a
+fresh trial. Completions older than the new start have zero elapsed time.
+If Question 1 is already unlocked, re-lock and unlock it once after deploying this change.
+
+The normal event schedule is unchanged. Before the real event, remove
+`testScoringStartAt` and review/remove test `unlockOverrides` from `gameConfig/main`
+to restore scheduled releases and scoring from 10 November 2026, 1:00 PM IST.
+
 ## Repository layout
 
 ```text

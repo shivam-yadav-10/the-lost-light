@@ -13,6 +13,7 @@ import {
   puzzleRequirements,
   rankTeams,
   scoreCompletion,
+  scoringStartAt,
 } from '../src/services/gameRules.ts';
 import { isInspectionShortcut, restrictInspection } from '../src/services/browserRestrictions.ts';
 
@@ -62,6 +63,18 @@ test('ranking starts from the fixed first unlock and never from late login', () 
   });
   assert.equal(scoreCompletion('2026-11-10T07:00:00.000Z', 0).elapsedMs, 0);
   assert.equal(scoreCompletion(null, 0), null);
+});
+
+test('test scoring uses the shared manual-unlock timestamp without changing the event schedule', () => {
+  const testStart = '2026-11-05T06:00:00.000Z';
+  assert.equal(scoringStartAt(EVENT_START_AT, null), EVENT_START_AT);
+  assert.equal(scoringStartAt(null, null), EVENT_START_AT);
+  assert.equal(scoringStartAt(EVENT_START_AT, testStart), testStart);
+  assert.deepEqual(scoreCompletion('2026-11-05T06:10:00.000Z', 5, scoringStartAt(EVENT_START_AT, testStart)), {
+    elapsedMs: 10 * 60_000, adjustedElapsedMs: 15 * 60_000,
+  });
+  assert.throws(() => scoringStartAt(EVENT_START_AT, 'invalid'), /invalid/);
+  assert.throws(() => scoringStartAt(testStart, null), /confirmed event schedule/);
 });
 
 test('finished teams rank by adjusted elapsed, then hints, then stable ID; unfinished stay behind', () => {

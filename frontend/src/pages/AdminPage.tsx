@@ -8,7 +8,7 @@ import {
   signOutAdmin,
 } from '../services/adminService';
 import type { AdminOverview } from '../api/types';
-import { EVENT_START_AT, formatDuration } from '../services/gameRules';
+import { formatDuration } from '../services/gameRules';
 
 const REFRESH_MS = 15_000;
 
@@ -196,8 +196,12 @@ export function AdminPage() {
             solve the preceding question before moving on, including Convergence and the Vault.
           </p>
           <p className="mt-1 text-xs text-parchment/40">
-            Ranking time starts at {fmt(EVENT_START_AT)} IST for every team, independent of login. Final elapsed time
+            {data.testScoringActive ? 'Test scoring' : 'Event scoring'} starts at {fmt(data.scheduleStartAt)} IST for every team, independent of login. Final elapsed time
             plus cumulative hint penalties decides rank; fewer hints break score ties.
+          </p>
+          <p className="mt-1 text-xs text-parchment/40">
+            Unlocking Question 1 manually starts a shared test clock. Re-lock and unlock it to restart the clock.
+            This does not reset team progress or hints.
           </p>
         </section>
       )}

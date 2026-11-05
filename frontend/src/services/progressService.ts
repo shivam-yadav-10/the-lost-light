@@ -10,7 +10,7 @@ import type { EarnedFragment, FragmentMeta, FragmentState, PuzzleKind, PuzzleSum
 import { initializeSession } from './authService';
 import { GameServicesUnavailableError, requireFirebaseServices } from './firebase';
 import { TeamLoginError } from './teamService';
-import { EVENT_START_AT, isScheduleLocked, puzzleHintLimit, puzzleRequirements, scoreCompletion } from './gameRules';
+import { isScheduleLocked, puzzleHintLimit, puzzleRequirements, scoreCompletion, scoringStartAt } from './gameRules';
 
 const ROMAN_NUMERALS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
 const PUZZLE_KINDS: PuzzleKind[] = ['core', 'convergence', 'vault'];
@@ -204,11 +204,7 @@ function toTeamProgress(
   if (puzzles.length === 0) throw new GameServicesUnavailableError();
 
   const config = rawConfig == null ? {} : asRecord(rawConfig);
-  const configuredScheduleStartAt = timestampToIso(config.scheduleStartAt);
-  if (configuredScheduleStartAt && configuredScheduleStartAt !== EVENT_START_AT) {
-    throw new GameServicesUnavailableError();
-  }
-  const scheduleStartAt = EVENT_START_AT;
+  const scheduleStartAt = scoringStartAt(timestampToIso(config.scheduleStartAt), timestampToIso(config.testScoringStartAt));
   if (config.unlockOverrides != null) {
     const overrides = asRecord(config.unlockOverrides);
     for (const [rawId, value] of Object.entries(overrides)) {

@@ -153,6 +153,8 @@ export interface CheckpointResult {
 
 export interface AdminOverview {
   generatedAt: string;
+  scheduleStartAt: string;
+  testScoringActive: boolean;
   puzzles: { id: number; title: string; fragmentName: string; kind: PuzzleKind; unlockAt: string | null; scheduleLocked: boolean }[];
   keeperSeals: { type: string; name: string; seal: string; holders: number }[];
   teams: {
