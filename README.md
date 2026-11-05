@@ -15,6 +15,15 @@ content tooling and regression tests; it is not deployed by the Pages workflow.
 Hash-based routing and Vite's `/the-lost-light/` base path support project-site
 URLs, nested-route refreshes, images and fonts.
 
+### Frontend loading
+
+The landing page and shared layout load first. Other routes load on demand,
+including Admin, the opening story, puzzles, Convergence, and the Vault.
+The progress provider is also loaded on demand for a saved team session, so a
+fresh landing-page visit does not download or initialize Firebase. Auth state
+restoration starts when a game service first needs it. Page downloads show a
+neutral loading view; failed downloads offer an explicit reload action.
+
 ## Gameplay
 
 Exiting the opening story (Escape, Skip, or finishing it) refreshes team progress

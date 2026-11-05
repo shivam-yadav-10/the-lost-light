@@ -110,14 +110,6 @@ export interface ShardRule {
   text: string;
 }
 
-export interface LanternCell {
-  spoke: Spoke;
-  ring: number;
-  flame: number;
-  shadow: number;
-  mark: SymbolName;
-}
-
 export interface ConvergenceClue { title: string; text: string; detail: string; art: string }
 
 export interface ConvergenceState {

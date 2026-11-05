@@ -7,9 +7,6 @@ import {
 } from 'firebase/auth';
 import { firebaseAuth, requireFirebaseServices } from './firebase';
 
-type AuthStateListener = (user: User | null) => void;
-
-const authStateListeners = new Set<AuthStateListener>();
 let observedUser: User | null = null;
 let authStateInitialized = false;
 let resolveAuthState: (() => void) | null = null;
@@ -29,20 +26,7 @@ function ensureAuthStateObserver(): void {
       resolveAuthState?.();
       resolveAuthState = null;
     }
-    authStateListeners.forEach((listener) => listener(user));
   });
-}
-
-export function observeAuthState(listener: AuthStateListener): Unsubscribe {
-  if (!firebaseAuth) {
-    listener(null);
-    return () => undefined;
-  }
-
-  ensureAuthStateObserver();
-  authStateListeners.add(listener);
-  if (authStateInitialized) listener(observedUser);
-  return () => authStateListeners.delete(listener);
 }
 
 export async function getCurrentUser(): Promise<User | null> {
@@ -68,7 +52,6 @@ export async function initializeSession(): Promise<User> {
   pendingSignIn = signInAnonymously(auth)
     .then(({ user }) => {
       observedUser = user;
-      authStateListeners.forEach((listener) => listener(user));
       return user;
     })
     .finally(() => {
@@ -82,5 +65,4 @@ export async function logout(): Promise<void> {
   const { auth } = requireFirebaseServices();
   await signOut(auth);
   observedUser = null;
-  authStateListeners.forEach((listener) => listener(null));
 }

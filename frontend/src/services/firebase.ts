@@ -48,6 +48,16 @@ function initializeFirebase(): FirebaseRuntime {
 
 const firebaseRuntime = initializeFirebase();
 
+if (import.meta.env.DEV) {
+  console.info(
+    firebaseRuntime.status === 'ready'
+      ? '[Firebase diagnostic] Firebase initialized.'
+      : firebaseRuntime.status === 'unconfigured'
+        ? '[Firebase diagnostic] Firebase is not configured.'
+        : '[Firebase diagnostic] Firebase initialization is unavailable.',
+  );
+}
+
 export const firebaseInitializationStatus = firebaseRuntime.status;
 export const firebaseApp = firebaseRuntime.app;
 export const firebaseAuth = firebaseRuntime.auth;
