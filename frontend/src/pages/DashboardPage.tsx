@@ -69,7 +69,9 @@ export function DashboardPage() {
           aria-label="Codes and the endgame"
         >
           <div className="card relative border-ember/40 !p-6 animate-pulse-glow">
-            <CheckpointForm inputId="dashboard-code" onRedeemed={() => void refresh()} stacked />
+            <CheckpointForm inputId="dashboard-code" onRedeemed={(result) => {
+              if (!result.alreadyVisited) void refresh();
+            }} stacked />
             <p className="mt-4 text-sm font-light text-parchment/50">
               {markers > 0
                 ? `${markers} marker${markers === 1 ? '' : 's'} found so far.`

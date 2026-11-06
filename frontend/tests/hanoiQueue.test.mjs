@@ -51,7 +51,7 @@ function fixture() {
     runInNewContext(source, {
       exports, Error, sessionStorage,
       setInterval: (callback, interval) => {
-        assert.equal(interval, 15_000);
+        assert.equal(interval, 60_000);
         const timer = { callback, active: true };
         timers.push(timer);
         return timer;
@@ -86,7 +86,7 @@ function observe(queue) {
   return { current: () => state, unsubscribe };
 }
 
-test('moves update immediately, zero per-move writes, one batch per 15-second tick, no idle traffic', async () => {
+test('moves update immediately, zero per-move writes, one batch per 60-second tick, no idle traffic', async () => {
   const f = fixture();
   const queue = await f.service().getHanoiQueue('a');
   const state = observe(queue);

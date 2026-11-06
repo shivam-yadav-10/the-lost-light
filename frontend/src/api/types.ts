@@ -68,6 +68,7 @@ export interface EarnedFragment extends FragmentMeta {
 }
 
 export interface PuzzleDetail extends PuzzleSummary {
+  pianoUnlocked?: boolean;
   intro: string;
   blocks: ContentBlock[];
   revealedHints: string[];

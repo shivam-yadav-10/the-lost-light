@@ -35,6 +35,8 @@ import {
 } from '../services/gameRules';
 import { checkRiddleAnswers, parseRiddleProof } from '../services/riddleAnswers';
 import { checkHiddenWords } from '../services/hiddenWords';
+import { readStableContent } from '../services/stableContent';
+import { matchesMelody, pianoUnlocked, PIANO_VERSION } from '../services/piano';
 import { parseVaultProof } from '../services/hanoi';
 import { parseHanoiDraft } from '../services/hanoiProgress';
 import { alignmentProof, parseMemberIds, parseOverlayCard } from '../services/convergenceOverlay';
@@ -280,7 +282,7 @@ async function loadPuzzleDetail(teamDocId: string, teamNumber: number, puzzleId:
     getDoc(doc(firestore, 'puzzles', String(puzzleId))),
     getDoc(teamRef),
     getDoc(progressRef),
-    getDoc(contentRef),
+    readStableContent(contentRef),
   ]);
   if (!metadataSnapshot.exists() || !teamSnapshot.exists() || !contentSnapshot.exists()) {
     throw new ApiError(404, 'Puzzle not found.');
@@ -297,13 +299,22 @@ async function loadPuzzleDetail(teamDocId: string, teamNumber: number, puzzleId:
   const solvedAt = timestampToIso(progress.solvedAt);
   const hintsUsed = typeof progress.hintsUsed === 'number' ? progress.hintsUsed : 0;
   const maxHints = puzzleHintLimit(metadata.maxHints);
+  if (puzzleId === 3 && !pianoUnlocked(progress)) {
+    return {
+      id: puzzleId, slug: String(metadata.slug ?? ''), title: String(metadata.title ?? ''),
+      fragmentName: String(metadata.fragmentName ?? ''), kind: metadata.kind as PuzzleDetail['kind'],
+      sortOrder: Number(metadata.sortOrder), state: 'AVAILABLE', unlockAt: timestampToIso(metadata.unlockAt),
+      solvedAt: null, hintsUsed, maxHints, intro: '', blocks: [], revealedHints: [],
+      fragment: null, completionMessage: null, pianoUnlocked: false,
+    };
+  }
   const hints = await Promise.all(
     Array.from({ length: hintsUsed }, (_, index) =>
-      getDoc(doc(teamRef, 'puzzleHints', `${puzzleId}_${index + 1}`)),
+      readStableContent(doc(teamRef, 'puzzleHints', `${puzzleId}_${index + 1}`)),
     ),
   );
   const earnedSnapshot = solved
-    ? await getDoc(doc(teamRef, 'puzzleRewards', String(puzzleId)))
+    ? await readStableContent(doc(teamRef, 'puzzleRewards', String(puzzleId)))
     : null;
   const earnedData = earnedSnapshot?.exists() ? asRecord(earnedSnapshot.data()) : null;
   let completionMessage = typeof earnedData?.completionMessage === 'string' ? earnedData.completionMessage : null;
@@ -316,6 +327,7 @@ async function loadPuzzleDetail(teamDocId: string, teamNumber: number, puzzleId:
 
   return {
     id: puzzleId,
+    ...(puzzleId === 3 ? { pianoUnlocked: true } : {}),
     slug: String(metadata.slug ?? ''),
     title: String(metadata.title ?? ''),
     fragmentName: String(metadata.fragmentName ?? ''),
@@ -344,7 +356,7 @@ async function hintDocuments(teamDocId: string, puzzleId: number, hintsUsed: num
   const teamRef = doc(firestore, 'teams', teamDocId);
   const snapshots = await Promise.all(
     Array.from({ length: hintsUsed }, (_, index) =>
-      getDoc(doc(teamRef, 'puzzleHints', `${puzzleId}_${index + 1}`)),
+      readStableContent(doc(teamRef, 'puzzleHints', `${puzzleId}_${index + 1}`)),
     ),
   );
   return snapshots.map((snapshot) => {
@@ -355,6 +367,28 @@ async function hintDocuments(teamDocId: string, puzzleId: number, hintsUsed: num
 }
 
 export const api = {
+  unlockPiano: async (teamDocId: string, notes: string[]): Promise<void> => {
+    if (!teamDocId.trim() || !matchesMelody(teamDocId, notes)) {
+      throw new ApiError(400, 'Replay your team’s complete melody in order.');
+    }
+    try {
+      const { firestore } = requireFirebaseServices();
+      await initializeSession();
+      const teamRef = doc(firestore, 'teams', teamDocId);
+      const metadata = await getDoc(doc(firestore, 'puzzles', '3'));
+      if (!metadata.exists()) throw new ApiError(404, 'Puzzle not found.');
+      if (!(await isPuzzleOpen(firestore, teamRef, 3, asRecord(metadata.data())))) {
+        throw new ApiError(423, 'This fragment is still hidden.');
+      }
+      await runTransaction(firestore, async (transaction) => {
+        const ref = puzzleReference(teamDocId, 3);
+        const snapshot = await transaction.get(ref);
+        const progress = snapshot.data() ?? {};
+        if (pianoUnlocked(progress)) return;
+        transaction.set(ref, { pianoVersion: PIANO_VERSION, pianoCompletedAt: serverTimestamp() }, { merge: true });
+      });
+    } catch (error) { throw firebaseApiError(error, 'Could not save your melody.'); }
+  },
   checkRiddles: async (teamDocId: string, answers: string[]): Promise<boolean[]> => {
     try {
       const { firestore } = requireFirebaseServices();
@@ -402,7 +436,8 @@ export const api = {
   submit: async (id: number, teamDocId: string, teamNumber: number, answer: string, proof?: string): Promise<SubmitResult> => {
     if (!Number.isInteger(id) || id < 1 || !teamDocId.trim() || !answer.trim()) throw new ApiError(400, 'Enter an answer first.');
     try {
-      await loadPuzzleDetail(teamDocId, teamNumber, id);
+      const loaded = await loadPuzzleDetail(teamDocId, teamNumber, id);
+      if (id === 3 && !loaded.pianoUnlocked) throw new ApiError(423, 'Replay your team’s melody before opening Question III.');
       const { firestore } = requireFirebaseServices();
       await initializeSession();
       const teamRef = doc(firestore, 'teams', teamDocId);
@@ -414,6 +449,7 @@ export const api = {
         const progressSnapshot = await transaction.get(progressRef);
         const progress = progressSnapshot.exists() ? progressSnapshot.data() : {};
         if (progress.status === 'solved') throw new ApiError(409, 'This fragment has already been solved.');
+        if (id === 3 && !pianoUnlocked(progress)) throw new ApiError(423, 'Replay your team’s melody before opening Question III.');
         if (vaultProof && progress.hanoiDraft !== undefined
           && parseHanoiDraft(progress.hanoiDraft).moves !== vaultProof.moves) {
           throw new ApiError(409, 'Your team changed the tower. Load the saved tower before opening the Vault.');
@@ -426,6 +462,7 @@ export const api = {
           startedAt: progress.startedAt ?? now,
           solvedAt: now,
           answer: answerForRules(id, answer),
+          ...(id === 3 ? { pianoVersion: PIANO_VERSION, pianoCompletedAt: progress.pianoCompletedAt ?? now } : {}),
           ...(vaultProof ? { proof: vaultProof.code, hanoiMoves: vaultProof.moves } : {}),
         };
         transaction.set(progressRef, data);
@@ -479,6 +516,7 @@ export const api = {
         if (!progressSnapshot) throw new ApiError(400, 'Invalid puzzle.');
         const progress = progressSnapshot.exists() ? progressSnapshot.data() : {};
         if (progress.status === 'solved') throw new ApiError(409, 'This fragment has already been solved.');
+        if (id === 3 && !pianoUnlocked(progress)) throw new ApiError(423, 'Replay your team’s melody before requesting Question III hints.');
         const used = hintCount(progress.hintsUsed);
         const teamHintsUsed = snapshots.reduce((sum, snapshot) => sum + hintCount(snapshot.data()?.hintsUsed), 0);
         try {

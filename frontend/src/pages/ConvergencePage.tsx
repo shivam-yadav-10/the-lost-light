@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { api, ApiError } from '../api/client';
 import type { ConvergenceState, EarnedFragment, OverlayPlacement } from '../api/types';
@@ -35,11 +35,17 @@ function ConvergenceOpen({ puzzleId, fragments }: { puzzleId: number; fragments:
   const [feedback, setFeedback] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
+  const loadingState = useRef<Promise<void> | null>(null);
   const closeCelebration = useCallback(() => setCelebrate(false), []);
-  const loadState = useCallback(async () => {
-    if (!session) return;
-    try { setState(await api.convergence(session.teamDocId)); setStateError(null); }
-    catch (err) { setStateError(err instanceof Error ? err.message : 'The lantern will not light.'); }
+  const loadState = useCallback((): Promise<void> => {
+    if (!session) return Promise.resolve();
+    if (loadingState.current) return loadingState.current;
+    loadingState.current = (async () => {
+      try { setState(await api.convergence(session.teamDocId)); setStateError(null); }
+      catch (err) { setStateError(err instanceof Error ? err.message : 'The lantern will not light.'); }
+      finally { loadingState.current = null; }
+    })();
+    return loadingState.current;
   }, [session]);
   useEffect(() => { void loadState(); }, [loadState]);
 

@@ -1,7 +1,7 @@
 import { hanoiPegs } from './hanoi';
 import { loadHanoiProgress, parseHanoiDraft, saveHanoiProgress, type HanoiDraft } from './hanoiProgress';
 
-export const HANOI_SYNC_INTERVAL = 15_000;
+export const HANOI_SYNC_INTERVAL = 60_000;
 
 interface QueueData {
   draft: HanoiDraft;

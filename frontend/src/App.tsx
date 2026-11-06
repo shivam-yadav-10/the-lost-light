@@ -1,4 +1,4 @@
-import { Component, lazy, Suspense, useEffect, type ErrorInfo, type ReactNode } from 'react';
+import { Component, lazy, Suspense, useEffect, useMemo, type ErrorInfo, type ReactNode } from 'react';
 import { HashRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { restrictInspection } from './services/browserRestrictions';
 import { LandingPage } from './pages/LandingPage';
@@ -82,11 +82,7 @@ function ReleaseGate() {
   const { progress, error, refresh } = useProgress();
   const { pathname } = useLocation();
   const now = useClockNow();
-  useEffect(() => {
-    if (pathname !== '/waiting') return;
-    const timer = window.setInterval(() => void refresh(), 15000);
-    return () => window.clearInterval(timer);
-  }, [pathname, refresh]);
+  const checkedAt = useMemo(() => Date.now(), [progress]);
   function content(): ReactNode {
   if (error) return <Layout bare>
     <p role="alert" className="text-sm text-marigold">{error} <button className="underline" onClick={() => void refresh()}>Retry</button></p>
@@ -97,8 +93,8 @@ function ReleaseGate() {
       <p className="text-sm text-parchment/50">Opening your team&apos;s path…</p>
     </div>
   </Layout>;
-  if (!hasReleasedQuestion(progress.puzzles, now)) {
-    const next = nextRelease(progress.puzzles, now);
+  if (!hasReleasedQuestion(progress.puzzles, checkedAt)) {
+    const next = nextRelease(progress.puzzles, checkedAt);
     return <WaitingRoom>
       {pathname !== '/waiting' && <Navigate to="/waiting" replace />}
       {next?.unlockAt && <ReleaseCountdown target={Date.parse(next.unlockAt)} now={now} caption="Something stirs in the darkness. Your first flame is coming." />}

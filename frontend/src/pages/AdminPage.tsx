@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import {
   getAdminErrorMessage,
   getAdminOverview,
@@ -10,8 +10,6 @@ import {
 import type { AdminOverview } from '../api/types';
 import { formatDuration } from '../services/gameRules';
 
-const REFRESH_MS = 15_000;
-
 /** Minimal local organiser view. Plain styling on purpose — this is a utility, not part of the game. */
 export function AdminPage() {
   const [adminUid, setAdminUid] = useState<string | null>(null);
@@ -22,6 +20,7 @@ export function AdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const [toggleError, setToggleError] = useState<string | null>(null);
+  const loadingOverview = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -41,20 +40,21 @@ export function AdminPage() {
   }, []);
 
   const load = useCallback(async () => {
-    if (!adminUid) return;
+    if (!adminUid || loadingOverview.current) return;
+    loadingOverview.current = true;
     try {
       setData(await getAdminOverview());
       setError(null);
     } catch (err) {
       setData(null);
       setError(getAdminErrorMessage(err));
+    } finally {
+      loadingOverview.current = false;
     }
   }, [adminUid]);
 
   useEffect(() => {
     void load();
-    const timer = setInterval(() => void load(), REFRESH_MS);
-    return () => clearInterval(timer);
   }, [load]);
 
   async function onSubmit(e: FormEvent) {
@@ -148,6 +148,7 @@ export function AdminPage() {
         <h1 className="text-2xl">The Lost Light — organiser view</h1>
         <div className="flex items-center gap-3 text-xs text-parchment/60">
           {data && <span>Updated {new Date(data.generatedAt).toLocaleTimeString()}</span>}
+          <span>Manual refresh only</span>
           <button type="button" className="btn-ghost !py-1 !px-3" onClick={() => void load()}>
             Refresh
           </button>

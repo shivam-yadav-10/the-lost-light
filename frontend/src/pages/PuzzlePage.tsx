@@ -7,6 +7,7 @@ import { FragmentCard } from '../components/FragmentCard';
 import { HintSection } from '../components/HintSection';
 import { LanternCourtyard } from '../components/LanternCourtyard';
 import { PuzzleBlocks } from '../components/PuzzleBlocks';
+import { PianoGate } from '../components/PianoGate';
 import { SparkBurst } from '../components/SparkBurst';
 import { SuccessOverlay } from '../components/SuccessOverlay';
 import { usePuzzle } from '../store/usePuzzle';
@@ -99,6 +100,15 @@ export function PuzzlePage() {
         <p className="text-sm text-parchment/50">Approaching the light…</p>
       </div>
     );
+  }
+
+  if (puzzle.id === 3 && puzzle.state !== 'SOLVED' && !puzzle.pianoUnlocked && session) {
+    return <div className="game-page-enter">
+      <Link to="/dashboard" className="text-xs text-parchment/60 hover:text-ember-glow">← All fragments</Link>
+      <PianoGate key={session.teamDocId} teamDocId={session.teamDocId} onUnlocked={async () => {
+        setPuzzle(await api.puzzle(3, session.teamDocId, session.teamId));
+      }} />
+    </div>;
   }
 
   const solved = puzzle.state === 'SOLVED';

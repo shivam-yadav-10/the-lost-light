@@ -98,6 +98,7 @@ function fixture() {
         requireFirebaseServices: () => ({ firestore: {} }), GameServicesUnavailableError: class extends Error {},
       };
       if (name === './teamService') return { TeamLoginError: class extends Error {} };
+      if (name === './stableContent') return { readStableContent: sdk.getDoc };
       if (name === './gameRules') return rules;
       throw new Error(`Unexpected dependency ${name}`);
     },

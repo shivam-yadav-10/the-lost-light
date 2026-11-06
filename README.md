@@ -59,7 +59,7 @@ so stale progress or a failed completion write cannot immediately reopen the sto
   Any legal solution counts; the minimum is 63 moves. Completing the tower reveals
   the existing final-word and team proof-code form. The move history is replayed
   during submission, not just checked by the UI. Every move and explicit restart is queued
-  immediately in per-team `sessionStorage` before appearing on the board. Every 15 seconds,
+  immediately in per-team `sessionStorage` before appearing on the board. Every 60 seconds,
   a nonempty queue is coalesced into one Firestore transaction at
   `teams/{teamId}/progress/8.hanoiDraft`; idle towers cause no periodic database reads or writes.
   Background sync continues across in-app navigation. Reload restores this tab's queue;
@@ -111,6 +111,65 @@ so stale progress or a failed completion write cannot immediately reopen the sto
   lantern-night waiting view appears only after progress confirms no question
   has been released. Reloading a playable dashboard or puzzle never uses the
   waiting backdrop as a loading placeholder. Reduced-motion preferences are respected.
+
+### Question III piano gate
+
+Before the original Question III text, answer and hints are revealed, each team
+must replay its own eight-note melody with `A S D F G H J K L` or the on-screen
+piano. Listen replays are unlimited; an incorrect note restarts the attempt.
+Final teams and the four retained test teams have distinct, stable melodies
+based on their document IDs. Audio is synthesized locally without asset downloads.
+Completion is saved in Question III's progress record and survives refresh;
+resetting that progress also resets the gate. Already-solved questions remain solved.
+The original answer, scoring and release schedule are unchanged.
+
+No database provisioning is required. Using the local frontend with production Firebase still saves gameplay
+progress to production; use a separate test project for isolated playtesting.
+
+### Low-read refresh behaviour
+
+The waiting room and organiser view no longer poll at fixed intervals.
+Team progress loads once when the app opens. The next release timestamp is saved
+in tab-scoped `sessionStorage` under the team ID and gameplay run; countdown ticks
+run locally, without database reads. A one-shot refresh runs when that release
+time is reached, and the waiting room waits for the result before opening.
+Returning to a tab or focusing the window does not reload progress.
+
+Press `Ctrl+Shift+R` inside the signed-in game to refresh progress once instead
+of reloading the page (where the browser delivers this shortcut to the page).
+Focused puzzle controls keep their existing shortcuts, including overlay rotation.
+Held keys and overlapping refresh requests do not start extra reads. Normal
+reload still fetches once and replaces the saved timestamp with the latest
+schedule. Storage failures are logged and the countdown continues in memory.
+Gameplay actions still refresh progress after an update; later scheduled releases
+also use one-shot refreshes, not recurring polls. Failed requests require an
+explicit Retry or refresh; they do not retry in a loop.
+
+The organiser overview loads once after sign-in; use **Refresh** to fetch newer
+data. Manual schedule changes are not pushed to already-open waiting rooms:
+players must refresh to receive them. The GitHub Pages deployment does not run
+database provisioning or migration commands.
+
+Provisioned puzzle text, revealed hint text and earned reward documents are
+reused in memory for up to five minutes, shared between puzzle pages and the
+dashboard. Concurrent reads of the same content share one request. Missing
+documents and errors are not cached. `Ctrl+Shift+R`, reloading, or leaving the
+team's app session clears this content cache. Progress, team/device validation,
+release metadata, configuration, hint transactions and final completion checks
+are not cached by this optimisation.
+
+Dashboard reloads reuse earned rewards rather than reading every solved reward
+again. Re-entering an already-claimed marker does not reload the dashboard.
+Convergence arrivals remain manual-refresh only, with overlapping requests
+deduplicated. Vault Hanoi cloud saves run at most once per minute while moves
+are pending; idle ticks perform no reads or writes. Every move remains saved in
+tab-local session storage immediately, and final submission drains all pending
+moves before checking the Vault. If that tab's storage is lost before cloud sync,
+up to one minute of unsynced moves can be lost.
+
+The login cap remains three browser/device identities per team. One active
+browser per team reduces duplicated activity, but multiple tabs in that browser
+can still issue separate reads; authentication alone does not deduplicate tabs.
 
 ### QR picture assets and puzzle IV content
 
@@ -186,8 +245,9 @@ Signed-in game pages display a centered glowing countdown to the next core-quest
 with a short caption. It follows effective release overrides, not a separate event-start countdown,
 and disappears when all six scheduled releases have passed. Scoring details remain in the organiser
 view, not player pages. Before any core question releases, signed-in players are redirected to a dark
-waiting screen with only the countdown and anticipatory text. That screen checks for manual releases
-every 15 seconds. The release gate covers every route for signed-in teams, including direct URL
+waiting screen with only the countdown and anticipatory text. That screen checks on initial load,
+at the stored release deadline, or on explicit refresh, not on a recurring poll.
+The release gate covers every route for signed-in teams, including direct URL
 navigation and unknown paths, except `/admin`, which retains its organiser authentication.
 Signed-out users can still reach login and organiser authentication.
 During the initial release-status check, the lantern-night backdrop appears without a

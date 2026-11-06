@@ -8,6 +8,7 @@ import {
 } from 'firebase/firestore';
 import type { EarnedFragment, FragmentMeta, FragmentState, PuzzleKind, PuzzleSummary, TeamProgress } from '../api/types';
 import { initializeSession } from './authService';
+import { readStableContent } from './stableContent';
 import { GameServicesUnavailableError, requireFirebaseServices } from './firebase';
 import { TeamLoginError } from './teamService';
 import { isScheduleLocked, puzzleHintLimit, puzzleRequirements, scoreCompletion, scoringStartAt } from './gameRules';
@@ -303,7 +304,7 @@ export async function getTeamProgress(teamDocId: string, teamNumber: number): Pr
       .filter((snapshot) => snapshot.get('status') === 'solved')
       .map((snapshot) => Number(snapshot.id));
     const rewards = await Promise.all(
-      solvedPuzzleIds.map((id) => getDoc(doc(teamRef, 'puzzleRewards', String(id)))),
+      solvedPuzzleIds.map((id) => readStableContent(doc(teamRef, 'puzzleRewards', String(id)))),
     );
 
     return toTeamProgress(
