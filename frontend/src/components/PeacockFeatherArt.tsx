@@ -1,9 +1,10 @@
 import { useId } from 'react';
 
-const BARBS = Array.from({ length: 26 }, (_, index) => {
-  const y = 54 + index * 9;
-  const width = 105 * Math.sqrt(Math.max(0, 1 - ((y - 162) / 130) ** 2));
-  const spine = 255 - (y - 54) * .12;
+const BARBS = Array.from({ length: 22 }, (_, index) => {
+  const y = 194 + index * 8;
+  const t = index / 21;
+  const spine = 273 - 34 * Math.sin(t * Math.PI) + 32 * t;
+  const width = 78 * (1 - t) + 10;
   return { y, width, spine };
 });
 
@@ -25,33 +26,48 @@ export function PeacockFeatherArt() {
           <stop offset="1" stopColor="#a16a2b" />
         </linearGradient>
         <g id={relief} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M199 392C220 343 229 290 235 244Q250 154 256 35
-            M204 385Q231 312 240 242Q254 144 258 39" strokeWidth="2" />
-          <path d="M256 35C203 42 154 85 145 139C133 198 172 261 228 291
-            M258 35C305 45 346 88 352 140C360 201 303 266 228 291"
-            strokeWidth=".85" opacity=".75" />
-          {BARBS.map(({ y, width, spine }, index) => <g key={index} strokeWidth=".85">
-            <path d={`M${spine} ${y + 39}Q${spine - width * .38} ${y + 19} ${spine - width} ${y}`} />
-            <path d={`M${spine + 2} ${y + 36}Q${spine + width * .55} ${y + 23} ${spine + width + 10} ${y - 3}`} />
-            <path d={`M${spine - width} ${y}q9 -5 17 -6M${spine + width + 10} ${y - 3}q-7 -7 -14 -8`}
-              strokeWidth=".45" opacity=".65" />
+          <path d="M312 402C254 369 234 308 250 254Q272 213 273 188
+            M309 398C257 361 241 308 255 256Q278 212 277 188" strokeWidth="1.5" />
+          {/* Separate swept vanes leave the eye open rather than crossing it. */}
+          <path d="M273 215C200 204 156 153 179 100Q198 60 194 28
+            M274 209C213 195 169 157 185 111Q204 64 200 37
+            M267 196C216 184 185 155 194 119Q214 77 207 48
+            M243 179C212 165 204 141 212 114Q225 82 216 59
+            M218 148Q219 109 227 91Q230 76 223 66
+            M277 217C309 178 327 145 311 106Q292 66 222 25
+            M281 204C309 164 317 144 302 109Q288 78 232 39
+            M286 182C303 151 304 132 291 108Q278 85 238 51
+            M288 150Q289 120 267 100Q250 84 243 67" strokeWidth="1.3" />
+          <path d="M273 210C315 188 338 154 330 116
+            M272 216C326 196 350 165 349 131
+            M272 224C323 214 355 187 362 151
+            M276 231C321 222 348 209 372 175
+            M267 218C213 218 177 201 155 166
+            M260 226C206 225 174 211 153 185
+            M255 233C208 236 178 224 161 210" strokeWidth=".7" />
+          {BARBS.map(({ y, width, spine }, index) => <g key={index}>
+            <path d={`M${spine} ${y + 24}C${spine - width * .3} ${y + 7} ${spine - width * .8} ${y + 14} ${spine - width} ${y - 20}
+              C${spine - width * .72} ${y + 11} ${spine - width * .25} ${y + 1} ${spine} ${y + 24}Z`}
+              fill="currentColor" strokeWidth=".55" />
+            <path d={`M${spine + 2} ${y + 22}C${spine + width * .15} ${y - 7} ${spine + width * .78} ${y - 13} ${spine + width * .65} ${y - 49}
+              C${spine + width * .94} ${y - 15} ${spine + width * .25} ${y + 1} ${spine + 2} ${y + 22}Z`}
+              fill="currentColor" strokeWidth=".55" />
           </g>)}
-          <path d="M251 75C220 83 195 109 194 140C192 178 215 208 244 214
-            C276 210 303 182 303 145C303 109 279 82 251 75Z" strokeWidth="1.5" />
-          <path d="M250 91C224 99 209 120 210 144C211 173 226 193 245 198
-            C269 193 286 172 286 146C287 119 272 99 250 91Z" strokeWidth="1.1" />
-          <path d="M249 113C231 121 223 137 225 153C227 173 238 181 246 183
-            C262 177 274 162 272 145C271 130 261 119 249 113Z" strokeWidth="1.7" />
-          <path d="M248 132C238 137 236 151 241 158C248 167 259 155 258 146
-            Q257 137 248 132Z" strokeWidth="1.2" />
-          <path d="M245 140Q242 147 247 152" strokeWidth=".65" />
+          <path d="M251 101C221 107 207 130 215 156C225 186 251 195 273 179
+            C294 163 293 132 277 115Q265 105 251 101Z" strokeWidth="1.7" />
+          <path d="M250 113C229 116 219 134 227 154C234 176 251 183 267 169
+            Q286 150 272 127Q265 117 250 113Z" strokeWidth=".8" />
+          <path d="M247 127C236 131 231 142 238 154C245 167 261 159 270 147
+            Q281 133 262 128Q254 125 247 127Z" strokeWidth="1.6" />
+          <path d="M248 133Q237 145 247 156Q258 153 261 138
+            M250 131Q251 146 245 151M242 138Q254 133 267 138" strokeWidth=".75" />
         </g>
       </defs>
-      <g transform="rotate(12 260 220)">
-        <use href={`#${relief}`} stroke="#180f06" strokeWidth="3.8" transform="translate(2 3)" opacity=".9" />
-        <use href={`#${relief}`} stroke="#8c571d" transform="translate(.8 1.2)" />
-        <use href={`#${relief}`} stroke={`url(#${gold})`} />
-        <use href={`#${relief}`} stroke="#fff4d0" transform="translate(-.4 -.6)" opacity=".35" />
+      <g transform="rotate(-12 260 220)">
+        <use href={`#${relief}`} stroke="#180f06" color="#180f06" transform="translate(1.5 2)" opacity=".8" />
+        <use href={`#${relief}`} stroke="#8c571d" color="#8c571d" transform="translate(.6 .9)" />
+        <use href={`#${relief}`} stroke={`url(#${gold})`} color="#dfb565" />
+        <use href={`#${relief}`} stroke="#fff4d0" color="#fff4d0" transform="translate(-.3 -.4)" opacity=".2" />
       </g>
     </svg>
   </div>;
