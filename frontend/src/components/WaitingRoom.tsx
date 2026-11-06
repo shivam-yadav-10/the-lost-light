@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTeam } from '../store/team';
 import { FloatingLanterns } from './FloatingLanterns';
-import { KrishnaCounterArt } from './KrishnaCounterArt';
+import { PeacockFeatherArt } from './PeacockFeatherArt';
 
 export function WaitingRoom({ children }: { children: ReactNode }) {
   const { signOut } = useTeam();
@@ -33,7 +33,7 @@ export function WaitingRoom({ children }: { children: ReactNode }) {
       Log out
     </button>
     <div className="waiting-content">
-      <KrishnaCounterArt />
+      <PeacockFeatherArt />
       {children}
     </div>
   </main>;

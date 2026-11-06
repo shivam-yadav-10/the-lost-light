@@ -539,35 +539,35 @@ h3,
   background: #02080c;
 }
 .waiting-content { width: 100%; max-width: 56rem; text-align: center; }
-.krishna-counter-art {
+.feather-counter-art {
   position: relative;
   isolation: isolate;
   width: min(88vw, 31rem);
   margin: -2rem auto -1.5rem;
   pointer-events: none;
 }
-.krishna-counter-aura {
+.feather-counter-aura {
   position: absolute;
   inset: 8% 4% 0;
   z-index: -1;
   border-radius: 50%;
   background: radial-gradient(ellipse, #e9ad4224 0%, #bc792b12 35%, transparent 68%);
-  animation: krishna-glow-breathe 8s ease-in-out infinite;
+  animation: feather-glow-breathe 8s ease-in-out infinite;
 }
-.krishna-counter-relief {
+.feather-counter-relief {
   display: block;
   width: 100%;
   height: auto;
   overflow: visible;
   filter: drop-shadow(0 0 3px #ffcf7266) drop-shadow(0 0 17px #d9993633);
   transform-origin: 50% 65%;
-  animation: krishna-relief-breathe 8s ease-in-out infinite;
+  animation: feather-relief-breathe 8s ease-in-out infinite;
 }
-@keyframes krishna-relief-breathe {
+@keyframes feather-relief-breathe {
   0%, 100% { transform: translateY(0) scale(1); }
   50% { transform: translateY(-5px) scale(1.018); }
 }
-@keyframes krishna-glow-breathe {
+@keyframes feather-glow-breathe {
   0%, 100% { opacity: .55; transform: scale(.96); }
   50% { opacity: 1; transform: scale(1.08); }
 }
@@ -867,7 +867,7 @@ h3,
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .krishna-counter-relief, .krishna-counter-aura { animation: none !important; }
+  .feather-counter-relief, .feather-counter-aura { animation: none !important; }
   .vault-entrance *, .vault-challenge { animation-delay: 0s !important; }
   .finale-entrance *, .finale-entrance::before { animation-delay: 0s !important; }
   .finale-entrance::before, .finale-fireworks { display: none; }
