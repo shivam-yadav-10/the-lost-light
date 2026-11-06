@@ -111,11 +111,6 @@ so stale progress or a failed completion write cannot immediately reopen the sto
   lantern-night waiting view appears only after progress confirms no question
   has been released. Reloading a playable dashboard or puzzle never uses the
   waiting backdrop as a loading placeholder. Reduced-motion preferences are respected.
-- The full-screen pre-release countdown includes a single peacock feather in
-  flowing, tapered gold-relief linework, an open ornamental eye, and a curved
-  quill with a soft breathing glow. The artwork uses inline
-  SVG and CSS, with no image downloads or 3D runtime; reduced-motion users see a
-  still feather. Dashboard release timers retain their existing layout.
 
 ### QR picture assets and puzzle IV content
 
