@@ -42,3 +42,25 @@ test('each tab clears its legacy session queue even if another tab already reset
   assert.equal(tab.getItem('lostlight.hanoi.team'), null);
   assert.equal(local.getItem('lostlight.session'), 'new team');
 });
+
+test('event-ready run clears the previous event login, intro drafts, piano-era release cache and tower queue', () => {
+  const previousRun = 'production-event-2026-11-10-1300-ist';
+  const local = storage({
+    'lostlight.run': previousRun, 'lostlight.session': 'old device',
+    'lostlight.riddles.TEAM-001': 'old answers', 'lostlight.introLastSeen': 'old intro',
+    unrelated: 'keep',
+  });
+  const tab = storage({
+    'lostlight.run': previousRun, 'lostlight.hanoi.TEAM-001': 'old moves',
+    [`lostlight.release.${previousRun}.TEAM-001`]: 'old release',
+  });
+  resetPreviousRunStorage(local, tab);
+  assert.equal(local.getItem('lostlight.session'), null);
+  assert.equal(local.getItem('lostlight.introLastSeen'), null);
+  assert.equal(local.getItem('lostlight.riddles.TEAM-001'), null);
+  assert.equal(tab.getItem('lostlight.hanoi.TEAM-001'), null);
+  assert.equal(tab.getItem(`lostlight.release.${previousRun}.TEAM-001`), null);
+  assert.equal(local.getItem('unrelated'), 'keep');
+  assert.equal(local.getItem('lostlight.run'), GAMEPLAY_RUN);
+  assert.equal(tab.getItem('lostlight.run'), GAMEPLAY_RUN);
+});

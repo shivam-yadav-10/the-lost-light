@@ -128,6 +128,12 @@ progress to production; use a separate test project for isolated playtesting.
 
 ### Low-read refresh behaviour
 
+The event-ready reset uses gameplay run
+`production-event-2026-11-10-1300-ist-fresh-2026-11-07`. Loading this build clears
+older game login/draft storage in each browser tab; team keys and puzzle
+assignments are preserved in Firestore. Players must sign in again and see the
+intro afresh. The organiser view displays dates and times in Asia/Kolkata.
+
 The waiting room and organiser view no longer poll at fixed intervals.
 Team progress loads once when the app opens. The next release timestamp is saved
 in tab-scoped `sessionStorage` under the team ID and gameplay run; countdown ticks

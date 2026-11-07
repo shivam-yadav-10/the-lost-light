@@ -6,7 +6,7 @@ import { isAbsolute, relative, resolve, sep } from 'node:path';
 const args = process.argv.slice(2);
 const event = args.includes('--event');
 const START = event ? '2026-11-10T07:30:00.000Z' : '2026-11-05T06:30:00.000Z';
-const RUN = event ? 'production-event-2026-11-10-1300-ist' : 'production-test-2026-11-05-noon-ist';
+const RUN = event ? 'production-event-2026-11-10-1300-ist-fresh-2026-11-07' : 'production-test-2026-11-05-noon-ist';
 const apply = args.includes('--apply');
 const backupIndex = args.indexOf('--backup');
 const backupPath = backupIndex >= 0 ? args[backupIndex + 1] : undefined;
