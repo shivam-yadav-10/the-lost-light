@@ -204,8 +204,29 @@ same content share one request. Missing documents and errors are not cached.
 Submission transactions always read
 current team/device/run identity, puzzle release metadata, live configuration,
 prerequisites and answer/proof data. Hint transactions still enforce the shared
-12-hint allowance and per-question cap atomically. Mutable progress, live configuration
+12-hint allowance and per-question cap atomically. A run-scoped `teams/{id}.hintUsage`
+map holds all eight question counts. Each purchase updates that map and the current
+question's progress in the same transaction, so simultaneous purchases on different
+devices conflict and retry without scanning unrelated questions. Missing maps are
+initialised once from all eight progress records; invalid or inconsistent maps fail
+explicitly instead of resetting the allowance. Mutable progress, live configuration
 and final completion checks are not served from the content cache.
+
+With a migrated counter, a first-hint purchase uses 6 logical document reads for Q1,
+7 for Q2–Q5 and Q7–Q8, or 11 for Q6 (which still validates five prerequisites),
+including one committed-progress confirmation. Previously each used 13. Up to two
+uncached previously revealed hints and transaction retries can add reads. Each
+purchase now writes two documents instead of one; hint limits and penalties are unchanged.
+
+Before rolling this out, **close all old player tabs**: older builds do not maintain
+the counter. Firestore rules remain unchanged and do not reject those outdated clients.
+Using external Admin credentials, run `backend/src/scripts/migrate-hint-usage.ts`
+with the backend's `tsx` runner and `--run <current-progressRunId>` for a read-only
+preview. Add `--apply --backup <absolute-path-outside-repository.json>` to initialise
+the 12 final teams from their actual saved hint usage. The migration rejects mismatched
+runs, invalid counts and concurrent progress changes, and verifies that only the
+counter was added. It does not reset gameplay, schedules, content or browser bindings.
+`reset-production-test.ts` resets the counter with progress on future explicit resets.
 
 Dashboard reloads reuse earned rewards rather than reading every solved reward
 again. Re-entering an already-claimed marker does not reload the dashboard.

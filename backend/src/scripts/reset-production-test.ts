@@ -81,6 +81,7 @@ try {
         introSeenAt: FieldValue.delete(),
         lastSeenAt: FieldValue.delete(),
         progressRunId: RUN,
+        hintUsage: { runId: RUN, counts: Object.fromEntries(Array.from({ length: 8 }, (_, index) => [String(index + 1), 0])) },
       });
     }
     batch.update(configRef, {
@@ -115,11 +116,18 @@ try {
       delete expected.introSeenAt;
       delete expected.lastSeenAt;
       delete expected.progressRunId;
+      delete expected.hintUsage;
       const actual = { ...current.data() };
       delete actual.assignedUids;
       delete actual.introSeenAt;
       delete actual.lastSeenAt;
       delete actual.progressRunId;
+      delete actual.hintUsage;
+      const usage = current.get('hintUsage');
+      if (usage?.runId !== RUN || Object.keys(usage.counts ?? {}).length !== 8
+        || Array.from({ length: 8 }, (_, index) => usage.counts[String(index + 1)]).some((count) => count !== 0)) {
+        throw new Error(`Team hint reset verification failed: ${team.id}`);
+      }
       if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error(`Team identity changed: ${team.id}`);
     }
     for (const [path, original] of preserved) {

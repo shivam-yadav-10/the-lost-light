@@ -26,7 +26,8 @@ function fixture(id = 1) {
   let conflict = null;
   const data = new Map([
     [`teams/${team}`, { teamNumber: 1, teamName: 'Fixture', active: true, assignedUids: ['device'],
-      progressRunId: GAMEPLAY_RUN, errandGroup: 'A', riddleSet: 'V1' }],
+      progressRunId: GAMEPLAY_RUN, errandGroup: 'A', riddleSet: 'V1',
+      hintUsage: { runId: GAMEPLAY_RUN, counts: Object.fromEntries(rules.PUZZLE_IDS.map((id) => [String(id), 0])) } }],
     ['gameConfig/main', { lightMessages: { partial: 'The circle awaits.' } }],
     [`privateTeamData/${team}`, { lanternKey: '123456' }],
   ]);
@@ -347,30 +348,97 @@ test('hint transactions reuse prerequisite reads, update penalties locally and r
   f.reads.length = 0;
   const hint = await f.api.hint(3, f.team);
   const validation = f.reads.filter((read) => read.type === 'transaction');
-  assert.equal(validation.length, 12, 'team + metadata + config + eight progress + next hint');
-  assert.equal(new Set(validation.map((read) => read.path)).size, 12);
-  assert.equal(f.reads.length, 13, 'only the committed progress document is reread');
+  assert.equal(validation.length, 6, 'team + metadata + config + predecessor + own progress + next hint');
+  assert.equal(new Set(validation.map((read) => read.path)).size, 6);
+  assert.equal(f.reads.length, 7, 'only the committed progress document is reread');
   assert.deepEqual([...hint.hints], ['Hint 1']);
   const projected = f.progress.projectTeamProgress(f.team, f.updates[0]);
   assert.equal(projected.totalHintsUsed, 1);
   assert.equal(projected.penaltyMinutes, 5);
   f.data.set(f.path, { ...f.data.get(f.path), hintsUsed: 3 });
+  f.data.get(`teams/${f.team}`).hintUsage.counts['3'] = 3;
   await assert.rejects(f.api.hint(3, f.team), /No whispers|No hints|hints remain|whispers remain/i);
   f.data.set(f.path, { ...f.data.get(f.path), hintsUsed: 0 });
-  for (let id = 4; id <= 7; id++) f.data.set(`teams/${f.team}/progress/${id}`, { status: 'in_progress', hintsUsed: 3 });
+  f.data.get(`teams/${f.team}`).hintUsage.counts['3'] = 0;
+  for (let id = 4; id <= 7; id++) {
+    f.data.set(`teams/${f.team}/progress/${id}`, { status: 'in_progress', hintsUsed: 3 });
+    f.data.get(`teams/${f.team}`).hintUsage.counts[String(id)] = 3;
+  }
   await assert.rejects(f.api.hint(3, f.team), /12|whispers|hints/i);
-  assert.equal(f.writes.length, 1);
+  assert.equal(f.writes.length, 2);
 });
 
 test('hint allowance sync does not require rereading unseen rewards from another device', async () => {
   const f = fixture(3);
   await f.progress.getTeamProgress(f.team, 1);
   f.data.set(`teams/${f.team}/progress/4`, { status: 'solved', hintsUsed: 1, solvedAt: new f.Timestamp() });
+  f.data.get(`teams/${f.team}`).hintUsage.counts['4'] = 1;
   await f.api.hint(3, f.team);
   const projected = f.progress.projectTeamProgress(f.team, f.updates[0]);
   assert.equal(projected.totalHintsUsed, 2);
   assert.notEqual(projected.puzzles[3].state, 'SOLVED', 'other-device solutions require explicit refresh');
   assert.equal(projected.coreSolved, 2);
+});
+
+for (const [id, count] of [[1, 5], [2, 6], [3, 6], [4, 6], [5, 6], [6, 10], [7, 6], [8, 6]]) {
+  test(`question ${id} hint reads only its counter, own progress and required prerequisites`, async () => {
+    const f = fixture(id);
+    await f.api.hint(id, f.team);
+    const validation = f.reads.filter((read) => read.type === 'transaction');
+    assert.equal(validation.length, count);
+    assert.equal(f.reads.length, count + 1);
+    assert.equal(new Set(validation.map((read) => read.path)).size, count);
+    assert.equal(f.data.get(`teams/${f.team}`).hintUsage.counts[String(id)], 1);
+    assert.equal(f.data.get(f.path).hintsUsed, 1);
+  });
+}
+
+test('missing counters initialise once from actual progress, preserving used hints', async () => {
+  const f = fixture(3);
+  delete f.data.get(`teams/${f.team}`).hintUsage;
+  f.data.set(`teams/${f.team}/progress/4`, { status: 'in_progress', hintsUsed: 2 });
+  const first = await f.api.hint(3, f.team);
+  assert.equal(first.teamHintsUsed, 3);
+  assert.equal(f.reads.filter((read) => read.type === 'transaction').length, 12);
+  assert.equal(f.data.get(`teams/${f.team}`).hintUsage.counts['4'], 2);
+  f.reads.length = 0;
+  const second = await f.api.hint(3, f.team);
+  assert.equal(second.teamHintsUsed, 4);
+  assert.equal(f.reads.filter((read) => read.type === 'transaction').length, 6);
+});
+
+test('concurrent purchases on different questions retry against the shared counter and cannot exceed twelve', async () => {
+  const f = fixture(3);
+  const counts = f.data.get(`teams/${f.team}`).hintUsage.counts;
+  for (const [id, used] of [[4, 3], [5, 3], [6, 3], [7, 2]]) counts[String(id)] = used;
+  f.conflict(() => { counts['7'] = 3; });
+  await assert.rejects(f.api.hint(3, f.team), /all 12/);
+  assert.equal(f.writes.length, 0);
+});
+
+test('concurrent purchases on the same question return the next hint after retry without losing usage', async () => {
+  const f = fixture(3);
+  f.conflict(() => {
+    f.data.set(f.path, { ...f.data.get(f.path), hintsUsed: 1 });
+    f.data.get(`teams/${f.team}`).hintUsage.counts['3'] = 1;
+  });
+  const result = await f.api.hint(3, f.team);
+  assert.equal(result.hintsUsed, 2);
+  assert.deepEqual([...result.hints], ['Hint 1', 'Hint 2']);
+  assert.equal(f.data.get(`teams/${f.team}`).hintUsage.counts['3'], 2);
+});
+
+test('missing hints and mismatched counters never consume the allowance', async () => {
+  for (const edit of [
+    (f) => f.data.delete(`teams/${f.team}/puzzleHints/3_1`),
+    (f) => { f.data.get(`teams/${f.team}`).hintUsage.counts['3'] = 1; },
+    (f) => { f.data.get(`teams/${f.team}`).hintUsage.runId = 'old-run'; },
+  ]) {
+    const f = fixture(3);
+    edit(f);
+    await assert.rejects(f.api.hint(3, f.team));
+    assert.equal(f.writes.length, 0);
+  }
 });
 
 test('marker, intro and fragment updates reuse the existing projection without reads; malformed updates fail explicitly', async () => {

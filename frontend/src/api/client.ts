@@ -26,6 +26,7 @@ import {
   CORE_QUESTION_SCHEDULE,
   scoringStartAt,
   hintCount,
+  parseHintUsage,
   isScheduleLocked,
   PUZZLE_IDS,
   puzzleHintLimit,
@@ -533,35 +534,47 @@ export const api = {
   },
 
   hint: async (id: number, teamDocId: string): Promise<HintResult> => {
-    if (!Number.isInteger(id) || id < 1 || !teamDocId.trim()) throw new ApiError(400, 'Invalid puzzle.');
+    if (!Number.isInteger(id) || id < 1 || id > PUZZLE_IDS.length || !teamDocId.trim()) throw new ApiError(400, 'Invalid puzzle.');
     try {
       const { firestore } = requireFirebaseServices();
       const user = await initializeSession();
       const teamRef = doc(firestore, 'teams', teamDocId);
       const progressRef = puzzleReference(teamDocId, id);
       const result = await runTransaction(firestore, async (transaction) => {
-        // Reading every progress record makes concurrent hints on different questions conflict and retry.
         const read = transactionReader(transaction);
         const [teamSnapshot, metadataSnapshot] = await Promise.all([
           read(teamRef), read(doc(firestore, 'puzzles', String(id))),
         ]);
-        validateTeam(asRecord(teamSnapshot.data()), user.uid);
+        const team = asRecord(teamSnapshot.data());
+        validateTeam(team, user.uid);
         if (!metadataSnapshot.exists()) throw new ApiError(404, 'Puzzle not found.');
         const metadata = asRecord(metadataSnapshot.data());
         if (!(await isPuzzleOpen(firestore, teamRef, id, metadata, read))) {
           throw new ApiError(423, 'This fragment is still hidden or no hints remain.');
         }
         const maxHints = puzzleHintLimit(metadata.maxHints);
-        const snapshots = await Promise.all(PUZZLE_IDS.map((puzzleId) =>
-          read(puzzleReference(teamDocId, puzzleId)),
-        ));
-        const progressSnapshot = snapshots.find((snapshot) => snapshot.id === String(id));
-        if (!progressSnapshot) throw new ApiError(400, 'Invalid puzzle.');
+        const progressSnapshot = await read(progressRef);
         const progress = progressSnapshot.exists() ? progressSnapshot.data() : {};
         if (progress.status === 'solved') throw new ApiError(409, 'This fragment has already been solved.');
         if (id === 3 && !pianoUnlocked(progress)) throw new ApiError(423, 'Replay your team’s melody before requesting Question III hints.');
         const used = hintCount(progress.hintsUsed);
-        const teamHintsUsed = snapshots.reduce((sum, snapshot) => sum + hintCount(snapshot.data()?.hintsUsed), 0);
+        let usage: ReturnType<typeof parseHintUsage>;
+        if (team.hintUsage === undefined) {
+          console.warn('Initialising team hint usage from saved progress.');
+          const snapshots = await Promise.all(PUZZLE_IDS.map((puzzleId) =>
+            read(puzzleReference(teamDocId, puzzleId)),
+          ));
+          usage = parseHintUsage({
+            runId: GAMEPLAY_RUN,
+            counts: Object.fromEntries(snapshots.map((snapshot) => [snapshot.id, hintCount(snapshot.data()?.hintsUsed)])),
+          }, GAMEPLAY_RUN);
+        } else {
+          usage = parseHintUsage(team.hintUsage, GAMEPLAY_RUN);
+        }
+        if (usage.counts[String(id)] !== used) {
+          throw new ApiError(503, 'Saved hint usage is out of sync. Refresh and contact an organiser.');
+        }
+        const teamHintsUsed = Object.values(usage.counts).reduce((sum, count) => sum + count, 0);
         try {
           assertHintAvailable(used, teamHintsUsed, maxHints);
         } catch (error) {
@@ -581,11 +594,14 @@ export const api = {
           startedAt: progress.startedAt ?? now,
           solvedAt: null,
         }, { merge: true });
+        transaction.set(teamRef, {
+          hintUsage: { runId: GAMEPLAY_RUN, counts: { ...usage.counts, [String(id)]: nextCount } },
+        }, { merge: true });
         return {
           hintsUsed: nextCount, teamHintsUsed: teamHintsUsed + 1,
           text, metadata, maxHints, config,
-          hintCounts: snapshots.filter((snapshot) => snapshot.id !== String(id))
-            .map((snapshot) => ({ id: Number(snapshot.id), hintsUsed: hintCount(snapshot.data()?.hintsUsed) })),
+          hintCounts: PUZZLE_IDS.filter((puzzleId) => puzzleId !== id)
+            .map((puzzleId) => ({ id: puzzleId, hintsUsed: usage.counts[String(puzzleId)] })),
         };
       });
       const saved = await getDoc(progressRef);

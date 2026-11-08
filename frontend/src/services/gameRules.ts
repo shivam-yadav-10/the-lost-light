@@ -110,6 +110,33 @@ export function hintCount(value: unknown): number {
   return value;
 }
 
+export interface HintUsage {
+  runId: string;
+  counts: Record<string, number>;
+}
+
+export function parseHintUsage(value: unknown, runId: string): HintUsage {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('Saved team hint usage is incomplete. Refresh and contact an organiser.');
+  }
+  const record = value as Record<string, unknown>;
+  if (record.runId !== runId || !record.counts || typeof record.counts !== 'object' || Array.isArray(record.counts)) {
+    throw new Error('Saved team hint usage does not match this game. Refresh and contact an organiser.');
+  }
+  const counts = record.counts as Record<string, unknown>;
+  if (Object.keys(counts).length !== PUZZLE_IDS.length) throw new Error('Saved team hint usage is invalid.');
+  const parsed = Object.fromEntries(PUZZLE_IDS.map((id) => {
+    if (!(String(id) in counts)) throw new Error('Saved team hint usage is invalid.');
+    const count = hintCount(counts[String(id)]);
+    if (counts[String(id)] == null || count > MAX_PUZZLE_HINTS) throw new Error('Saved team hint usage is invalid.');
+    return [String(id), count];
+  }));
+  if (Object.values(parsed).reduce((sum, count) => sum + count, 0) > MAX_TEAM_HINTS) {
+    throw new Error('Saved team hint usage exceeds the team allowance.');
+  }
+  return { runId, counts: parsed };
+}
+
 /** Returns the question limit without exceeding its provisioned hint content. */
 export function puzzleHintLimit(value: unknown): number {
   if (value == null) throw new Error('Puzzle hint metadata is incomplete.');

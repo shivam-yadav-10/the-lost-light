@@ -7,6 +7,7 @@ import {
   formatDuration,
   isScheduleLocked,
   hintCount,
+  parseHintUsage,
   MAX_TEAM_HINTS,
   PUZZLE_IDS,
   puzzleHintLimit,
@@ -116,6 +117,20 @@ test('the twelfth team hint is allowed but the thirteenth is rejected', () => {
   assert.doesNotThrow(() => assertHintAvailable(0, 11, 3));
   assert.throws(() => assertHintAvailable(0, 12, 3), /all 12 hints/);
   assert.throws(() => assertHintAvailable(0, 15, 3), /all 12 hints/);
+});
+
+test('team hint counters require all eight valid counts and the current run', () => {
+  const usage = { runId: 'run', counts: Object.fromEntries(PUZZLE_IDS.map((id) => [String(id), 0])) };
+  assert.deepEqual(parseHintUsage(usage, 'run'), usage);
+  for (const invalid of [
+    null, { ...usage, runId: 'old' }, { ...usage, counts: [] },
+    { ...usage, counts: { ...usage.counts, 9: 0 } },
+    { ...usage, counts: { ...usage.counts, 1: undefined } },
+    { ...usage, counts: { ...usage.counts, 1: 4 } },
+    { ...usage, counts: { ...usage.counts, 1: -1 } },
+    { ...usage, counts: { ...usage.counts, 1: '1' } },
+    { ...usage, counts: Object.fromEntries(PUZZLE_IDS.map((id) => [String(id), 3])) },
+  ]) assert.throws(() => parseHintUsage(invalid, 'run'));
 });
 
 test('the third question hint is allowed but a fourth is rejected', () => {
