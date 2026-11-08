@@ -392,7 +392,7 @@ export async function getTeamProgress(teamDocId: string, teamNumber: number): Pr
     }
 
     const [puzzles, progress, visits, config] = await Promise.all([
-      Promise.all(Array.from({ length: 8 }, (_, index) => readStableContent(doc(firestore, 'puzzles', String(index + 1))))),
+      Promise.all(Array.from({ length: 8 }, (_, index) => readStableContent(doc(firestore, 'puzzles', String(index + 1)), teamDocId))),
       getDocs(collection(teamRef, 'progress')),
       getDocs(collection(teamRef, 'checkpointVisits')),
       getDoc(doc(firestore, 'gameConfig', 'main')),

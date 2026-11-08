@@ -169,7 +169,7 @@ team identity, schedule configuration and checkpoints are reused in memory.
 It does not detect schedule changes, removed devices, event resets or new checkpoint
 visits from another device; use `Ctrl+Shift+R` for a full data refresh.
 Answer and hint submissions still validate current Firebase state. F5 / Ctrl+R remains
-a normal browser reload. No persistent dashboard or login-validation cache is added.
+a normal browser reload. No mutable dashboard or login-validation cache is added.
 
 Puzzle page displays reuse the current signed-in session's team record, progress,
 public puzzle metadata and effective release state. They fetch only missing content,
@@ -187,11 +187,21 @@ Convergence seal verification returns the confirmed partner card and clue direct
 so accepting a seal no longer reloads the entire circle. **Refresh arrivals** remains
 a deliberate fresh partner-state read, without polling.
 
-Public puzzle metadata, provisioned puzzle text, revealed hint text and earned reward documents are
-reused in memory for up to five minutes, shared between puzzle pages and the
-dashboard. Concurrent reads of the same content share one request. Missing
-documents and errors are not cached. `Ctrl+Shift+R`, reloading, or leaving the
-team's app session clears this content cache. Submission transactions always read
+Public puzzle metadata and earned reward documents also persist in this tab's
+`sessionStorage`, isolated by Firebase project, gameplay run and team. Normal
+Ctrl+R / F5 / reload restores those documents without fetching them again.
+They remain cached until the tab closes, sign-in/sign-out, an event-run change,
+or `Ctrl+Shift+R`, which clears both caches and fetches fresh data. Cached timestamps
+are restored as Firestore timestamps so release calculations stay consistent.
+Corrupt or unavailable storage logs a warning and falls back to Firebase.
+Team/device validation, progress, checkpoints and live configuration are still
+fetched on normal reload; only stable content is persisted. Content corrections
+require `Ctrl+Shift+R` in already-open tabs.
+
+Provisioned puzzle text and revealed hint text remain memory-only for up to five
+minutes, shared between puzzle pages and the dashboard. Concurrent reads of the
+same content share one request. Missing documents and errors are not cached.
+Submission transactions always read
 current team/device/run identity, puzzle release metadata, live configuration,
 prerequisites and answer/proof data. Hint transactions still enforce the shared
 12-hint allowance and per-question cap atomically. Mutable progress, live configuration
@@ -213,6 +223,10 @@ answers, credentials or remote telemetry are recorded. These are logical SDK ope
 not billable-read totals or Fetch/XHR counts: queries can return many documents,
 transaction retries can add reads, and Firestore transport requests include setup
 and target removal. The counter API is absent from production builds.
+
+The separate organiser Firebase app/Auth initializes only when an admin operation
+needs it, not when a player opens or reloads the game. Player Auth persistence
+and its account-validation requests are unchanged; these do not use Firestore read quota.
 
 The login cap remains three browser/device identities per team. One active
 browser per team reduces duplicated activity, but multiple tabs in that browser

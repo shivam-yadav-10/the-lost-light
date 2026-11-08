@@ -303,7 +303,7 @@ async function loadPuzzleDetail(teamDocId: string, teamNumber: number, puzzleId:
   const contentRef = doc(firestore, 'teamPuzzleContent', `${teamDocId}_${puzzleId}`);
   const cached = cachedPuzzleState(teamDocId, puzzleId);
   const [metadataSnapshot, teamSnapshot, progressSnapshot, contentSnapshot] = await Promise.all([
-    cached ? null : readStableContent(doc(firestore, 'puzzles', String(puzzleId))),
+    cached ? null : readStableContent(doc(firestore, 'puzzles', String(puzzleId)), teamDocId),
     cached ? null : getDoc(teamRef),
     cached ? null : getDoc(progressRef),
     readStableContent(contentRef),
@@ -641,7 +641,7 @@ export const api = {
       const teamRef = doc(firestore, 'teams', teamDocId);
       const cached = cachedPuzzleState(teamDocId, 7);
       const [metadata, progress, teamData, verified] = await Promise.all([
-        cached ? null : readStableContent(doc(firestore, 'puzzles', '7')),
+        cached ? null : readStableContent(doc(firestore, 'puzzles', '7'), teamDocId),
         cached ? null : getDoc(doc(teamRef, 'progress', '7')),
         getDoc(doc(firestore, 'teamGameData', teamDocId)),
         getDocs(collection(teamRef, 'convergenceSeals')),

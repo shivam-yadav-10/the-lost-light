@@ -78,9 +78,7 @@ function initializeAdminFirebase(): { auth: Auth; firestore: Firestore } | null 
   }
 }
 
-const adminFirebaseRuntime = initializeAdminFirebase();
-export const adminFirebaseAuth = adminFirebaseRuntime?.auth ?? null;
-export const adminFirestore = adminFirebaseRuntime?.firestore ?? null;
+let adminFirebaseRuntime: { auth: Auth; firestore: Firestore } | null = null;
 
 export function requireFirebaseServices(): { auth: Auth; firestore: Firestore } {
   if (!firebaseAuth || !firestore) throw new GameServicesUnavailableError();
@@ -88,6 +86,7 @@ export function requireFirebaseServices(): { auth: Auth; firestore: Firestore } 
 }
 
 export function requireAdminFirebaseServices(): { auth: Auth; firestore: Firestore } {
-  if (!adminFirebaseAuth || !adminFirestore) throw new GameServicesUnavailableError();
-  return { auth: adminFirebaseAuth, firestore: adminFirestore };
+  adminFirebaseRuntime ??= initializeAdminFirebase();
+  if (!adminFirebaseRuntime) throw new GameServicesUnavailableError();
+  return adminFirebaseRuntime;
 }

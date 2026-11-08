@@ -1,19 +1,27 @@
-import { type DocumentData, type DocumentReference, type DocumentSnapshot, type Firestore } from 'firebase/firestore';
+import { type DocumentData, type DocumentReference, type Firestore } from 'firebase/firestore';
 import { readDocument } from './firestoreReads';
+import { clearSessionContent, loadSessionContent, saveSessionContent } from './sessionContent';
 
 const CONTENT_TTL_MS = 5 * 60_000;
 interface Entry {
   expiresAt: number;
-  pending: Promise<DocumentSnapshot<DocumentData>>;
+  pending: Promise<ContentSnapshot>;
+}
+export interface ContentSnapshot {
+  id: string;
+  exists: () => boolean;
+  data: () => DocumentData | undefined;
+  get: (field: string) => unknown;
 }
 let caches = new WeakMap<Firestore, Map<string, Entry>>();
 
-export function clearStableContent() {
+export function clearStableContent(clearSession = true) {
   caches = new WeakMap();
+  if (clearSession) clearSessionContent();
 }
 
 /** Provisioned content and public metadata only; actions validate live state separately. */
-export function readStableContent(reference: DocumentReference<DocumentData>): Promise<DocumentSnapshot<DocumentData>> {
+export function readStableContent(reference: DocumentReference<DocumentData>, teamDocId?: string): Promise<ContentSnapshot> {
   if (!/^teamPuzzleContent\/[^/]+$/.test(reference.path)
     && !/^teams\/[^/]+\/puzzle(?:Hints|Rewards)\/[^/]+$/.test(reference.path)
     && !/^puzzles\/[1-8]$/.test(reference.path)) {
@@ -21,21 +29,35 @@ export function readStableContent(reference: DocumentReference<DocumentData>): P
   }
   let cache = caches.get(reference.firestore);
   if (!cache) { cache = new Map(); caches.set(reference.firestore, cache); }
-  const existing = cache.get(reference.path);
+  const key = JSON.stringify([teamDocId ?? '', reference.path]);
+  const existing = cache.get(key);
   if (existing && existing.expiresAt > Date.now()) return existing.pending;
+  const restored = loadSessionContent(reference, teamDocId);
+  if (restored) {
+    const pending = Promise.resolve({
+      id: reference.id, exists: () => true, data: () => restored, get: (field: string) => restored[field],
+    });
+    cache.set(key, { expiresAt: Date.now() + CONTENT_TTL_MS, pending });
+    return pending;
+  }
   const entries = cache;
   const entry: Entry = {
     expiresAt: Infinity,
     pending: readDocument(reference).then((snapshot) => {
       if (!snapshot.exists()) {
-        if (entries.get(reference.path) === entry) entries.delete(reference.path);
-      } else entry.expiresAt = Date.now() + CONTENT_TTL_MS;
+        if (entries.get(key) === entry) entries.delete(key);
+      } else {
+        entry.expiresAt = Date.now() + CONTENT_TTL_MS;
+        if (caches.get(reference.firestore) === entries && entries.get(key) === entry) {
+          saveSessionContent(reference, snapshot.data(), teamDocId);
+        }
+      }
       return snapshot;
     }).catch((error: unknown) => {
-      if (entries.get(reference.path) === entry) entries.delete(reference.path);
+      if (entries.get(key) === entry) entries.delete(key);
       throw error;
     }),
   };
-  entries.set(reference.path, entry);
+  entries.set(key, entry);
   return entry.pending;
 }

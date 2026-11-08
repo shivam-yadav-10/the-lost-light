@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
-import { resetPreviousRunStorage } from '../services/gameplayRun';
+import { resetPreviousRunStorage, clearSessionContent } from '../services/gameplayRun';
 
 const STORAGE_KEY = 'lostlight.session';
 
@@ -46,11 +46,13 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(readStored);
 
   const signIn = useCallback((next: Session) => {
+    clearSessionContent();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     setSession(next);
   }, []);
 
   const signOut = useCallback(() => {
+    clearSessionContent();
     localStorage.removeItem(STORAGE_KEY);
     setSession(null);
   }, []);

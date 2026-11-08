@@ -80,7 +80,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     window.addEventListener('lostlight:progress-updated', refreshAfterUpdate);
     return () => {
       removeShortcut();
-      clearStableContent();
+      clearStableContent(false);
       if (teamDocId) clearProgressModel(teamDocId);
       window.removeEventListener('lostlight:progress-confirmed', applyConfirmed);
       window.removeEventListener('lostlight:progress-updated', refreshAfterUpdate);

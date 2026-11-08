@@ -19,11 +19,13 @@ function fixture() {
   const exports = {};
   runInNewContext(source, {
     exports, Date: Clock, Error,
-    require: () => ({ readDocument: async (ref) => {
+    require: (name) => name === './sessionContent'
+      ? { loadSessionContent: () => null, saveSessionContent() {}, clearSessionContent() {} }
+      : ({ readDocument: async (ref) => {
       calls++;
       if (wait) await wait;
       if (fail) throw new Error('Offline');
-      return { exists: () => exists, path: ref.path };
+      return { exists: () => exists, path: ref.path, id: ref.path.split('/').at(-1), data: () => ({}) };
     } }),
   });
   const firestore = {};
