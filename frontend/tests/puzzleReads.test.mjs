@@ -139,9 +139,11 @@ test('asking for a hint updates its confirmed allowance and text without a secon
     require: (name) => {
       if (name === 'react') return {
         useState: (value) => [value === null ? 0 : value, () => {}],
+        useRef: (value) => ({ current: value }),
         useEffect: (effect) => effect(),
       };
       if (name === 'react/jsx-runtime') return require(name);
+      if (name === './DiyaLamp') return { DiyaLamp: () => null };
       if (name === '../store/team') return { useTeam: () => ({ session: { teamDocId: 'TEAM-001' } }) };
       if (name === '../store/useProgress') return { useProgress: () => ({
         progress: { puzzles: [{ hintsUsed: 0 }] }, error: null, refresh: () => { refreshes++; },

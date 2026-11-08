@@ -6,7 +6,7 @@ import { isAbsolute, relative, resolve, sep } from 'node:path';
 const args = process.argv.slice(2);
 const event = args.includes('--event');
 const START = event ? '2026-11-10T07:30:00.000Z' : '2026-11-05T06:30:00.000Z';
-const RUN = event ? 'production-event-2026-11-10-1300-ist-fresh-2026-11-07' : 'production-test-2026-11-05-noon-ist';
+const RUN = event ? 'production-event-2026-11-10-1300-ist-final-2026-11-09' : 'production-test-2026-11-05-noon-ist';
 const apply = args.includes('--apply');
 const backupIndex = args.indexOf('--backup');
 const backupPath = backupIndex >= 0 ? args[backupIndex + 1] : undefined;
@@ -23,6 +23,10 @@ try {
   const db = getFirestore(app);
   const teams = await db.collection('teams').get();
   if (teams.empty) throw new Error('No teams found; reset aborted.');
+  if (event && (teams.size !== 12 || Array.from({ length: 12 }, (_, index) => `TEAM-${String(index + 1).padStart(3, '0')}`)
+    .some((id) => !teams.docs.some((team) => team.id === id)))) {
+    throw new Error('Expected exactly the 12 final teams; event reset aborted.');
+  }
   if (teams.size > (event ? 491 : 499)) throw new Error('Too many teams for a single reset batch; reset aborted.');
   const preservedCollections = new Set(['puzzleRewards', 'puzzleHints']);
   const deletions = [];
@@ -68,17 +72,17 @@ try {
     scoringStart: START, run: RUN,
   }, null, 2));
   if (apply) {
-    writeFileSync(backupPath!, JSON.stringify(backup, null, 2), { flag: 'wx' });
-    for (let offset = 0; offset < deletions.length; offset += 400) {
-      const batch = db.batch();
-      for (const reference of deletions.slice(offset, offset + 400)) batch.delete(reference);
-      await batch.commit();
+    if (deletions.length + teams.size + 1 + (event ? 8 : 0) > 500) {
+      throw new Error('Reset exceeds one atomic batch; reset aborted.');
     }
+    writeFileSync(backupPath!, JSON.stringify(backup, null, 2), { flag: 'wx' });
     const batch = db.batch();
+    for (const reference of deletions) batch.delete(reference);
     for (const team of teams.docs) {
       batch.update(team.ref, {
         assignedUids: [],
         introSeenAt: FieldValue.delete(),
+        introLastSeen: FieldValue.delete(),
         lastSeenAt: FieldValue.delete(),
         progressRunId: RUN,
         hintUsage: { runId: RUN, counts: Object.fromEntries(Array.from({ length: 8 }, (_, index) => [String(index + 1), 0])) },
@@ -108,18 +112,20 @@ try {
     for (const team of teams.docs) {
       const current = await team.ref.get();
       if (current.get('assignedUids')?.length !== 0 || current.get('introSeenAt') != null
-        || current.get('lastSeenAt') != null || current.get('progressRunId') !== RUN) {
+        || current.get('introLastSeen') != null || current.get('lastSeenAt') != null || current.get('progressRunId') !== RUN) {
         throw new Error(`Team reset verification failed: ${team.id}`);
       }
       const expected = { ...team.data() };
       delete expected.assignedUids;
       delete expected.introSeenAt;
+      delete expected.introLastSeen;
       delete expected.lastSeenAt;
       delete expected.progressRunId;
       delete expected.hintUsage;
       const actual = { ...current.data() };
       delete actual.assignedUids;
       delete actual.introSeenAt;
+      delete actual.introLastSeen;
       delete actual.lastSeenAt;
       delete actual.progressRunId;
       delete actual.hintUsage;

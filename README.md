@@ -133,7 +133,7 @@ progress to production; use a separate test project for isolated playtesting.
 ### Low-read refresh behaviour
 
 The event-ready reset uses gameplay run
-`production-event-2026-11-10-1300-ist-fresh-2026-11-07`. Loading this build clears
+`production-event-2026-11-10-1300-ist-final-2026-11-09`. Loading this build clears
 older game login/draft storage in each browser tab; team keys and puzzle
 assignments are preserved in Firestore. Players must sign in again and see the
 intro afresh. The organiser view displays dates and times in Asia/Kolkata.
@@ -230,6 +230,11 @@ including one committed-progress confirmation. Previously each used 13. Up to tw
 uncached previously revealed hints and transaction retries can add reads. Each
 purchase now writes two documents instead of one; hint limits and penalties are unchanged.
 
+While a hint purchase is pending, an animated diya and a polite status message
+show that the whisper is on its way. The question and previously revealed hints
+remain usable; duplicate clicks cannot start another purchase. The animation
+respects reduced-motion preferences and adds no database calls or artificial delay.
+
 Before rolling this out, **close all old player tabs**: older builds do not maintain
 the counter. Firestore rules remain unchanged and do not reject those outdated clients.
 Using external Admin credentials, run `backend/src/scripts/migrate-hint-usage.ts`
@@ -277,6 +282,51 @@ These counts are SDK operations, not fixed HTTP counts or billed document totals
 The login cap remains three browser/device identities per team. One active
 browser per team reduces duplicated activity, but multiple tabs in that browser
 can still issue separate reads; authentication alone does not deduplicate tabs.
+
+### Read-budget quick reference
+
+The following budgets assume the current frontend, a loaded player session where
+applicable, default puzzle prerequisites, and one successful transaction attempt.
+Document reads and queries are listed separately: a query can return multiple
+documents and empty queries still have minimum charges. Fetch/XHR request counts
+include Firestore transport overhead and must not be treated as billed reads.
+Firebase Auth requests are separate from the Firestore read quota.
+
+| Action | Document reads | Queries | Notes |
+| --- | ---: | ---: | --- |
+| Landing page | 0 | 0 | No game database required |
+| Warm normal dashboard reload | 2 + newly missing rewards | 2 | Fresh team, config, progress and checkpoint visits |
+| Dashboard **Refresh puzzle progress** | Newly missing rewards | 1 | Progress only; retains identity, schedule and checkpoints |
+| First question display | 1 + uncached purchased hints | 0 | Definitions/progress already loaded; solved Convergence also reads its proof key |
+| Reload/revisit cached question text and hints | 0 | 0 | Tab-session cache; mutable session reload reads remain separate |
+| Question III melody completion | 5 | 0 | Fresh gate validation; no second question load |
+| Question V check | 1 initially; 0 for identical repeat | 0 | Loaded team assignment; final answer validation remains fresh |
+| Hint purchase: Q1 / Q2–Q5, Q7–Q8 / Q6 | 6 / 7 / 11 | 0 | Includes progress confirmation; uncached prior hints can add up to 2 |
+| Correct answer: Q1 / Q2–Q5 / Q6 | 7 / 8 / 12 | 0 | Includes saved completion confirmation |
+| Correct Convergence answer | 14 or 18 | 0 | One or two partners, validated freshly |
+| Correct Vault answer | 9–11 | 0 | Includes an optional separate two-read tower flush |
+| Initial Convergence circle display | 6 or 10 | 1 | Includes own arrival transaction; one or two partners |
+| Warm Convergence arrival refresh | 0–4 | 1 | Two reads per unconfirmed partner; confirmed arrivals reused locally |
+| Verify a partner seal | 11 | 0 | Fresh lookup and transactional validation |
+| Finale access | 1 | 0 | Server-confirmed Vault completion |
+| Admin cold overview, 12 teams | 1 | 15 | 16 SDK operations; allowlist authentication read is additional |
+| Admin manual refresh, 12 teams | 1 | 13 | 14 SDK operations; fresh teams, config and progress |
+| Admin release toggle with loaded overview | 3 | 0 | Two transaction reads plus config confirmation |
+| Idle puzzle/dashboard/admin or Hanoi moves | 0 | 0 | No database polling or automatic tower save |
+
+These baseline budgets are not a guaranteed quota forecast. Production metadata
+can require extra prerequisite reads: the TEAM-001 trial capture recorded 15
+transaction reads for seal verification (plus its lookup), and 18 for the
+Convergence answer (plus confirmation). The two-team trial's reported usage
+increase was 1,090 reads; its one available HAR did not cover both teams or the
+initial dashboard loads, so that billing difference remains unconfirmed.
+
+Before the event, close old player and organiser tabs and reopen the deployed
+site. Old builds can retain polling and do not maintain the shared hint counter.
+Use normal reload to load a new deployment; use the intercepted `Ctrl+Shift+R`
+for a full in-app data/content refresh. A progress-only refresh does not retrieve
+schedule changes or new checkpoint visits. Keep only necessary organiser tabs
+open and use manual Refresh deliberately.
 
 ### QR picture assets and puzzle IV content
 
