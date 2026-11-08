@@ -3,6 +3,7 @@ import { doc, getDoc, runTransaction, serverTimestamp, updateDoc } from 'firebas
 import { initializeSession } from './authService';
 import { hashText } from './gameCrypto';
 import { GameServicesUnavailableError, requireFirebaseServices } from './firebase';
+import { publishProgressUpdate } from './progressUpdates';
 
 export interface TeamIdentity {
   teamId: string;
@@ -123,6 +124,9 @@ export async function markTeamIntroSeen(teamDocId: string): Promise<void> {
     if (teamSnapshot.get('introSeenAt') == null) {
       await updateDoc(teamRef, { introSeenAt: serverTimestamp() });
     }
+    const saved = teamSnapshot.get('introSeenAt') != null ? teamSnapshot : await getDoc(teamRef);
+    if (saved.get('introSeenAt') == null) throw new GameServicesUnavailableError();
+    publishProgressUpdate({ teamDocId, team: { introSeenAt: saved.get('introSeenAt') } });
   } catch (error) {
     if (error instanceof TeamLoginError) throw error;
     if (error instanceof FirebaseError) throw new GameServicesUnavailableError();

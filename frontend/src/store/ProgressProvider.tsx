@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { TeamProgress } from '../api/types';
-import { getTeamProgress } from '../services/progressService';
+import { getTeamProgress, projectTeamProgress, clearProgressModel } from '../services/progressService';
+import { useLocation } from 'react-router-dom';
+import type { ProgressUpdate } from '../services/progressUpdates';
 import { TeamLoginError } from '../services/teamService';
 import { useTeam } from './team';
 import { ProgressContext } from './useProgress';
@@ -13,14 +15,23 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const inFlight = useRef<Promise<void> | null>(null);
+  const pendingUpdates = useRef<ProgressUpdate[]>([]);
+  const { pathname } = useLocation();
+  const teamDocId = session?.teamDocId;
+  const teamNumber = session?.teamId;
 
   const refresh = useCallback((): Promise<void> => {
-    if (!session) return Promise.resolve();
+    if (!teamDocId || teamNumber === undefined) return Promise.resolve();
     if (inFlight.current) return inFlight.current;
+    pendingUpdates.current = [];
     const request = async () => {
       setLoading(true);
       try {
-        const next = await getTeamProgress(session.teamDocId, session.teamId);
+        let next = await getTeamProgress(teamDocId, teamNumber);
+        for (const update of pendingUpdates.current) {
+          next = projectTeamProgress(teamDocId, update) ?? next;
+        }
+        pendingUpdates.current = [];
         setProgress(next);
         setError(null);
       } catch (err) {
@@ -33,7 +44,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     };
     inFlight.current = request();
     return inFlight.current;
-  }, [session, signOut]);
+  }, [teamDocId, teamNumber, signOut]);
 
   useEffect(() => {
     void refresh();
@@ -42,25 +53,47 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       void refresh();
     });
     const refreshAfterUpdate = () => void refresh();
+    const applyConfirmed = (event: Event) => {
+      const update = (event as CustomEvent<ProgressUpdate>).detail;
+      if (!teamDocId || update.teamDocId !== teamDocId) return;
+      if (inFlight.current) pendingUpdates.current.push(update);
+      try {
+        const next = projectTeamProgress(teamDocId, update);
+        if (next) { setProgress(next); setError(null); }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Could not update your progress. Refresh to reload.');
+      }
+    };
+    window.addEventListener('lostlight:progress-confirmed', applyConfirmed);
     window.addEventListener('lostlight:progress-updated', refreshAfterUpdate);
     return () => {
       removeShortcut();
       clearStableContent();
+      if (teamDocId) clearProgressModel(teamDocId);
+      window.removeEventListener('lostlight:progress-confirmed', applyConfirmed);
       window.removeEventListener('lostlight:progress-updated', refreshAfterUpdate);
     };
-  }, [refresh]);
+  }, [refresh, teamDocId]);
 
   useEffect(() => {
-    if (!progress || !session) return;
+    if (!progress || !teamDocId) return;
     const next = nextReleaseTime(progress.puzzles, Date.now());
     try {
-      saveReleaseTime(window.sessionStorage, session.teamDocId, next);
+      saveReleaseTime(window.sessionStorage, teamDocId, next);
     } catch (err) {
       console.warn('Could not save the release time in sessionStorage; the countdown will continue in memory.', err);
     }
     if (next === null) return;
-    return scheduleReleaseRefresh(next, () => void refresh());
-  }, [progress, refresh, session]);
+    return scheduleReleaseRefresh(next, () => {
+      if (pathname === '/waiting') void refresh();
+      else {
+        try {
+          const local = projectTeamProgress(teamDocId);
+          if (local) setProgress(local);
+        } catch (err) { setError(err instanceof Error ? err.message : 'Could not update the release display.'); }
+      }
+    });
+  }, [progress, refresh, teamDocId, pathname]);
 
   return <ProgressContext.Provider value={{ progress, error, loading, refresh }}>{children}</ProgressContext.Provider>;
 }

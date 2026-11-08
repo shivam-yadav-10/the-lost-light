@@ -94,7 +94,7 @@ test('Convergence manual arrival refresh deduplicates concurrent requests and pe
   assert.equal(find(tree, (node) => node.props?.role === 'alert'), undefined);
 });
 
-test('dashboard refreshes for a newly claimed marker, but not for an unchanged duplicate claim', () => {
+test('dashboard marker claims rely on confirmed updates, never a full progress reload', () => {
   let reads = 0;
   const exports = {};
   runInNewContext(compile('../src/pages/DashboardPage.tsx'), {
@@ -112,8 +112,39 @@ test('dashboard refreshes for a newly claimed marker, but not for an unchanged d
     },
   });
   const checkpoint = find(exports.DashboardPage(), (node) => node.type === 'checkpoint');
-  checkpoint.props.onRedeemed({ alreadyVisited: true });
+  assert.equal(checkpoint.props.onRedeemed, undefined);
   assert.equal(reads, 0);
-  checkpoint.props.onRedeemed({ alreadyVisited: false });
-  assert.equal(reads, 1);
+});
+
+test('asking for a hint updates its confirmed allowance and text without a second dashboard fetch', async () => {
+  let refreshes = 0;
+  const hints = [];
+  const exports = {};
+  runInNewContext(compile('../src/components/HintSection.tsx'), {
+    exports,
+    require: (name) => {
+      if (name === 'react') return {
+        useState: (value) => [value === null ? 0 : value, () => {}],
+        useEffect: (effect) => effect(),
+      };
+      if (name === 'react/jsx-runtime') return require(name);
+      if (name === '../store/team') return { useTeam: () => ({ session: { teamDocId: 'TEAM-001' } }) };
+      if (name === '../store/useProgress') return { useProgress: () => ({
+        progress: { puzzles: [{ hintsUsed: 0 }] }, error: null, refresh: () => { refreshes++; },
+      }) };
+      if (name === '../services/gameRules') return { MAX_TEAM_HINTS: 12 };
+      if (name === '../api/client') return {
+        ApiError: class extends Error {},
+        api: { hint: async () => ({ hints: ['Confirmed hint'], hintsUsed: 1, teamHintsUsed: 1 }) },
+      };
+      throw new Error(`Unexpected dependency: ${name}`);
+    },
+  });
+  const tree = exports.HintSection({ puzzleId: 1, maxHints: 3, hintsUsed: 0,
+    revealedHints: [], onHints: (text, used) => hints.push({ text, used }) });
+  find(tree, (node) => node.type === 'button').props.onClick();
+  await tick();
+  assert.equal(hints.length, 1);
+  assert.equal(hints[0].used, 1);
+  assert.equal(refreshes, 0);
 });

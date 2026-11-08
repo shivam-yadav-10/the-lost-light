@@ -3,12 +3,12 @@ import {
   Timestamp,
   collection,
   doc,
-  getDoc,
-  getDocs,
 } from 'firebase/firestore';
 import type { EarnedFragment, FragmentMeta, FragmentState, PuzzleKind, PuzzleSummary, TeamProgress } from '../api/types';
 import { initializeSession } from './authService';
 import { readStableContent } from './stableContent';
+import { readDocument as getDoc, readQuery as getDocs } from './firestoreReads';
+import type { ProgressUpdate } from './progressUpdates';
 import { GameServicesUnavailableError, requireFirebaseServices } from './firebase';
 import { TeamLoginError } from './teamService';
 import { isScheduleLocked, puzzleHintLimit, puzzleRequirements, scoreCompletion, scoringStartAt } from './gameRules';
@@ -125,6 +125,11 @@ function parsePuzzle(documentId: string, rawData: unknown): PuzzleRecord {
 function parseProgress(rawData: unknown): PuzzleProgressRecord {
   const data = asRecord(rawData);
   const status = data.status;
+  if (status === undefined && data.pianoVersion === 1) {
+    const hintsUsed = data.hintsUsed ?? 0;
+    if (typeof hintsUsed !== 'number' || !Number.isInteger(hintsUsed) || hintsUsed < 0) throw new GameServicesUnavailableError();
+    return { status: 'in_progress', hintsUsed, solvedAt: null };
+  }
   if (status !== 'in_progress' && status !== 'solved') throw new GameServicesUnavailableError();
   return {
     status,
@@ -215,6 +220,7 @@ function toTeamProgress(
       if (!puzzle || puzzle.kind !== 'core' || !unlockAt) throw new GameServicesUnavailableError();
       puzzle.unlockAt = unlockAt;
     }
+
   }
 
   const progressByPuzzle = new Map(
@@ -272,6 +278,57 @@ function toTeamProgress(
   };
 }
 
+export function confirmedPuzzleSummary(id: number, metadata: Record<string, unknown>, progress: Record<string, unknown>,
+  config: Record<string, unknown>): PuzzleSummary {
+  const puzzle = parsePuzzle(String(id), metadata);
+  if (config.unlockOverrides != null) {
+    const override = asRecord(config.unlockOverrides)[String(id)];
+    if (override != null) puzzle.unlockAt = timestampToIso(override);
+  }
+  return toPuzzleSummaries([puzzle], new Map([[id, parseProgress(progress)]]))[0];
+}
+
+interface ProgressModel {
+  team: Record<string, unknown>;
+  teamNumber: number;
+  puzzles: Map<number, Record<string, unknown>>;
+  progress: Map<number, Record<string, unknown>>;
+  visits: Map<string, Record<string, unknown>>;
+  rewards: Map<number, Record<string, unknown>>;
+  config: Record<string, unknown>;
+}
+const models = new Map<string, ProgressModel>();
+function documents<K extends string | number>(entries: Map<K, Record<string, unknown>>) {
+  return [...entries].map(([id, data]) => ({ id: String(id), data: () => data }));
+}
+export function clearProgressModel(teamDocId: string) { models.delete(teamDocId); }
+export function projectTeamProgress(teamDocId: string, update?: ProgressUpdate): TeamProgress | null {
+  const current = models.get(teamDocId);
+  if (!current || (update && update.teamDocId !== teamDocId)) return null;
+  const model: ProgressModel = {
+    ...current, team: { ...current.team, ...update?.team },
+    puzzles: new Map(current.puzzles), progress: new Map(current.progress),
+    visits: new Map(current.visits), rewards: new Map(current.rewards),
+    config: update?.config ?? current.config,
+  };
+  if (update?.metadata) model.puzzles.set(update.metadata.id, update.metadata.data);
+  if (update?.puzzle) {
+    model.progress.set(update.puzzle.id, update.puzzle.progress);
+    if (update.puzzle.reward) model.rewards.set(update.puzzle.id, update.puzzle.reward);
+  }
+  for (const entry of update?.hintCounts ?? []) {
+    const existing = model.progress.get(entry.id);
+    if (existing || entry.hintsUsed > 0) {
+      model.progress.set(entry.id, { status: 'in_progress', ...existing, hintsUsed: entry.hintsUsed });
+    }
+  }
+  if (update?.checkpoint) model.visits.set(update.checkpoint.id, update.checkpoint.data);
+  const result = toTeamProgress(model.team, model.teamNumber, documents(model.puzzles),
+    documents(model.progress), documents(model.visits), documents(model.rewards), model.config);
+  models.set(teamDocId, model);
+  return result;
+}
+
 export async function getTeamProgress(teamDocId: string, teamNumber: number): Promise<TeamProgress> {
   if (!teamDocId.trim() || !Number.isInteger(teamNumber) || teamNumber < 1) {
     throw new GameServicesUnavailableError();
@@ -295,7 +352,7 @@ export async function getTeamProgress(teamDocId: string, teamNumber: number): Pr
     }
 
     const [puzzles, progress, visits, config] = await Promise.all([
-      getDocs(collection(firestore, 'puzzles')),
+      Promise.all(Array.from({ length: 8 }, (_, index) => readStableContent(doc(firestore, 'puzzles', String(index + 1))))),
       getDocs(collection(teamRef, 'progress')),
       getDocs(collection(teamRef, 'checkpointVisits')),
       getDoc(doc(firestore, 'gameConfig', 'main')),
@@ -307,15 +364,18 @@ export async function getTeamProgress(teamDocId: string, teamNumber: number): Pr
       solvedPuzzleIds.map((id) => readStableContent(doc(teamRef, 'puzzleRewards', String(id)))),
     );
 
-    return toTeamProgress(
-      team,
-      teamNumber,
-      puzzles.docs,
-      progress.docs,
-      visits.docs,
-      rewards.filter((snapshot) => snapshot.exists()),
-      config.exists() ? config.data() : null,
-    );
+    const model: ProgressModel = {
+      team, teamNumber,
+      puzzles: new Map(puzzles.map((snapshot) => [Number(snapshot.id), asRecord(snapshot.data())])),
+      progress: new Map(progress.docs.map((snapshot) => [Number(snapshot.id), asRecord(snapshot.data())])),
+      visits: new Map(visits.docs.map((snapshot) => [snapshot.id, asRecord(snapshot.data())])),
+      rewards: new Map(rewards.filter((snapshot) => snapshot.exists()).map((snapshot) => [Number(snapshot.id), asRecord(snapshot.data())])),
+      config: config.exists() ? asRecord(config.data()) : {},
+    };
+    const result = toTeamProgress(team, teamNumber, documents(model.puzzles), documents(model.progress),
+      documents(model.visits), documents(model.rewards), model.config);
+    models.set(teamDocId, model);
+    return result;
   } catch (error) {
     if (error instanceof TeamLoginError || error instanceof GameServicesUnavailableError) throw error;
     if (error instanceof FirebaseError) throw new GameServicesUnavailableError();

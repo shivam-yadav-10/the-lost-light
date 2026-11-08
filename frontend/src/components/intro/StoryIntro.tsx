@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { markTeamIntroSeen } from '../../services/teamService';
 import { useTeam } from '../../store/team';
-import { useProgress } from '../../store/useProgress';
 import { CHIME_NOTES, TeaserAudio } from '../../story/teaserAudio';
 import { Flame } from './Flame';
 import { FragmentRing, type FragmentState } from './FragmentRing';
@@ -51,7 +50,6 @@ interface SceneProps {
  */
 export function StoryIntro() {
   const { session } = useTeam();
-  const { refresh } = useProgress();
   const navigate = useNavigate();
   const location = useLocation();
   const firstTime = Boolean((location.state as { first?: boolean } | null)?.first);
@@ -86,13 +84,12 @@ export function StoryIntro() {
     audio.stop(EXIT_MS / 1000);
     try {
       await Promise.all([markTeamIntroSeen(session.teamDocId), wait(EXIT_MS)]);
-      await refresh();
     } catch (err) {
       // Let them in anyway; without this flag the dashboard would send them straight back here.
       console.warn('Could not record that the story was seen:', err);
     }
     navigate('/dashboard', { replace: true, state: { introDone: true } });
-  }, [audio, navigate, refresh, session]);
+  }, [audio, navigate, session]);
 
   const handleSkip = useCallback(() => {
     void finish();

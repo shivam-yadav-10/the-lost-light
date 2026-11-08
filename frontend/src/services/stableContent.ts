@@ -1,4 +1,5 @@
-import { getDoc, type DocumentData, type DocumentReference, type DocumentSnapshot, type Firestore } from 'firebase/firestore';
+import { type DocumentData, type DocumentReference, type DocumentSnapshot, type Firestore } from 'firebase/firestore';
+import { readDocument } from './firestoreReads';
 
 const CONTENT_TTL_MS = 5 * 60_000;
 interface Entry {
@@ -11,11 +12,12 @@ export function clearStableContent() {
   caches = new WeakMap();
 }
 
-/** Only provisioned text and rewards are cached, never team identity or mutable progress. */
+/** Provisioned content and public metadata only; actions validate live state separately. */
 export function readStableContent(reference: DocumentReference<DocumentData>): Promise<DocumentSnapshot<DocumentData>> {
   if (!/^teamPuzzleContent\/[^/]+$/.test(reference.path)
-    && !/^teams\/[^/]+\/puzzle(?:Hints|Rewards)\/[^/]+$/.test(reference.path)) {
-    throw new Error('Only provisioned puzzle content, hints and rewards may be cached.');
+    && !/^teams\/[^/]+\/puzzle(?:Hints|Rewards)\/[^/]+$/.test(reference.path)
+    && !/^puzzles\/[1-8]$/.test(reference.path)) {
+    throw new Error('Only provisioned puzzle content, public metadata, hints and rewards may be cached.');
   }
   let cache = caches.get(reference.firestore);
   if (!cache) { cache = new Map(); caches.set(reference.firestore, cache); }
@@ -24,7 +26,7 @@ export function readStableContent(reference: DocumentReference<DocumentData>): P
   const entries = cache;
   const entry: Entry = {
     expiresAt: Infinity,
-    pending: getDoc(reference).then((snapshot) => {
+    pending: readDocument(reference).then((snapshot) => {
       if (!snapshot.exists()) {
         if (entries.get(reference.path) === entry) entries.delete(reference.path);
       } else entry.expiresAt = Date.now() + CONTENT_TTL_MS;

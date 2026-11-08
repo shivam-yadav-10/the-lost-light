@@ -51,7 +51,7 @@ function fixture() {
     runInNewContext(source, {
       exports, Error, sessionStorage,
       setInterval: (callback, interval) => {
-        assert.equal(interval, 60_000);
+        assert.fail('Hanoi must not install an automatic cloud save timer');
         const timer = { callback, active: true };
         timers.push(timer);
         return timer;
@@ -86,7 +86,7 @@ function observe(queue) {
   return { current: () => state, unsubscribe };
 }
 
-test('moves update immediately, zero per-move writes, one batch per 60-second tick, no idle traffic', async () => {
+test('pending moves remain local indefinitely with zero background reads or writes; submission drains one batch', async () => {
   const f = fixture();
   const queue = await f.service().getHanoiQueue('a');
   const state = observe(queue);
@@ -97,6 +97,11 @@ test('moves update immediately, zero per-move writes, one batch per 60-second ti
   assert.equal(f.calls.length, 0);
   assert.equal(JSON.parse(f.storage.get('lostlight.hanoi.a')).pending.join(','), '01,02,12');
   await f.advance();
+  await f.advance();
+  assert.equal(f.calls.length, 0);
+  assert.equal(f.reads(), 1);
+  assert.equal(f.timers.length, 0);
+  await queue.finishSync();
   assert.equal(f.calls.length, 1);
   assert.equal(f.calls[0].moves, '010212');
   assert.equal(state.current().pending, 0);
@@ -137,29 +142,29 @@ test('new moves during a slow sync remain queued and never start an overlapping 
   await pending;
   assert.equal(observe(queue).current().moves, '02');
   assert.equal(observe(queue).current().pending, 3);
-  await f.advance();
+  await queue.flush();
   assert.equal(f.calls.length, 2);
   assert.equal(f.calls[1].moves, '02');
   assert.equal(observe(queue).current().pending, 0);
 });
 
-test('offline batches retain their queue, allow play, log failure, and retry on the next tick', async () => {
+test('offline submission retains its queue, allows play, logs failure, and retries explicitly', async () => {
   const f = fixture();
   const queue = await f.service().getHanoiQueue('a');
   queue.enqueue('01');
   f.offline(true);
-  await f.advance();
+  await assert.rejects(queue.flush(), /Offline/);
   assert.equal(observe(queue).current().pending, 1);
   assert.equal(f.errors.length, 1);
   queue.enqueue('0102');
   f.offline(false);
-  await f.advance();
+  await queue.flush();
   assert.equal(f.calls[1].moves, '0102');
   assert.equal(observe(queue).current().pending, 0);
   assert.equal(observe(queue).current().syncError, null);
 });
 
-test('queue is team-specific, continues after page unsubscribe, and final submission drains it before clearing', async () => {
+test('queue is team-specific, stays local after page unsubscribe, and final submission drains it before clearing', async () => {
   const f = fixture();
   const service = f.service();
   const queue = await service.getHanoiQueue('a');
@@ -170,13 +175,13 @@ test('queue is team-specific, continues after page unsubscribe, and final submis
   queue.enqueue('01');
   observer.unsubscribe();
   await f.advance();
-  assert.equal(f.database.get('a').moves, '01');
+  assert.equal(f.database.has('a'), false);
   queue.enqueue('0102');
   await queue.finishSync();
   assert.equal(f.database.get('a').moves, '0102');
   queue.clear();
   assert.equal(f.storage.has('lostlight.hanoi.a'), false);
-  assert.equal(f.timers[0].active, false);
+  assert.equal(f.timers.length, 0);
 });
 
 test('storage failure blocks an unsaved move, preserves prior queue, and can be retried', async () => {

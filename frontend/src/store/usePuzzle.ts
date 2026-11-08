@@ -6,14 +6,16 @@ import { useTeam } from './team';
 /** Loads one puzzle for the signed-in team. */
 export function usePuzzle(puzzleId: number) {
   const { session } = useTeam();
+  const teamDocId = session?.teamDocId;
+  const teamNumber = session?.teamId;
   const [puzzle, setPuzzle] = useState<PuzzleDetail | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!session || !Number.isInteger(puzzleId)) return;
+    if (!teamDocId || teamNumber === undefined || !Number.isInteger(puzzleId)) return;
     let cancelled = false;
     api
-    .puzzle(puzzleId, session.teamDocId, session.teamId)
+    .puzzle(puzzleId, teamDocId, teamNumber)
       .then((p) => {
         if (!cancelled) setPuzzle(p);
       })
@@ -23,7 +25,7 @@ export function usePuzzle(puzzleId: number) {
     return () => {
       cancelled = true;
     };
-  }, [session, puzzleId]);
+  }, [teamDocId, teamNumber, puzzleId]);
 
   return { puzzle, setPuzzle, loadError };
 }

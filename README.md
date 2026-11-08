@@ -59,13 +59,11 @@ so stale progress or a failed completion write cannot immediately reopen the sto
   Any legal solution counts; the minimum is 63 moves. Completing the tower reveals
   the existing final-word and team proof-code form. The move history is replayed
   during submission, not just checked by the UI. Every move and explicit restart is queued
-  immediately in per-team `sessionStorage` before appearing on the board. Every 60 seconds,
-  a nonempty queue is coalesced into one Firestore transaction at
-  `teams/{teamId}/progress/8.hanoiDraft`; idle towers cause no periodic database reads or writes.
-  Background sync continues across in-app navigation. Reload restores this tab's queue;
-  a new tab without local state restores from Firestore. Normal synchronization is invisible
-  to players. Network failures are logged, retain the queue, and retry on the next tick
-  without blocking play; local storage failures explicitly block further moves.
+  immediately in per-team `sessionStorage` before appearing on the board. There is no
+  automatic cloud save timer, even with pending moves. Reload and in-app navigation
+  preserve this tab's queue; a new tab restores only previously submitted cloud state.
+  Network failures during submission are logged and retain the queue for an explicit retry;
+  local storage failures explicitly block further moves.
   Opening the Vault flushes pending moves before submitting the existing word/proof.
   This assumes one active device per team: the latest batch replaces the saved tower.
   Closing the tab clears unsynced session data. Hints preserve the database draft.
@@ -147,8 +145,10 @@ Focused puzzle controls keep their existing shortcuts, including overlay rotatio
 Held keys and overlapping refresh requests do not start extra reads. Normal
 reload still fetches once and replaces the saved timestamp with the latest
 schedule. Storage failures are logged and the countdown continues in memory.
-Gameplay actions still refresh progress after an update; later scheduled releases
-also use one-shot refreshes, not recurring polls. Failed requests require an
+Answer, hint, marker and intro actions update the dashboard from their confirmed
+results instead of reloading the whole team. Later release deadlines only recompute
+the display locally outside `/waiting`; puzzle pages never fetch background progress.
+Failed requests require an
 explicit Retry or refresh; they do not retry in a loop.
 
 The organiser overview loads once after sign-in; use **Refresh** to fetch newer
@@ -156,22 +156,32 @@ data. Manual schedule changes are not pushed to already-open waiting rooms:
 players must refresh to receive them. The GitHub Pages deployment does not run
 database provisioning or migration commands.
 
-Provisioned puzzle text, revealed hint text and earned reward documents are
+Public puzzle metadata, provisioned puzzle text, revealed hint text and earned reward documents are
 reused in memory for up to five minutes, shared between puzzle pages and the
 dashboard. Concurrent reads of the same content share one request. Missing
 documents and errors are not cached. `Ctrl+Shift+R`, reloading, or leaving the
-team's app session clears this content cache. Progress, team/device validation,
-release metadata, configuration, hint transactions and final completion checks
-are not cached by this optimisation.
+team's app session clears this content cache. Submission transactions always read
+current team/device/run identity, puzzle release metadata, live configuration,
+prerequisites and answer/proof data. Hint transactions still enforce the shared
+12-hint allowance and per-question cap atomically. Mutable progress, live configuration
+and final completion checks are not served from the content cache.
 
 Dashboard reloads reuse earned rewards rather than reading every solved reward
 again. Re-entering an already-claimed marker does not reload the dashboard.
 Convergence arrivals remain manual-refresh only, with overlapping requests
-deduplicated. Vault Hanoi cloud saves run at most once per minute while moves
-are pending; idle ticks perform no reads or writes. Every move remains saved in
+deduplicated. Vault Hanoi moves cause no background reads or writes. Every move remains saved in
 tab-local session storage immediately, and final submission drains all pending
-moves before checking the Vault. If that tab's storage is lost before cloud sync,
-up to one minute of unsynced moves can be lost.
+moves before checking the Vault. Closing the tab or losing its session storage before
+submission can lose the entire unsent tower. Changes from another device or organiser
+are not automatically synced; use explicit refresh to receive them.
+
+In development builds, `window.lostlightReadCounts.snapshot()` shows document,
+query and transaction-read operation counters for puzzle APIs, progress loading,
+content caching and Hanoi persistence; `.reset()` clears them. No document contents,
+answers, credentials or remote telemetry are recorded. These are logical SDK operations,
+not billable-read totals or Fetch/XHR counts: queries can return many documents,
+transaction retries can add reads, and Firestore transport requests include setup
+and target removal. The counter API is absent from production builds.
 
 The login cap remains three browser/device identities per team. One active
 browser per team reduces duplicated activity, but multiple tabs in that browser

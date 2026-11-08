@@ -50,6 +50,7 @@ function fixture() {
         if (name === './firebase') return { requireFirebaseServices: () => ({ firestore: {} }) };
         if (name === './hanoi') return hanoi;
         if (name === './gameplayRun') return { GAMEPLAY_RUN };
+        if (name === './firestoreReads') return { readServerDocument: sdk.getDocFromServer, recordTransactionRead() {} };
         return require(name);
       },
     });

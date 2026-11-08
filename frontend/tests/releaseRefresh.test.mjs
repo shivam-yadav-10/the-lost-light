@@ -105,11 +105,12 @@ function mount(source, exportedName, f, modules) {
   return { render, get tree() { return tree; }, unmount: () => slots.forEach((slot) => slot?.cleanup?.()) };
 }
 
-function teamProvider(f, fetch) {
+function teamProvider(f, fetch, options = {}) {
   const session = { teamDocId: 'TEAM-001', teamId: 1 };
   const signOut = () => {};
   return mount(providerSource, 'ProgressProvider', f, {
-    '../services/progressService': { getTeamProgress: fetch },
+    '../services/progressService': { getTeamProgress: fetch, clearProgressModel() {}, projectTeamProgress: options.project ?? (() => null) },
+    'react-router-dom': { useLocation: () => ({ pathname: options.pathname ?? '/waiting' }) },
     '../services/teamService': { TeamLoginError: class TeamLoginError extends Error {} },
     './team': { useTeam: () => ({ session, signOut }) },
     './useProgress': { ProgressContext: { Provider: 'provider' } },
@@ -117,6 +118,43 @@ function teamProvider(f, fetch) {
     '../services/stableContent': { clearStableContent() {} },
   });
 }
+
+  test('puzzle release deadlines and an hour of idling do not request database progress', async () => {
+    const f = fixture();
+    let reads = 0;
+    let projections = 0;
+    const target = f.now + 60_000;
+    const provider = teamProvider(f, async () => { reads++; return progress(target); }, {
+      pathname: '/puzzle/3', project: () => { projections++; return { puzzles: [{ id: 1, state: 'AVAILABLE', unlockAt: null }] }; },
+    });
+    await tick(); provider.render();
+    await f.advance(3_600_000); provider.render();
+    assert.equal(reads, 1);
+    assert.equal(projections, 1, 'release updates are computed locally, not fetched');
+    provider.unmount();
+  });
+
+  test('confirmed actions patch progress without fetching, ignore other teams, and survive an in-flight stale refresh', async () => {
+    const f = fixture();
+    let reads = 0;
+    let finish;
+    const applied = [];
+    const confirmed = { puzzles: [{ id: 1, state: 'SOLVED', unlockAt: null }] };
+    const provider = teamProvider(f, () => {
+      reads++;
+      return new Promise((resolve) => { finish = resolve; });
+    }, { pathname: '/puzzle/1', project: (_team, update) => { applied.push(update); return confirmed; } });
+    f.emit('lostlight:progress-confirmed', { detail: { teamDocId: 'TEAM-002' } });
+    assert.equal(applied.length, 0);
+    const update = { teamDocId: 'TEAM-001', puzzle: { id: 1 } };
+    f.emit('lostlight:progress-confirmed', { detail: update });
+    finish({ puzzles: [{ id: 1, state: 'AVAILABLE', unlockAt: null }] });
+    await tick(); provider.render();
+    assert.equal(reads, 1);
+    assert.equal(provider.tree.props.value.progress, confirmed);
+    assert.equal(applied.length, 2, 'action is reapplied after the older request resolves');
+    provider.unmount();
+  });
 const progress = (target) => ({ puzzles: [{ id: 1, state: 'LOCKED', unlockAt: new Date(target).toISOString() }] });
 
 test('waiting progress fetches once on mount, stores its team/run time, and only fetches again at zero', async () => {

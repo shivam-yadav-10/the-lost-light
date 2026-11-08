@@ -1,4 +1,5 @@
-import { doc, getDocFromServer, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { doc, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { readServerDocument, recordTransactionRead } from './firestoreReads';
 import { initializeSession } from './authService';
 import { requireFirebaseServices } from './firebase';
 import { HANOI_DISKS, hanoiPegs } from './hanoi';
@@ -33,7 +34,7 @@ function reference(teamId: string) {
 
 export async function loadHanoiProgress(teamId: string): Promise<HanoiDraft> {
   await initializeSession();
-  const snapshot = await getDocFromServer(reference(teamId));
+  const snapshot = await readServerDocument(reference(teamId));
   if (snapshot.get('status') === 'solved') throw new Error('This Vault is already open. Reload the page.');
   return parseHanoiDraft(snapshot.get('hanoiDraft'));
 }
@@ -44,10 +45,10 @@ export async function saveHanoiProgress(teamId: string, moves: string): Promise<
   const progressRef = reference(teamId);
   const { firestore } = requireFirebaseServices();
   return runTransaction(firestore, async (transaction) => {
-    const [snapshot, team] = await Promise.all([
-      transaction.get(progressRef),
-      transaction.get(doc(firestore, 'teams', teamId)),
-    ]);
+    const [snapshot, team] = await Promise.all([progressRef, doc(firestore, 'teams', teamId)].map((ref) => {
+      recordTransactionRead();
+      return transaction.get(ref);
+    }));
     if (team.get('progressRunId') !== GAMEPLAY_RUN) {
       throw new Error('The game has been reset. Reload the page and sign in again.');
     }

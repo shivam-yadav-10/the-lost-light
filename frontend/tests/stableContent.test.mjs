@@ -19,7 +19,7 @@ function fixture() {
   const exports = {};
   runInNewContext(source, {
     exports, Date: Clock, Error,
-    require: () => ({ getDoc: async (ref) => {
+    require: () => ({ readDocument: async (ref) => {
       calls++;
       if (wait) await wait;
       if (fail) throw new Error('Offline');
@@ -91,8 +91,19 @@ test('failed and missing content is retried rather than poisoning the cache', as
 test('mutable progress, releases, identity and answer documents cannot use the content cache', () => {
   const f = fixture();
   for (const path of ['teams/TEAM-001', 'teams/TEAM-001/progress/3', 'gameConfig/main',
-    'puzzles/3', 'privatePuzzles/3', 'teamKeyClaims/hash', 'teams/TEAM-001/convergence/arrival']) {
+    'puzzles/9', 'privatePuzzles/3', 'teamKeyClaims/hash', 'teams/TEAM-001/convergence/arrival']) {
     assert.throws(() => f.readStableContent(f.ref(path)), /Only provisioned/);
   }
   assert.equal(f.calls(), 0);
+});
+
+test('shared public metadata is reused but explicit cache invalidation reloads it', async () => {
+  const f = fixture();
+  for (let pass = 0; pass < 3; pass++) {
+    for (let id = 1; id <= 8; id++) await f.readStableContent(f.ref(`puzzles/${id}`));
+  }
+  assert.equal(f.calls(), 8);
+  f.clearStableContent();
+  await f.readStableContent(f.ref('puzzles/3'));
+  assert.equal(f.calls(), 9);
 });

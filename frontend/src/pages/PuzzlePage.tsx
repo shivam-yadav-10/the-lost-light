@@ -56,8 +56,7 @@ export function PuzzlePage() {
         setCelebrate(true);
         setPuzzle({
           ...puzzle,
-          state: 'SOLVED',
-          solvedAt: result.puzzle.solvedAt,
+          ...result.puzzle,
           fragment: result.fragment,
           completionMessage: result.message,
         });

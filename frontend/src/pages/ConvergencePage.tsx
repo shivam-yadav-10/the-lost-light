@@ -67,7 +67,7 @@ function ConvergenceOpen({ puzzleId, fragments }: { puzzleId: number; fragments:
     try {
       const result = await api.submit(puzzleId, session.teamDocId, session.teamId, word.trim(), JSON.stringify(placements));
       if (result.correct) {
-        setPuzzle({ ...puzzle, state: 'SOLVED', solvedAt: result.puzzle.solvedAt, completionMessage: result.message });
+        setPuzzle({ ...puzzle, ...result.puzzle, completionMessage: result.message });
         setCelebrate(true);
       } else setFeedback(result.message);
     } catch (err) { setFeedback(err instanceof ApiError ? err.message : 'The word could not be offered.'); }

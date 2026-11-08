@@ -3,8 +3,6 @@ import {
   Timestamp,
   collection,
   doc,
-  getDoc,
-  getDocs,
   runTransaction,
   serverTimestamp,
   setDoc,
@@ -36,6 +34,10 @@ import {
 import { checkRiddleAnswers, parseRiddleProof } from '../services/riddleAnswers';
 import { checkHiddenWords } from '../services/hiddenWords';
 import { readStableContent } from '../services/stableContent';
+import { readDocument as getDoc, readQuery as getDocs, recordTransactionRead } from '../services/firestoreReads';
+import { publishProgressUpdate } from '../services/progressUpdates';
+import { GAMEPLAY_RUN } from '../services/gameplayRun';
+import { confirmedPuzzleSummary } from '../services/progressService';
 import { matchesMelody, pianoUnlocked, PIANO_VERSION } from '../services/piano';
 import { parseVaultProof } from '../services/hanoi';
 import { parseHanoiDraft } from '../services/hanoiProgress';
@@ -64,6 +66,26 @@ export class ApiError extends Error {
 }
 
 type DataRecord = Record<string, unknown>;
+type ReadDocument = typeof getDoc;
+function transactionReader(transaction: Parameters<Parameters<typeof runTransaction>[1]>[0]): ReadDocument {
+  const reads = new Map<string, ReturnType<ReadDocument>>();
+  return (ref) => {
+    let pending = reads.get(ref.path);
+    if (!pending) {
+      recordTransactionRead();
+      pending = transaction.get(ref);
+      reads.set(ref.path, pending);
+    }
+    return pending;
+  };
+}
+function validateTeam(team: DataRecord, uid: string, teamNumber?: number) {
+  if (team.progressRunId !== GAMEPLAY_RUN) throw new ApiError(403, 'The game has been reset. Reload the page and sign in again.');
+  if (team.active !== true || !Array.isArray(team.assignedUids) || !team.assignedUids.includes(uid)
+    || (teamNumber !== undefined && team.teamNumber !== teamNumber)) {
+    throw new ApiError(403, 'This team is no longer linked to this device.');
+  }
+}
 
 function asRecord(value: unknown): DataRecord {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -160,8 +182,9 @@ async function isPuzzleOpen(
   teamRef: ReturnType<typeof doc>,
   puzzleId: number,
   metadata: DataRecord,
+  read: ReadDocument = getDoc,
 ): Promise<boolean> {
-  const configSnapshot = await getDoc(doc(firestore, 'gameConfig', 'main'));
+  const configSnapshot = await read(doc(firestore, 'gameConfig', 'main'));
   const config = configSnapshot.exists() ? asRecord(configSnapshot.data()) : {};
   const overrides = config.unlockOverrides && typeof config.unlockOverrides === 'object' && !Array.isArray(config.unlockOverrides)
     ? config.unlockOverrides as DataRecord
@@ -186,7 +209,7 @@ async function isPuzzleOpen(
   const requires = puzzleRequirements(puzzleId, metadata.requires);
   if (requires.length === 0) return true;
   const progressSnapshots = await Promise.all(
-    requires.map((requiredId) => getDoc(doc(teamRef, 'progress', String(requiredId)))),
+    requires.map((requiredId) => read(doc(teamRef, 'progress', String(requiredId)))),
   );
   return progressSnapshots.every((snapshot) => snapshot.exists() && snapshot.get('status') === 'solved');
 }
@@ -198,15 +221,16 @@ async function isAnswerCorrect(
   puzzleId: number,
   rawAnswer: string,
   rawProof: string | undefined,
+  read: ReadDocument = getDoc,
 ): Promise<boolean> {
-  const secretSnapshot = await getDoc(doc(firestore, 'privatePuzzles', String(puzzleId)));
+  const secretSnapshot = await read(doc(firestore, 'privatePuzzles', String(puzzleId)));
   if (!secretSnapshot.exists()) throw new ApiError(503, 'Puzzle answer data is missing from Firebase.');
   const secret = asRecord(secretSnapshot.data());
   const answer = answerForRules(puzzleId, rawAnswer);
   const acceptedAnswers = Array.isArray(secret.acceptedAnswers) ? secret.acceptedAnswers as unknown[] : [];
 
   if (puzzleId === 4) {
-    const teamSnapshot = await getDoc(teamRef);
+    const teamSnapshot = await read(teamRef);
     const teamNumber = teamSnapshot.get('teamNumber');
     if (!Number.isInteger(teamNumber) || teamNumber < 1) throw new ApiError(503, 'Your team number is missing.');
     const group = `W${((teamNumber - 1) % 9) + 1}`;
@@ -215,18 +239,18 @@ async function isAnswerCorrect(
   }
 
   if (puzzleId === 7) {
-    await validateConvergenceSubmission(teamDocId, rawProof);
-    const circle = parseCircle((await getDoc(doc(firestore, 'teamGameData', teamDocId))).get('convergence'), teamDocId);
+    await validateConvergenceSubmission(teamDocId, rawProof, read);
+    const circle = parseCircle((await read(doc(firestore, 'teamGameData', teamDocId))).get('convergence'), teamDocId);
     return checkConvergenceAnswer(rawAnswer, asRecord(secret.convergenceAnswersBySet)[circle.riddleSet], secret.overlayWord);
   }
   if (puzzleId === 8) {
     const proof = parseVaultProof(rawProof);
-    const privateTeam = await getDoc(doc(firestore, 'privateTeamData', teamDocId));
+    const privateTeam = await read(doc(firestore, 'privateTeamData', teamDocId));
     const key = privateTeam.get('lanternKey');
     return acceptedAnswers.includes(answer) && typeof key === 'string' && proof.code === key;
   }
   if (puzzleId === 2 || puzzleId === 5) {
-    const teamSnapshot = await getDoc(teamRef);
+    const teamSnapshot = await read(teamRef);
     const team = asRecord(teamSnapshot.data());
     const byGroup = secret.acceptedAnswersByGroup && typeof secret.acceptedAnswersByGroup === 'object'
       ? secret.acceptedAnswersByGroup as DataRecord
@@ -247,10 +271,9 @@ async function isAnswerCorrect(
 async function validateConvergenceSubmission(
   ownId: string,
   proof: string | undefined,
-  transaction?: Parameters<Parameters<typeof runTransaction>[1]>[0],
+  read: ReadDocument = getDoc,
 ): Promise<void> {
   const { firestore } = requireFirebaseServices();
-  const read = (reference: ReturnType<typeof doc>) => transaction ? transaction.get(reference) : getDoc(reference);
   const own = await read(doc(firestore, 'teamGameData', ownId));
   const circle = parseCircle(own.get('convergence'), ownId);
   alignmentProof(proof, circle.memberIds, ownId);
@@ -274,12 +297,12 @@ async function validateConvergenceSubmission(
 
 async function loadPuzzleDetail(teamDocId: string, teamNumber: number, puzzleId: number): Promise<PuzzleDetail> {
   const { firestore } = requireFirebaseServices();
-  await initializeSession();
+  const user = await initializeSession();
   const teamRef = doc(firestore, 'teams', teamDocId);
   const progressRef = doc(teamRef, 'progress', String(puzzleId));
   const contentRef = doc(firestore, 'teamPuzzleContent', `${teamDocId}_${puzzleId}`);
   const [metadataSnapshot, teamSnapshot, progressSnapshot, contentSnapshot] = await Promise.all([
-    getDoc(doc(firestore, 'puzzles', String(puzzleId))),
+    readStableContent(doc(firestore, 'puzzles', String(puzzleId))),
     getDoc(teamRef),
     getDoc(progressRef),
     readStableContent(contentRef),
@@ -287,7 +310,7 @@ async function loadPuzzleDetail(teamDocId: string, teamNumber: number, puzzleId:
   if (!metadataSnapshot.exists() || !teamSnapshot.exists() || !contentSnapshot.exists()) {
     throw new ApiError(404, 'Puzzle not found.');
   }
-  if (teamSnapshot.get('teamNumber') !== teamNumber) throw new ApiError(403, 'This team is no longer linked to this device.');
+  validateTeam(asRecord(teamSnapshot.data()), user.uid, teamNumber);
 
   const metadata = asRecord(metadataSnapshot.data());
   const progress = progressSnapshot.exists() ? asRecord(progressSnapshot.data()) : {};
@@ -382,7 +405,7 @@ export const api = {
       }
       await runTransaction(firestore, async (transaction) => {
         const ref = puzzleReference(teamDocId, 3);
-        const snapshot = await transaction.get(ref);
+        const snapshot = await transactionReader(transaction)(ref);
         const progress = snapshot.data() ?? {};
         if (pianoUnlocked(progress)) return;
         transaction.set(ref, { pianoVersion: PIANO_VERSION, pianoCompletedAt: serverTimestamp() }, { merge: true });
@@ -436,25 +459,43 @@ export const api = {
   submit: async (id: number, teamDocId: string, teamNumber: number, answer: string, proof?: string): Promise<SubmitResult> => {
     if (!Number.isInteger(id) || id < 1 || !teamDocId.trim() || !answer.trim()) throw new ApiError(400, 'Enter an answer first.');
     try {
-      const loaded = await loadPuzzleDetail(teamDocId, teamNumber, id);
-      if (id === 3 && !loaded.pianoUnlocked) throw new ApiError(423, 'Replay your team’s melody before opening Question III.');
       const { firestore } = requireFirebaseServices();
-      await initializeSession();
+      const user = await initializeSession();
       const teamRef = doc(firestore, 'teams', teamDocId);
-      const correct = await isAnswerCorrect(firestore, teamDocId, teamRef, id, answer, proof);
-      if (!correct) throw new ApiError(400, INCORRECT_ANSWER_MESSAGE);
       const vaultProof = id === 8 ? parseVaultProof(proof) : null;
       const progressRef = puzzleReference(teamDocId, id);
       const result = await runTransaction(firestore, async (transaction) => {
-        const progressSnapshot = await transaction.get(progressRef);
+        const read = transactionReader(transaction);
+        const [teamSnapshot, metadataSnapshot, progressSnapshot] = await Promise.all([
+          read(teamRef), read(doc(firestore, 'puzzles', String(id))), read(progressRef),
+        ]);
+        validateTeam(asRecord(teamSnapshot.data()), user.uid, teamNumber);
+        if (!metadataSnapshot.exists()) throw new ApiError(404, 'Puzzle not found.');
+        const metadata = asRecord(metadataSnapshot.data());
         const progress = progressSnapshot.exists() ? progressSnapshot.data() : {};
         if (progress.status === 'solved') throw new ApiError(409, 'This fragment has already been solved.');
+        if (!(await isPuzzleOpen(firestore, teamRef, id, metadata, read))) throw new ApiError(423, 'This fragment is still hidden.');
         if (id === 3 && !pianoUnlocked(progress)) throw new ApiError(423, 'Replay your team’s melody before opening Question III.');
         if (vaultProof && progress.hanoiDraft !== undefined
           && parseHanoiDraft(progress.hanoiDraft).moves !== vaultProof.moves) {
           throw new ApiError(409, 'Your team changed the tower. Load the saved tower before opening the Vault.');
         }
-        if (id === 7) await validateConvergenceSubmission(teamDocId, proof, transaction);
+        if (!(await isAnswerCorrect(firestore, teamDocId, teamRef, id, answer, proof, read))) {
+          throw new ApiError(400, INCORRECT_ANSWER_MESSAGE);
+        }
+        const rewardSnapshot = await read(doc(teamRef, 'puzzleRewards', String(id)));
+        if (!rewardSnapshot.exists()) throw new ApiError(503, 'Puzzle reward is missing from Firebase.');
+        const reward = asRecord(rewardSnapshot.data());
+        parseFragment(reward.fragment);
+        let message = requiredString(reward, 'completionMessage');
+        if (id === 7) {
+          const privateTeam = await read(doc(firestore, 'privateTeamData', teamDocId));
+          message = message.replace('{key}', requiredString(asRecord(privateTeam.data()), 'lanternKey'));
+        }
+        const config = asRecord((await read(doc(firestore, 'gameConfig', 'main'))).data());
+        const summary = confirmedPuzzleSummary(id, metadata, {
+          status: 'in_progress', hintsUsed: hintCount(progress.hintsUsed), solvedAt: null,
+        }, config);
         const now = serverTimestamp();
         const data = {
           status: 'solved',
@@ -466,28 +507,27 @@ export const api = {
           ...(vaultProof ? { proof: vaultProof.code, hanoiMoves: vaultProof.moves } : {}),
         };
         transaction.set(progressRef, data);
-        return data.hintsUsed;
+        return { metadata, reward, config, message, summary };
       });
-      const detail = await loadPuzzleDetail(teamDocId, teamNumber, id);
-      window.dispatchEvent(new Event('lostlight:progress-updated'));
-      return {
+      const saved = await getDoc(progressRef);
+      if (saved.get('status') !== 'solved') throw new ApiError(503, 'Could not confirm the saved answer. Refresh before trying again.');
+      const solvedAt = timestampToIso(saved.get('solvedAt'));
+      if (!solvedAt) throw new ApiError(503, 'Could not confirm the completion time. Refresh before trying again.');
+      const response: SubmitResult = {
         correct: true,
-        message: detail.completionMessage ?? 'The fragment is yours.',
-        fragment: detail.fragment,
+        message: result.message,
+        fragment: parseFragment(result.reward.fragment),
         puzzle: {
-          id: detail.id,
-          slug: detail.slug,
-          title: detail.title,
-          fragmentName: detail.fragmentName,
-          kind: detail.kind,
-          sortOrder: detail.sortOrder,
+          ...result.summary,
           state: 'SOLVED',
-          unlockAt: detail.unlockAt,
-          solvedAt: detail.solvedAt,
-          hintsUsed: result,
-          maxHints: detail.maxHints,
+          solvedAt, hintsUsed: hintCount(saved.get('hintsUsed')),
         },
       };
+      publishProgressUpdate({
+        teamDocId, puzzle: { id, progress: asRecord(saved.data()), reward: result.reward },
+        metadata: { id, data: result.metadata }, config: result.config,
+      });
+      return response;
     } catch (error) {
       throw firebaseApiError(error, 'Could not submit that answer.');
     }
@@ -497,20 +537,24 @@ export const api = {
     if (!Number.isInteger(id) || id < 1 || !teamDocId.trim()) throw new ApiError(400, 'Invalid puzzle.');
     try {
       const { firestore } = requireFirebaseServices();
-      await initializeSession();
+      const user = await initializeSession();
       const teamRef = doc(firestore, 'teams', teamDocId);
-      const metadataSnapshot = await getDoc(doc(firestore, 'puzzles', String(id)));
-      if (!metadataSnapshot.exists()) throw new ApiError(404, 'Puzzle not found.');
-      const metadata = asRecord(metadataSnapshot.data());
-      if (!(await isPuzzleOpen(firestore, teamRef, id, metadata))) {
-        throw new ApiError(423, 'This fragment is still hidden or no hints remain.');
-      }
-      const maxHints = puzzleHintLimit(metadata.maxHints);
       const progressRef = puzzleReference(teamDocId, id);
       const result = await runTransaction(firestore, async (transaction) => {
         // Reading every progress record makes concurrent hints on different questions conflict and retry.
+        const read = transactionReader(transaction);
+        const [teamSnapshot, metadataSnapshot] = await Promise.all([
+          read(teamRef), read(doc(firestore, 'puzzles', String(id))),
+        ]);
+        validateTeam(asRecord(teamSnapshot.data()), user.uid);
+        if (!metadataSnapshot.exists()) throw new ApiError(404, 'Puzzle not found.');
+        const metadata = asRecord(metadataSnapshot.data());
+        if (!(await isPuzzleOpen(firestore, teamRef, id, metadata, read))) {
+          throw new ApiError(423, 'This fragment is still hidden or no hints remain.');
+        }
+        const maxHints = puzzleHintLimit(metadata.maxHints);
         const snapshots = await Promise.all(PUZZLE_IDS.map((puzzleId) =>
-          transaction.get(puzzleReference(teamDocId, puzzleId)),
+          read(puzzleReference(teamDocId, puzzleId)),
         ));
         const progressSnapshot = snapshots.find((snapshot) => snapshot.id === String(id));
         if (!progressSnapshot) throw new ApiError(400, 'Invalid puzzle.');
@@ -525,10 +569,12 @@ export const api = {
           throw new ApiError(409, error instanceof Error ? error.message : 'No hints remain.');
         }
         const nextCount = used + 1;
-        const nextHint = await transaction.get(doc(teamRef, 'puzzleHints', `${id}_${nextCount}`));
+        const nextHint = await read(doc(teamRef, 'puzzleHints', `${id}_${nextCount}`));
         if (!nextHint.exists() || typeof nextHint.get('text') !== 'string') {
           throw new ApiError(503, 'The next hint is missing from Firebase.');
         }
+        const text = requiredString(asRecord(nextHint.data()), 'text');
+        const config = asRecord((await read(doc(firestore, 'gameConfig', 'main'))).data());
         const now = serverTimestamp();
         transaction.set(progressRef, {
           status: 'in_progress',
@@ -536,10 +582,20 @@ export const api = {
           startedAt: progress.startedAt ?? now,
           solvedAt: null,
         }, { merge: true });
-        return { hintsUsed: nextCount, teamHintsUsed: teamHintsUsed + 1 };
+        return {
+          hintsUsed: nextCount, teamHintsUsed: teamHintsUsed + 1,
+          text, metadata, maxHints, config,
+          hintCounts: snapshots.filter((snapshot) => snapshot.id !== String(id))
+            .map((snapshot) => ({ id: Number(snapshot.id), hintsUsed: hintCount(snapshot.data()?.hintsUsed) })),
+        };
       });
-      window.dispatchEvent(new Event('lostlight:progress-updated'));
-      return { ...result, maxHints, hints: await hintDocuments(teamDocId, id, result.hintsUsed) };
+      const saved = await getDoc(progressRef);
+      const hints = [...await hintDocuments(teamDocId, id, result.hintsUsed - 1), result.text];
+      publishProgressUpdate({
+        teamDocId, puzzle: { id, progress: asRecord(saved.data()) },
+        metadata: { id, data: result.metadata }, config: result.config, hintCounts: result.hintCounts,
+      });
+      return { hintsUsed: result.hintsUsed, teamHintsUsed: result.teamHintsUsed, maxHints: result.maxHints, hints };
     } catch (error) {
       throw firebaseApiError(error, 'Could not reveal a hint.');
     }
@@ -565,6 +621,9 @@ export const api = {
         };
       }
       await setDoc(visitRef, { code: code.trim(), title: checkpoint.get('title'), visitedAt: serverTimestamp() });
+      const savedVisit = await getDoc(visitRef);
+      if (!savedVisit.exists()) throw new ApiError(503, 'Could not confirm your marker. Refresh before trying again.');
+      publishProgressUpdate({ teamDocId, checkpoint: { id: checkpointHash, data: asRecord(savedVisit.data()) } });
       return {
         title: String(checkpoint.get('title')),
         message: String(checkpoint.get('message')),
@@ -582,7 +641,7 @@ export const api = {
       await initializeSession();
       const teamRef = doc(firestore, 'teams', teamDocId);
       const [metadata, progress, teamData, verified] = await Promise.all([
-        getDoc(doc(firestore, 'puzzles', '7')),
+        readStableContent(doc(firestore, 'puzzles', '7')),
         getDoc(doc(teamRef, 'progress', '7')),
         getDoc(doc(firestore, 'teamGameData', teamDocId)),
         getDocs(collection(teamRef, 'convergenceSeals')),
@@ -594,7 +653,7 @@ export const api = {
       const circle = parseCircle(teamData.get('convergence'), teamDocId);
       const arrivalRef = doc(teamRef, 'convergence', 'arrival');
       await runTransaction(firestore, async (transaction) => {
-        const arrival = await transaction.get(arrivalRef);
+        const arrival = await transactionReader(transaction)(arrivalRef);
         if (!arrival.exists()) transaction.set(arrivalRef, { reachedAt: serverTimestamp(), version: 2 });
       });
       const partners = await Promise.all(circle.memberIds.filter((id) => id !== teamDocId).map(async (partnerId) => {
@@ -646,13 +705,14 @@ export const api = {
       const partnerId = requiredString(asRecord(lookup.data()), 'ownerTeamId');
       const verifiedRef = doc(teamRef, 'convergenceSeals', partnerId);
       return await runTransaction(firestore, async (transaction) => {
+        const read = transactionReader(transaction);
         const [own, partner, partnerTeam, arrival, partnerProgress, verified] = await Promise.all([
-          transaction.get(doc(firestore, 'teamGameData', teamDocId)),
-          transaction.get(doc(firestore, 'teamGameData', partnerId)),
-          transaction.get(doc(firestore, 'teams', partnerId)),
-          transaction.get(doc(firestore, 'teams', partnerId, 'convergence', 'arrival')),
-          transaction.get(doc(firestore, 'teams', partnerId, 'progress', '7')),
-          transaction.get(verifiedRef),
+          read(doc(firestore, 'teamGameData', teamDocId)),
+          read(doc(firestore, 'teamGameData', partnerId)),
+          read(doc(firestore, 'teams', partnerId)),
+          read(doc(firestore, 'teams', partnerId, 'convergence', 'arrival')),
+          read(doc(firestore, 'teams', partnerId, 'progress', '7')),
+          read(verifiedRef),
         ]);
         const ownCircle = parseCircle(own.get('convergence'), teamDocId);
         const partnerCircle = parseCircle(partner.get('convergence'), partnerId);

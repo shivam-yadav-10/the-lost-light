@@ -7,6 +7,7 @@ import ts from 'typescript';
 import * as piano from '../src/services/piano.ts';
 import * as rules from '../src/services/gameRules.ts';
 import * as crypto from '../src/services/gameCrypto.ts';
+import { GAMEPLAY_RUN } from '../src/services/gameplayRun.ts';
 
 const require = createRequire(import.meta.url);
 const source = ts.transpileModule(readFileSync(new URL('../src/api/client.ts', import.meta.url), 'utf8'), {
@@ -17,13 +18,13 @@ function fixture() {
   const teamId = 'TEAM-001';
   const progressPath = `teams/${teamId}/progress/3`;
   const data = new Map([
-    [`teams/${teamId}`, { teamNumber: 1 }],
+    [`teams/${teamId}`, { teamNumber: 1, active: true, assignedUids: ['fixture'], progressRunId: GAMEPLAY_RUN }],
     [`teams/${teamId}/progress/2`, { status: 'solved' }],
     ['gameConfig/main', {}],
     ['puzzles/3', { requires: [], unlockAt: null, maxHints: 3, sortOrder: 3 }],
     [`teamPuzzleContent/${teamId}_3`, { intro: 'Original question', blocks: [{ type: 'text', text: 'Secret riddle text' }] }],
     ['privatePuzzles/3', { acceptedAnswers: ['amavasya'] }],
-    [`teams/${teamId}/puzzleRewards/3`, { completionMessage: 'Original reward' }],
+    [`teams/${teamId}/puzzleRewards/3`, { completionMessage: 'Original reward', fragment: null }],
     [`teams/${teamId}/puzzleHints/3_1`, { text: 'Original hint' }],
   ]);
   const writes = [];
@@ -62,6 +63,10 @@ function fixture() {
         };
         if (name === '../services/piano') return piano;
         if (name === '../services/stableContent') return { readStableContent: sdk.getDoc };
+        if (name === '../services/firestoreReads') return { readDocument: sdk.getDoc, readQuery: sdk.getDocs, recordTransactionRead() {} };
+        if (name === '../services/progressUpdates') return { publishProgressUpdate() {} };
+        if (name === '../services/gameplayRun') return { GAMEPLAY_RUN };
+        if (name === '../services/progressService') return { confirmedPuzzleSummary: (id, metadata) => ({ id, ...metadata }) };
         if (name === '../services/gameRules') return rules;
         if (name === '../services/gameCrypto') return crypto;
         return {};

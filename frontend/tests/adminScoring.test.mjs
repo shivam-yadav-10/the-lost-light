@@ -45,9 +45,12 @@ function fixture() {
   });
   const sdk = {
     Timestamp,
-    collection: (...segments) => segments.filter((value) => typeof value === 'string').join('/'),
-    doc: (...segments) => segments.filter((value) => typeof value === 'string').join('/'),
-    getDoc: async (path) => snapshot(path),
+    collection: (...segments) => segments.map((value) => typeof value === 'string' ? value : value.path).filter(Boolean).join('/'),
+    doc: (...segments) => {
+      const path = segments.map((value) => typeof value === 'string' ? value : value.path).filter(Boolean).join('/');
+      return { path, id: path.split('/').at(-1) };
+    },
+    getDoc: async (ref) => snapshot(typeof ref === 'string' ? ref : ref.path),
     getDocs: async (path) => ({
       docs: [...documents.keys()].filter((key) => key.startsWith(`${path}/`) && !key.slice(path.length + 1).includes('/')).map(snapshot),
     }),
@@ -60,8 +63,9 @@ function fixture() {
         : value && typeof value === 'object' && !(value instanceof Timestamp)
           ? Object.fromEntries(Object.entries(value).map(([key, item]) => [key, resolve(item)])) : value;
       await callback({
-        get: async (path) => snapshot(path),
-        update: (path, update) => {
+        get: async (ref) => snapshot(typeof ref === 'string' ? ref : ref.path),
+        update: (ref, update) => {
+          const path = typeof ref === 'string' ? ref : ref.path;
           const next = { ...documents.get(path) };
           for (const [field, value] of Object.entries(update)) {
             if (value === deleted) delete next[field];
@@ -99,6 +103,7 @@ function fixture() {
       };
       if (name === './teamService') return { TeamLoginError: class extends Error {} };
       if (name === './stableContent') return { readStableContent: sdk.getDoc };
+      if (name === './firestoreReads') return { readDocument: sdk.getDoc, readQuery: sdk.getDocs };
       if (name === './gameRules') return rules;
       throw new Error(`Unexpected dependency ${name}`);
     },

@@ -1,8 +1,6 @@
 import { hanoiPegs } from './hanoi';
 import { loadHanoiProgress, parseHanoiDraft, saveHanoiProgress, type HanoiDraft } from './hanoiProgress';
 
-export const HANOI_SYNC_INTERVAL = 60_000;
-
 interface QueueData {
   draft: HanoiDraft;
   pending: string[];
@@ -20,7 +18,6 @@ export class HanoiQueue {
   private data: QueueData;
   private listeners = new Set<(state: HanoiQueueState) => void>();
   private inFlight: Promise<void> | null = null;
-  private timer: ReturnType<typeof setInterval> | null = null;
   private state: HanoiQueueState;
 
   private constructor(private teamId: string, data: QueueData) {
@@ -58,7 +55,6 @@ export class HanoiQueue {
     }
     const queue = new HanoiQueue(teamId, data);
     queue.persist(data);
-    queue.timer = setInterval(() => { void queue.flush().catch(() => undefined); }, HANOI_SYNC_INTERVAL);
     return queue;
   }
 
@@ -119,7 +115,7 @@ export class HanoiQueue {
         this.data = next;
         this.publish({ pending: next.pending.length, syncError: null, storageError: null });
       } catch (error) {
-        console.error('Vault tower background sync failed; the session queue is retained for retry.', error);
+        console.error('Vault tower submission sync failed; the session queue is retained for retry.', error);
         this.publish({ syncError: error instanceof Error ? error.message : 'Tower sync failed. Your moves remain queued in this tab.' });
         throw error;
       } finally {
@@ -136,7 +132,6 @@ export class HanoiQueue {
 
   clear() {
     sessionStorage.removeItem(HanoiQueue.key(this.teamId));
-    if (this.timer !== null) clearInterval(this.timer);
     queues.delete(this.teamId);
   }
 }

@@ -33,7 +33,6 @@ export function HintSection({ puzzleId, maxHints, hintsUsed, revealedHints, onHi
       const result = await api.hint(puzzleId, session.teamDocId);
       setTeamHintsUsed(result.teamHintsUsed);
       onHints(result.hints, result.hintsUsed);
-      await refresh();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'No hint came.');
     } finally {

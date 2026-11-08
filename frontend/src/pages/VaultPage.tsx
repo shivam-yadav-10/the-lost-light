@@ -117,7 +117,7 @@ function VaultOpen({ puzzleId, fragments }: { puzzleId: number; fragments: Earne
       );
       if (result.correct) {
         setOpened(true);
-        setPuzzle({ ...puzzle, state: 'SOLVED', solvedAt: result.puzzle.solvedAt, completionMessage: result.message });
+        setPuzzle({ ...puzzle, ...result.puzzle, completionMessage: result.message });
         queue.current.clear();
       } else {
         setFeedback(result.message);
