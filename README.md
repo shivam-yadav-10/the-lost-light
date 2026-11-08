@@ -249,6 +249,19 @@ The separate organiser Firebase app/Auth initializes only when an admin operatio
 needs it, not when a player opens or reloads the game. Player Auth persistence
 and its account-validation requests are unchanged; these do not use Firestore read quota.
 
+The organiser overview no longer queries submission counts (current gameplay does
+not save attempts) or legacy Keeper/shard records. The table shows hint usage, not
+misleading zero attempt counts. For 12 teams, a cold overview uses 16 logical SDK
+operations: four shared reads/queries plus 12 progress queries. Later manual refreshes
+use 14: teams, live config and 12 progress queries. Puzzle definitions and organiser
+variant metadata are cached only in memory for the admin session; sign-out/sign-in
+or a browser reload clears that cache. No private organiser data is persisted by it.
+Overlapping overview requests share a load, and controls prevent refresh/toggle overlap.
+A release toggle uses two transaction reads and one config confirmation, then
+recomputes gates and rankings from the displayed progress without reloading teams.
+Other-device progress still requires manual Refresh. No admin polling is installed.
+These counts are SDK operations, not fixed HTTP counts or billed document totals.
+
 The login cap remains three browser/device identities per team. One active
 browser per team reduces duplicated activity, but multiple tabs in that browser
 can still issue separate reads; authentication alone does not deduplicate tabs.

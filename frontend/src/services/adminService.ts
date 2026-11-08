@@ -1,13 +1,28 @@
 import { signInWithEmailAndPassword, signOut, type Auth, type UserCredential } from 'firebase/auth';
 import { FirebaseError } from 'firebase/app';
-import { Timestamp, collection, deleteField, doc, getCountFromServer, getDoc, getDocs, query, runTransaction, serverTimestamp, where } from 'firebase/firestore';
-import type { DocumentData, Firestore, QueryDocumentSnapshot } from 'firebase/firestore';
+import { Timestamp, collection, deleteField, doc, getDoc, getDocs, runTransaction, serverTimestamp } from 'firebase/firestore';
+import type { DocumentData, Firestore, QueryDocumentSnapshot, QuerySnapshot } from 'firebase/firestore';
 import type { AdminOverview, FragmentState, PuzzleKind } from '../api/types';
 import { requireAdminFirebaseServices } from './firebase';
 import { isScheduleLocked, puzzleRequirements, rankTeams, scoringStartAt } from './gameRules';
 
-const SHARD_TYPES = ['A', 'B', 'C', 'D'] as const;
 const PUZZLE_KINDS: PuzzleKind[] = ['core', 'convergence', 'vault'];
+interface OverviewCache {
+  firestore: Firestore;
+  puzzles: QuerySnapshot<DocumentData>;
+  adminTeams: QuerySnapshot<DocumentData>;
+  teams: QuerySnapshot<DocumentData>;
+  progress: Map<string, QuerySnapshot<DocumentData>>;
+}
+let overviewCache: OverviewCache | null = null;
+let pendingOverview: Promise<AdminOverview> | null = null;
+let cacheVersion = 0;
+
+function clearOverviewCache() {
+  overviewCache = null;
+  pendingOverview = null;
+  cacheVersion++;
+}
 
 export class AdminServiceError extends Error {
   constructor(message: string) {
@@ -147,6 +162,7 @@ async function assertAdmin(firestore: Firestore, uid: string): Promise<void> {
 }
 
 async function ensureSignedOut(auth: Auth): Promise<void> {
+  clearOverviewCache();
   try {
     await signOut(auth);
   } catch (error) {
@@ -201,6 +217,7 @@ export async function getCurrentAdminUid(): Promise<string | null> {
 }
 
 export async function signInAdmin(email: string, password: string): Promise<string> {
+  clearOverviewCache();
   const { auth, firestore } = requireAdminFirebaseServices();
   if (!email.trim() || !password) {
     throw new AdminServiceError('Enter your organiser email and password.');
@@ -220,18 +237,30 @@ export async function signOutAdmin(): Promise<void> {
   await ensureSignedOut(auth);
 }
 
-export async function getAdminOverview(): Promise<AdminOverview> {
+export function getAdminOverview(): Promise<AdminOverview> {
+  if (pendingOverview) return pendingOverview;
+  const request = loadAdminOverview();
+  pendingOverview = request;
+  const clearPending = () => {
+    if (pendingOverview === request) pendingOverview = null;
+  };
+  void request.then(clearPending, clearPending);
+  return request;
+}
+
+async function loadAdminOverview(reuseProgress = false): Promise<AdminOverview> {
   const { firestore } = requireAdminFirebaseServices();
+  const version = cacheVersion;
+  const cached = overviewCache?.firestore === firestore ? overviewCache : null;
   try {
-    const [teamsSnapshot, puzzlesSnapshot, configSnapshot, adminTeamsSnapshot, gameDataSnapshot] = await Promise.all([
-      getDocs(collection(firestore, 'teams')),
-      getDocs(collection(firestore, 'puzzles')),
+    const [teamsSnapshot, puzzlesSnapshot, configSnapshot, adminTeamsSnapshot] = await Promise.all([
+      reuseProgress && cached ? cached.teams : getDocs(collection(firestore, 'teams')),
+      cached ? cached.puzzles : getDocs(collection(firestore, 'puzzles')),
       getDoc(doc(firestore, 'gameConfig', 'main')),
-      getDocs(collection(firestore, 'adminTeamData')),
-      getDoc(doc(firestore, 'adminGameData', 'keeperSeals')),
+      cached ? cached.adminTeams : getDocs(collection(firestore, 'adminTeamData')),
     ]);
 
-    if (!configSnapshot.exists() || !gameDataSnapshot.exists()) {
+    if (!configSnapshot.exists()) {
       throw new AdminServiceError('Organiser data is not provisioned. Run the Firebase seed command with --apply.');
     }
 
@@ -243,6 +272,7 @@ export async function getAdminOverview(): Promise<AdminOverview> {
     const scheduleStartAt = scoringStartAt(timestampToIso(gameConfig.scheduleStartAt), testStart);
 
     const adminTeamData = new Map(adminTeamsSnapshot.docs.map((snapshot) => [snapshot.id, asRecord(snapshot.data())]));
+    const progressSnapshots = new Map<string, QuerySnapshot<DocumentData>>();
     const teamRows = await Promise.all(teamsSnapshot.docs.map(async (teamSnapshot) => {
       const team = asRecord(teamSnapshot.data());
       const teamNumber = requiredInteger(team, 'teamNumber', 1);
@@ -253,17 +283,10 @@ export async function getAdminOverview(): Promise<AdminOverview> {
       }
 
       const teamRef = doc(firestore, 'teams', teamSnapshot.id);
-      const [progressSnapshot, attemptCounts, verifiedSnapshot] = await Promise.all([
-        getDocs(collection(teamRef, 'progress')),
-        Promise.all(puzzles.map(async (puzzle) => {
-          const submissions = query(collection(teamRef, 'submissions'), where('puzzleId', '==', puzzle.id));
-          const count = await getCountFromServer(submissions);
-          return [puzzle.id, count.data().count] as const;
-        })),
-        getDocs(collection(teamRef, 'verifiedShards')),
-      ]);
+      const savedProgress = reuseProgress ? cached?.progress.get(teamSnapshot.id) : undefined;
+      const progressSnapshot = savedProgress ?? await getDocs(collection(teamRef, 'progress'));
+      progressSnapshots.set(teamSnapshot.id, progressSnapshot);
       const progressByPuzzle = new Map(progressSnapshot.docs.map((snapshot) => [Number(snapshot.id), parseProgress(snapshot)]));
-      const attemptsByPuzzle = new Map(attemptCounts);
 
       const teamPuzzles = puzzles.map((puzzle) => {
         const progress = progressByPuzzle.get(puzzle.id);
@@ -278,7 +301,6 @@ export async function getAdminOverview(): Promise<AdminOverview> {
           puzzleId: puzzle.id,
           state,
           hintsUsed: progress?.hintsUsed ?? 0,
-          attempts: attemptsByPuzzle.get(puzzle.id) ?? 0,
           startedAt: progress?.startedAt ?? null,
           solvedAt: progress?.solvedAt ?? null,
         };
@@ -292,25 +314,13 @@ export async function getAdminOverview(): Promise<AdminOverview> {
       const vault = puzzles.find((puzzle) => puzzle.kind === 'vault');
       const vaultSolvedAt = vault ? progressByPuzzle.get(vault.id)?.solvedAt ?? null : null;
       const totalHintsUsed = [...progressByPuzzle.values()].reduce((total, progress) => total + progress.hintsUsed, 0);
-      const shardType = team.shardType == null ? null : requiredString(team, 'shardType');
-      if (shardType !== null && !SHARD_TYPES.includes(shardType as (typeof SHARD_TYPES)[number])) {
-        throw new AdminServiceError('Organiser data in Firebase is incomplete.');
-      }
-      const verifiedShards = verifiedSnapshot.docs.map((snapshot) => {
-        if (!SHARD_TYPES.includes(snapshot.id as (typeof SHARD_TYPES)[number])) {
-          throw new AdminServiceError('Organiser data in Firebase is incomplete.');
-        }
-        return snapshot.id;
-      });
       return {
         id: teamNumber,
         name: teamName,
         lastSeenAt: timestampToIso(team.lastSeenAt),
-        shardType,
         errandGroup: requiredString(privateData, 'errandGroup'),
         errandLocation: requiredString(privateData, 'errandLocation'),
         riddleSet: requiredString(privateData, 'riddleSet'),
-        verifiedShards,
         lanternKey: requiredString(privateData, 'lanternKey'),
         totalHintsUsed,
         penaltyMinutes,
@@ -330,25 +340,10 @@ export async function getAdminOverview(): Promise<AdminOverview> {
       return { ...team, rank: score.rank, elapsedMs: score.elapsedMs, adjustedElapsedMs: score.adjustedElapsedMs };
     }).sort((left, right) => left.rank - right.rank);
 
-    const gameData = asRecord(gameDataSnapshot.data());
-    const keeperSealRecords = gameData.keeperSeals;
-    if (!Array.isArray(keeperSealRecords)) {
-      throw new AdminServiceError('Organiser seal data is missing. Run the Firebase seed command with --apply.');
-    }
-    const keeperSeals = keeperSealRecords.map((value) => {
-      const record = asRecord(value);
-      const type = requiredString(record, 'type');
-      if (!SHARD_TYPES.includes(type as (typeof SHARD_TYPES)[number])) {
-        throw new AdminServiceError('Organiser seal data in Firebase is invalid.');
-      }
-      return {
-        type,
-        name: requiredString(record, 'name'),
-        seal: requiredString(record, 'seal'),
-        holders: teamRows.filter((team) => team.shardType === type).length,
-      };
-    });
-
+    if (version === cacheVersion) overviewCache = {
+      firestore, puzzles: puzzlesSnapshot, adminTeams: adminTeamsSnapshot,
+      teams: teamsSnapshot, progress: progressSnapshots,
+    };
     return {
       generatedAt: new Date().toISOString(),
       scheduleStartAt,
@@ -361,7 +356,6 @@ export async function getAdminOverview(): Promise<AdminOverview> {
         unlockAt: puzzle.unlockAt,
         scheduleLocked: isScheduleLocked(puzzle.unlockAt),
       })),
-      keeperSeals,
       teams: rankedTeams,
     };
   } catch (error) {
@@ -402,7 +396,8 @@ export async function setPuzzleUnlockOverride(puzzleId: number, unlocked: boolea
         ...(puzzleId === 1 ? { testScoringStartAt: unlocked ? serverTimestamp() : deleteField() } : {}),
       });
     });
-    return await getAdminOverview();
+    if (pendingOverview) await pendingOverview;
+    return await loadAdminOverview(true);
   } catch (error) {
     if (error instanceof AdminServiceError) throw error;
     if (error instanceof FirebaseError) throw firebaseError(error, 'update the release schedule');

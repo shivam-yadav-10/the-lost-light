@@ -153,16 +153,13 @@ export interface AdminOverview {
   scheduleStartAt: string;
   testScoringActive: boolean;
   puzzles: { id: number; title: string; fragmentName: string; kind: PuzzleKind; unlockAt: string | null; scheduleLocked: boolean }[];
-  keeperSeals: { type: string; name: string; seal: string; holders: number }[];
   teams: {
     id: number;
     name: string;
     lastSeenAt: string | null;
-    shardType: string | null;
     errandGroup: string;
     errandLocation: string;
     riddleSet: string;
-    verifiedShards: string[];
     lanternKey: string;
     rank: number;
     totalHintsUsed: number;
@@ -174,7 +171,6 @@ export interface AdminOverview {
       puzzleId: number;
       state: FragmentState;
       hintsUsed: number;
-      attempts: number;
       startedAt: string | null;
       solvedAt: string | null;
     }[];

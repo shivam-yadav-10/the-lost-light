@@ -21,6 +21,7 @@ export function AdminPage() {
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const [toggleError, setToggleError] = useState<string | null>(null);
   const loadingOverview = useRef(false);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -42,6 +43,7 @@ export function AdminPage() {
   const load = useCallback(async () => {
     if (!adminUid || loadingOverview.current) return;
     loadingOverview.current = true;
+    setBusy(true);
     try {
       setData(await getAdminOverview());
       setError(null);
@@ -50,6 +52,7 @@ export function AdminPage() {
       setError(getAdminErrorMessage(err));
     } finally {
       loadingOverview.current = false;
+      setBusy(false);
     }
   }, [adminUid]);
 
@@ -70,6 +73,9 @@ export function AdminPage() {
 
   /** Forces a core fragment open now, or re-locks it, overriding the day's release schedule. */
   async function toggleUnlock(puzzleId: number, currentlyLocked: boolean) {
+    if (loadingOverview.current) return;
+    loadingOverview.current = true;
+    setBusy(true);
     setTogglingId(puzzleId);
     setToggleError(null);
     try {
@@ -78,6 +84,8 @@ export function AdminPage() {
       setToggleError(getAdminErrorMessage(err));
     } finally {
       setTogglingId(null);
+      loadingOverview.current = false;
+      setBusy(false);
     }
   }
 
@@ -149,7 +157,7 @@ export function AdminPage() {
         <div className="flex items-center gap-3 text-xs text-parchment/60">
           {data && <span>Updated {new Date(data.generatedAt).toLocaleTimeString()}</span>}
           <span>Manual refresh only</span>
-          <button type="button" className="btn-ghost !py-1 !px-3" onClick={() => void load()}>
+          <button type="button" className="btn-ghost !py-1 !px-3" disabled={busy} onClick={() => void load()}>
             Refresh
           </button>
           <button type="button" className="btn-ember !py-1 !px-4 text-xs" onClick={() => void lock()} aria-label="Lock the organiser view">
@@ -184,7 +192,7 @@ export function AdminPage() {
                   <button
                     type="button"
                     className="btn-ghost mt-2 w-full !py-1 !px-3 text-xs"
-                    disabled={togglingId === p.id}
+                    disabled={busy}
                     onClick={() => void toggleUnlock(p.id, p.scheduleLocked)}
                   >
                     {togglingId === p.id ? 'Working…' : p.scheduleLocked ? 'Unlock now' : 'Re-lock'}
@@ -284,7 +292,6 @@ export function AdminPage() {
 function Cell({
   state,
   hintsUsed,
-  attempts,
   solvedAt,
   startedAt,
 }: AdminOverview['teams'][number]['puzzles'][number]) {
@@ -293,9 +300,9 @@ function Cell({
   return (
     <div className={colour}>
       <div className="font-medium">{state}</div>
-      {(attempts > 0 || hintsUsed > 0) && (
+      {hintsUsed > 0 && (
         <div className="text-xs opacity-80">
-          {attempts} tries · {hintsUsed} hints
+          {hintsUsed} hints
         </div>
       )}
       {solvedAt ? (
