@@ -104,13 +104,29 @@ test('cached content is isolated by project, event and team; mutable and private
   const size = f.storage.size;
   const service = f.load();
   for (const path of ['gameConfig/main', 'teams/TEAM-001', 'teams/TEAM-001/progress/1',
-    'privatePuzzles/1', 'teamPuzzleContent/TEAM-001_1', 'teams/TEAM-001/puzzleHints/1_1']) {
+    'privatePuzzles/1', 'teamGameData/TEAM-001', 'teams/TEAM-001/puzzleHints/1_4']) {
     service.saveSessionContent(f.ref(path), f.data, 'TEAM-001');
     assert.equal(service.loadSessionContent(f.ref(path), 'TEAM-001'), null);
   }
   assert.equal(f.storage.size, size);
 });
 
+test('question text and purchased hint display documents survive reload without fetching other hints', async () => {
+  const f = fixture();
+  const paths = ['teamPuzzleContent/TEAM-001_3', 'teams/TEAM-001/puzzleHints/3_1'];
+  const first = f.load();
+  for (const path of paths) await first.readStableContent(f.ref(path));
+  assert.equal(f.reads(), 2);
+  const reloaded = f.load();
+  for (const path of paths) await reloaded.readStableContent(f.ref(path));
+  assert.equal(f.reads(), 2);
+  assert.equal(reloaded.loadSessionContent(f.ref('teams/TEAM-001/puzzleHints/3_2')), null);
+  await reloaded.readStableContent(f.ref('teamPuzzleContent/TEAM-002_3'));
+  assert.equal(f.reads(), 3);
+  reloaded.clearStableContent();
+  for (const path of paths) await reloaded.readStableContent(f.ref(path));
+  assert.equal(f.reads(), 5);
+});
 test('corrupt or unavailable session storage logs and falls back to Firebase without hiding failures', async () => {
   const f = fixture();
   await f.load().readStableContent(f.ref('puzzles/1'), 'TEAM-001');
@@ -125,6 +141,19 @@ test('corrupt or unavailable session storage logs and falls back to Firebase wit
   assert.ok(f.warnings.length >= 3);
 });
 
+test('confirmed purchased hint is cached immediately without a read and cannot resurrect cleared content', async () => {
+  const f = fixture();
+  const service = f.load();
+  const ref = f.ref('teams/TEAM-001/puzzleHints/3_1');
+  const version = service.stableContentVersion();
+  service.rememberRevealedHint(ref, f.data, version);
+  await f.load().readStableContent(ref);
+  assert.equal(f.reads(), 0);
+  service.clearStableContent();
+  service.rememberRevealedHint(ref, f.data, version);
+  assert.equal(f.storage.size, 0);
+  assert.throws(() => service.rememberRevealedHint(f.ref('privatePuzzles/3'), f.data, version));
+});
 test('memory-only cleanup preserves browser reload cache; explicit clearing removes only scoped content', async () => {
   const f = fixture();
   const service = f.load();

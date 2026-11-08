@@ -24,6 +24,7 @@ function fixture(id = 1) {
   const writes = [];
   const updates = [];
   let conflict = null;
+  let contentVersion = 0;
   const data = new Map([
     [`teams/${team}`, { teamNumber: 1, teamName: 'Fixture', active: true, assignedUids: ['device'],
       progressRunId: GAMEPLAY_RUN, errandGroup: 'A', riddleSet: 'V1',
@@ -107,7 +108,7 @@ function fixture(id = 1) {
     authService: { initializeSession: async () => ({ uid: 'device' }) },
     firebase: { requireFirebaseServices: () => ({ firestore }), GameServicesUnavailableError: class extends Error {} },
     teamService: { TeamLoginError: class extends Error {} },
-    stableContent: { readStableContent: sdk.getDoc },
+    stableContent: { readStableContent: sdk.getDoc, stableContentVersion: () => contentVersion, rememberRevealedHint() {} },
     firestoreReads: { readDocument: sdk.getDoc, readQuery: sdk.getDocs, recordTransactionRead() {} },
     progressUpdates: { publishProgressUpdate: (update) => updates.push(update) },
     gameplayRun: { GAMEPLAY_RUN }, gameRules: rules, piano, hanoi, hiddenWords: hidden,
@@ -132,7 +133,8 @@ function fixture(id = 1) {
   modules.progressService = progress;
   const { api } = load('../src/api/client.ts');
   return { api, progress, data, reads, writes, updates, team, partner, Timestamp,
-    path: `teams/${team}/progress/${id}`, conflict: (change) => { conflict = change; } };
+    path: `teams/${team}/progress/${id}`, conflict: (change) => { conflict = change; },
+    clearDisplay: () => { contentVersion++; } };
 }
 
 const cases = [
@@ -228,6 +230,62 @@ test('verified seal returns the exact partner card and clue without needing an a
   assert.equal(result.partner.card.width, 31);
   assert.equal(result.partnerName, 'Partner');
   assert.ok(f.reads.every((read) => read.type !== 'query'), 'seal acceptance never scans all partners or seals');
+});
+
+test('Convergence refresh caches only stable display and confirmed arrivals; full refresh invalidates it', async () => {
+  const f = fixture(7);
+  f.data.set(`teams/${f.partner}`, { teamName: 'Partner' });
+  await f.progress.getTeamProgress(f.team, 1);
+  f.reads.length = 0;
+  const first = await f.api.convergence(f.team);
+  assert.equal(first.partners[0].verified, true);
+  assert.equal(f.reads.length, 7, 'five docs, one query and arrival transaction');
+  f.reads.length = 0;
+  f.data.delete(`teams/${f.team}/convergenceSeals/${f.partner}`);
+  const next = await f.api.convergence(f.team);
+  assert.equal(next.partners[0].verified, false, 'seal state stays fresh');
+  assert.deepEqual(f.reads, [{ path: `teams/${f.team}/convergenceSeals`, type: 'query' }]);
+  f.clearDisplay();
+  f.reads.length = 0;
+  await f.api.convergence(f.team);
+  assert.equal(f.reads.length, 7);
+});
+
+test('Convergence keeps checking unconfirmed arrivals and retries failed display reads', async () => {
+  const f = fixture(7);
+  await f.progress.getTeamProgress(f.team, 1);
+  await assert.rejects(f.api.convergence(f.team));
+  f.data.set(`teams/${f.partner}`, { teamName: 'Partner' });
+  f.data.delete(`teams/${f.partner}/convergence/arrival`);
+  const first = await f.api.convergence(f.team);
+  assert.equal(first.partners[0].arrived, false);
+  f.reads.length = 0;
+  f.data.set(`teams/${f.partner}/convergence/arrival`, { reachedAt: new f.Timestamp() });
+  const next = await f.api.convergence(f.team);
+  assert.equal(next.partners[0].arrived, true);
+  assert.equal(f.reads.length, 3, 'seal query plus two live partner-state reads');
+});
+
+test('Question V checks reuse loaded assignment and identical results without caching secrets', async () => {
+  const f = fixture(5);
+  await f.progress.getTeamProgress(f.team, 1);
+  const answers = ['alpha', 'beta', 'gamma', 'delta', 'epsilon'];
+  f.reads.length = 0;
+  const [a, b] = await Promise.all([f.api.checkRiddles(f.team, answers), f.api.checkRiddles(f.team, answers)]);
+  assert.equal(f.reads.length, 1);
+  assert.deepEqual(a, b);
+  a[0] = false;
+  assert.equal((await f.api.checkRiddles(f.team, answers))[0], true);
+  assert.equal(f.reads.length, 1);
+  await f.api.checkRiddles(f.team, ['wrong', ...answers.slice(1)]);
+  assert.equal(f.reads.length, 2);
+  f.clearDisplay();
+  await f.api.checkRiddles(f.team, answers);
+  assert.equal(f.reads.length, 3, 'full refresh invalidates check results');
+  f.data.delete('privatePuzzles/5');
+  await assert.rejects(f.api.checkRiddles(f.team, ['retry', ...answers.slice(1)]));
+  f.data.set('privatePuzzles/5', { riddleAnswersByGroup: { V1: answers } });
+  await f.api.checkRiddles(f.team, ['retry', ...answers.slice(1)]);
 });
 for (const [id, answer, proof, expectedReads] of cases) {
   test(`Question ${id} reads each validation document once, confirms only its result and patches the dashboard`, async () => {

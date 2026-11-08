@@ -62,7 +62,7 @@ function fixture() {
           requireFirebaseServices: () => ({ firestore: {} }), GameServicesUnavailableError: class extends Error {},
         };
         if (name === '../services/piano') return piano;
-        if (name === '../services/stableContent') return { readStableContent: sdk.getDoc };
+        if (name === '../services/stableContent') return { readStableContent: sdk.getDoc, stableContentVersion: () => 0, rememberRevealedHint() {} };
         if (name === '../services/firestoreReads') return { readDocument: sdk.getDoc, readQuery: sdk.getDocs, recordTransactionRead() {} };
         if (name === '../services/progressUpdates') return { publishProgressUpdate() {} };
         if (name === '../services/gameplayRun') return { GAMEPLAY_RUN };

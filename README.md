@@ -185,9 +185,14 @@ avoiding a second initial tower read. This never replaces an existing tab-local 
 final submission still synchronizes and validates the saved move history.
 Convergence seal verification returns the confirmed partner card and clue directly,
 so accepting a seal no longer reloads the entire circle. **Refresh arrivals** remains
-a deliberate fresh partner-state read, without polling.
+a deliberate fresh check of seals and any partners whose arrival is not yet confirmed,
+without polling. Stable circle/card/name display data and confirmed arrivals are
+remembered in memory until full refresh or session cleanup. For an already-loaded
+team with one confirmed partner, subsequent arrival refreshes use only one seal query,
+instead of five document reads, an arrival transaction read and a seal query.
+Seal acceptance and final Convergence submission still validate fresh records.
 
-Public puzzle metadata and earned reward documents also persist in this tab's
+Public puzzle metadata, question text, purchased hint text and earned reward documents persist in this tab's
 `sessionStorage`, isolated by Firebase project, gameplay run and team. Normal
 Ctrl+R / F5 / reload restores those documents without fetching them again.
 They remain cached until the tab closes, sign-in/sign-out, an event-run change,
@@ -198,9 +203,16 @@ Team/device validation, progress, checkpoints and live configuration are still
 fetched on normal reload; only stable content is persisted. Content corrections
 require `Ctrl+Shift+R` in already-open tabs.
 
-Provisioned puzzle text and revealed hint text remain memory-only for up to five
-minutes, shared between puzzle pages and the dashboard. Concurrent reads of the
+The five-minute memory layer remains shared between puzzle pages and the dashboard;
+on expiry it restores persistent content rather than rereading Firebase. Only requested
+question text and already-purchased hints are stored, not an entire question kit,
+unrevealed hints or answer secrets. A newly purchased hint is cached from its
+confirmed transaction result without another hint read. Concurrent reads of the
 same content share one request. Missing documents and errors are not cached.
+Question V's check button reuses the loaded team assignment and remembers only the
+last identical-answer result in memory: the first check uses one answer-document
+read, repeated identical checks use zero. Changed answers or full refresh check
+again; final submission always validates all five answers against fresh data.
 Submission transactions always read
 current team/device/run identity, puzzle release metadata, live configuration,
 prerequisites and answer/proof data. Hint transactions still enforce the shared

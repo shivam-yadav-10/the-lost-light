@@ -34,7 +34,7 @@ import {
 } from '../services/gameRules';
 import { checkRiddleAnswers, parseRiddleProof } from '../services/riddleAnswers';
 import { checkHiddenWords } from '../services/hiddenWords';
-import { readStableContent } from '../services/stableContent';
+import { readStableContent, rememberRevealedHint, stableContentVersion } from '../services/stableContent';
 import { readDocument as getDoc, readQuery as getDocs, recordTransactionRead } from '../services/firestoreReads';
 import { publishProgressUpdate } from '../services/progressUpdates';
 import { GAMEPLAY_RUN } from '../services/gameplayRun';
@@ -67,6 +67,31 @@ export class ApiError extends Error {
 }
 
 type DataRecord = Record<string, unknown>;
+interface DisplayCache {
+  version: number;
+  uid: string;
+  circles: Map<string, Promise<ReturnType<typeof parseCircle>>>;
+  names: Map<string, Promise<string>>;
+  arrivals: Set<string>;
+  riddles: Map<string, Promise<boolean[]>>;
+}
+const displayCaches = new WeakMap<ReturnType<typeof requireFirebaseServices>['firestore'], DisplayCache>();
+function displayCache(firestore: ReturnType<typeof requireFirebaseServices>['firestore'], uid: string): DisplayCache {
+  let cache = displayCaches.get(firestore);
+  if (!cache || cache.version !== stableContentVersion() || cache.uid !== uid) {
+    cache = { version: stableContentVersion(), uid, circles: new Map(), names: new Map(), arrivals: new Set(), riddles: new Map() };
+    displayCaches.set(firestore, cache);
+  }
+  return cache;
+}
+function cachedDisplay<T>(cache: Map<string, Promise<T>>, key: string, load: () => Promise<T>): Promise<T> {
+  const existing = cache.get(key);
+  if (existing) return existing;
+  const request = load();
+  cache.set(key, request);
+  void request.then(undefined, () => { if (cache.get(key) === request) cache.delete(key); });
+  return request;
+}
 type ReadDocument = typeof getDoc;
 function transactionReader(transaction: Parameters<Parameters<typeof runTransaction>[1]>[0]): ReadDocument {
   const reads = new Map<string, ReturnType<ReadDocument>>();
@@ -415,15 +440,20 @@ export const api = {
   checkRiddles: async (teamDocId: string, answers: string[]): Promise<boolean[]> => {
     try {
       const { firestore } = requireFirebaseServices();
-      await initializeSession();
-      const [team, secret] = await Promise.all([
-        getDoc(doc(firestore, 'teams', teamDocId)),
-        getDoc(doc(firestore, 'privatePuzzles', '5')),
-      ]);
-      const group = team.get('riddleSet');
-      const expected = asRecord(secret.get('riddleAnswersByGroup'));
-      if (typeof group !== 'string') throw new ApiError(503, 'The team riddle set is missing.');
-      return checkRiddleAnswers(answers, expected[group]);
+      const user = await initializeSession();
+      const loadedTeam = cachedPuzzleState(teamDocId, 5)?.team;
+      const cache = displayCache(firestore, user.uid);
+      const key = JSON.stringify([teamDocId, loadedTeam?.riddleSet, answers]);
+      if (!cache.riddles.has(key)) cache.riddles.clear();
+      const checked = await cachedDisplay(cache.riddles, key, async () => {
+        const team = loadedTeam ?? asRecord((await getDoc(doc(firestore, 'teams', teamDocId))).data());
+        validateTeam(team, user.uid);
+        const group = team.riddleSet;
+        if (typeof group !== 'string') throw new ApiError(503, 'The team riddle set is missing.');
+        const secret = await getDoc(doc(firestore, 'privatePuzzles', '5'));
+        return checkRiddleAnswers(answers, asRecord(secret.get('riddleAnswersByGroup'))[group]);
+      });
+      return [...checked];
     } catch (error) {
       throw firebaseApiError(error, 'Could not check the five day answers.');
     }
@@ -538,6 +568,7 @@ export const api = {
     try {
       const { firestore } = requireFirebaseServices();
       const user = await initializeSession();
+      const contentVersion = stableContentVersion();
       const teamRef = doc(firestore, 'teams', teamDocId);
       const progressRef = puzzleReference(teamDocId, id);
       const result = await runTransaction(firestore, async (transaction) => {
@@ -599,12 +630,13 @@ export const api = {
         }, { merge: true });
         return {
           hintsUsed: nextCount, teamHintsUsed: teamHintsUsed + 1,
-          text, metadata, maxHints, config,
+          text, hintData: asRecord(nextHint.data()), metadata, maxHints, config,
           hintCounts: PUZZLE_IDS.filter((puzzleId) => puzzleId !== id)
             .map((puzzleId) => ({ id: puzzleId, hintsUsed: usage.counts[String(puzzleId)] })),
         };
       });
       const saved = await getDoc(progressRef);
+      rememberRevealedHint(doc(teamRef, 'puzzleHints', `${id}_${result.hintsUsed}`), result.hintData, contentVersion);
       const hints = [...await hintDocuments(teamDocId, id, result.hintsUsed - 1), result.text];
       publishProgressUpdate({
         teamDocId, puzzle: { id, progress: asRecord(saved.data()) },
@@ -653,43 +685,51 @@ export const api = {
   convergence: async (teamDocId: string): Promise<ConvergenceState> => {
     try {
       const { firestore } = requireFirebaseServices();
-      await initializeSession();
+      const user = await initializeSession();
+      const display = displayCache(firestore, user.uid);
+      const loadCircle = (id: string) => cachedDisplay(display.circles, id, async () =>
+        parseCircle((await getDoc(doc(firestore, 'teamGameData', id))).get('convergence'), id));
       const teamRef = doc(firestore, 'teams', teamDocId);
       const cached = cachedPuzzleState(teamDocId, 7);
       const [metadata, progress, teamData, verified] = await Promise.all([
         cached ? null : readStableContent(doc(firestore, 'puzzles', '7'), teamDocId),
         cached ? null : getDoc(doc(teamRef, 'progress', '7')),
-        getDoc(doc(firestore, 'teamGameData', teamDocId)),
+        loadCircle(teamDocId),
         getDocs(collection(teamRef, 'convergenceSeals')),
       ]);
       if (cached ? cached.summary.state === 'LOCKED' : !metadata?.exists() || (progress?.get('status') !== 'solved'
         && !(await isPuzzleOpen(firestore, teamRef, 7, asRecord(metadata.data()))))) {
         throw new ApiError(423, 'This chamber is still sealed.');
       }
-      const circle = parseCircle(teamData.get('convergence'), teamDocId);
+      const circle = teamData;
       const arrivalRef = doc(teamRef, 'convergence', 'arrival');
-      await runTransaction(firestore, async (transaction) => {
-        const arrival = await transactionReader(transaction)(arrivalRef);
-        if (!arrival.exists()) transaction.set(arrivalRef, { reachedAt: serverTimestamp(), version: 2 });
-      });
+      if (!display.arrivals.has(teamDocId)) {
+        await runTransaction(firestore, async (transaction) => {
+          const arrival = await transactionReader(transaction)(arrivalRef);
+          if (!arrival.exists()) transaction.set(arrivalRef, { reachedAt: serverTimestamp(), version: 2 });
+        });
+        display.arrivals.add(teamDocId);
+      }
       const partners = await Promise.all(circle.memberIds.filter((id) => id !== teamDocId).map(async (partnerId) => {
         const [team, data, arrival, partnerProgress] = await Promise.all([
-          getDoc(doc(firestore, 'teams', partnerId)),
-          getDoc(doc(firestore, 'teamGameData', partnerId)),
-          getDoc(doc(firestore, 'teams', partnerId, 'convergence', 'arrival')),
-          getDoc(doc(firestore, 'teams', partnerId, 'progress', '7')),
+          cachedDisplay(display.names, partnerId, async () =>
+            requiredString(asRecord((await getDoc(doc(firestore, 'teams', partnerId))).data()), 'teamName')),
+          loadCircle(partnerId),
+          display.arrivals.has(partnerId) ? null : getDoc(doc(firestore, 'teams', partnerId, 'convergence', 'arrival')),
+          display.arrivals.has(partnerId) ? null : getDoc(doc(firestore, 'teams', partnerId, 'progress', '7')),
         ]);
-        const partnerCircle = parseCircle(data.get('convergence'), partnerId);
+        const partnerCircle = data;
         if (partnerCircle.riddleSet !== circle.riddleSet
           || JSON.stringify(partnerCircle.memberIds) !== JSON.stringify(circle.memberIds)) {
           throw new ApiError(503, 'Your lantern circle is inconsistent. Ask a Keeper.');
         }
-        const arrived = arrival.exists() || partnerProgress.get('status') === 'solved';
+        const arrived = display.arrivals.has(partnerId) || arrival?.exists() === true || partnerProgress?.get('status') === 'solved';
+        if (arrived) display.arrivals.add(partnerId);
         const verifiedSeal = verified.docs.find((snapshot) => snapshot.id === partnerId);
         const isVerified = arrived && verifiedSeal?.get('version') === 2
           && verifiedSeal.get('sealHash') === await hashText(normalizeSeal(partnerCircle.seal));
         return {
-          teamId: partnerId, name: requiredString(asRecord(team.data()), 'teamName'), arrived,
+          teamId: partnerId, name: team, arrived,
           verified: Boolean(isVerified), card: isVerified ? partnerCircle.card : null,
           clueIndex: isVerified ? circle.memberIds.indexOf(partnerId) : null,
           clue: isVerified ? partnerCircle.clue : null,

@@ -14,9 +14,20 @@ export interface ContentSnapshot {
   get: (field: string) => unknown;
 }
 let caches = new WeakMap<Firestore, Map<string, Entry>>();
+let contentVersion = 0;
+
+export function stableContentVersion() { return contentVersion; }
+
+export function rememberRevealedHint(reference: DocumentReference<DocumentData>, data: DocumentData, version: number) {
+  if (!/^teams\/[^/]+\/puzzleHints\/[1-8]_[1-3]$/.test(reference.path)) {
+    throw new Error('Only a confirmed purchased hint may be remembered.');
+  }
+  if (version === contentVersion) saveSessionContent(reference, data);
+}
 
 export function clearStableContent(clearSession = true) {
   caches = new WeakMap();
+  contentVersion++;
   if (clearSession) clearSessionContent();
 }
 

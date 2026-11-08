@@ -38,7 +38,10 @@ function decode(value: unknown): unknown {
 
 function cacheKey(reference: DocumentReference<DocumentData>, teamDocId?: string): string | null {
   const rewardTeam = /^teams\/([^/]+)\/puzzleRewards\/[1-8]$/.exec(reference.path)?.[1];
-  const team = rewardTeam ?? (/^puzzles\/[1-8]$/.test(reference.path) ? teamDocId : undefined);
+  const contentTeam = /^teamPuzzleContent\/(.+)_[1-8]$/.exec(reference.path)?.[1];
+  // Hints reach this cache only through the API's purchased-hint display reads.
+  const hintTeam = /^teams\/([^/]+)\/puzzleHints\/[1-8]_[1-3]$/.exec(reference.path)?.[1];
+  const team = rewardTeam ?? contentTeam ?? hintTeam ?? (/^puzzles\/[1-8]$/.test(reference.path) ? teamDocId : undefined);
   const project = reference.firestore.app.options.projectId;
   return team && project ? SESSION_CONTENT_PREFIX + JSON.stringify([project, GAMEPLAY_RUN, team, reference.path]) : null;
 }
