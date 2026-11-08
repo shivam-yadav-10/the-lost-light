@@ -26,6 +26,7 @@ export function ConvergencePage() {
 
 function ConvergenceOpen({ puzzleId, fragments }: { puzzleId: number; fragments: EarnedFragment[] }) {
   const { session } = useTeam();
+  const teamDocId = session?.teamDocId;
   const { puzzle, setPuzzle, loadError } = usePuzzle(puzzleId);
   const [state, setState] = useState<ConvergenceState | null>(null);
   const [stateError, setStateError] = useState<string | null>(null);
@@ -36,17 +37,24 @@ function ConvergenceOpen({ puzzleId, fragments }: { puzzleId: number; fragments:
   const [busy, setBusy] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
   const loadingState = useRef<Promise<void> | null>(null);
+  const stateVersion = useRef(0);
   const closeCelebration = useCallback(() => setCelebrate(false), []);
   const loadState = useCallback((): Promise<void> => {
-    if (!session) return Promise.resolve();
+    if (!teamDocId) return Promise.resolve();
     if (loadingState.current) return loadingState.current;
+    const version = stateVersion.current;
     loadingState.current = (async () => {
-      try { setState(await api.convergence(session.teamDocId)); setStateError(null); }
-      catch (err) { setStateError(err instanceof Error ? err.message : 'The lantern will not light.'); }
+      try {
+        const next = await api.convergence(teamDocId);
+        if (version === stateVersion.current) { setState(next); setStateError(null); }
+      }
+      catch (err) {
+        if (version === stateVersion.current) setStateError(err instanceof Error ? err.message : 'The lantern will not light.');
+      }
       finally { loadingState.current = null; }
     })();
     return loadingState.current;
-  }, [session]);
+  }, [teamDocId]);
   useEffect(() => { void loadState(); }, [loadState]);
 
   async function verify(event: FormEvent) {
@@ -55,8 +63,13 @@ function ConvergenceOpen({ puzzleId, fragments }: { puzzleId: number; fragments:
     setBusy(true); setFeedback(null);
     try {
       const result = await api.verifySeal(session.teamDocId, seal.trim());
+      stateVersion.current++;
+      setStateError(null);
       setFeedback(result.alreadyHeld ? `${result.partnerName}'s card is already open.` : `${result.partnerName}'s card is open.`);
-      setSeal(''); await loadState();
+      setState((current) => current ? { ...current,
+        partners: current.partners.map((partner) => partner.teamId === result.partner.teamId ? result.partner : partner),
+      } : current);
+      setSeal('');
     } catch (err) { setFeedback(err instanceof Error ? err.message : 'The seal could not be tested.'); }
     finally { setBusy(false); }
   }

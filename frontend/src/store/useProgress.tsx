@@ -6,6 +6,7 @@ interface ProgressContextValue {
   error: string | null;
   loading: boolean;
   refresh: () => Promise<void>;
+  refreshPuzzles: () => Promise<void>;
 }
 
 export const ProgressContext = createContext<ProgressContextValue | null>(null);

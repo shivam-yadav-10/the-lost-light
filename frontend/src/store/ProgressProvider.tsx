@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { TeamProgress } from '../api/types';
-import { getTeamProgress, projectTeamProgress, clearProgressModel } from '../services/progressService';
+import { getTeamProgress, refreshPuzzleProgress, projectTeamProgress, clearProgressModel } from '../services/progressService';
 import { useLocation } from 'react-router-dom';
 import type { ProgressUpdate } from '../services/progressUpdates';
 import { TeamLoginError } from '../services/teamService';
@@ -15,25 +15,35 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const inFlight = useRef<Promise<void> | null>(null);
+  const refreshMode = useRef<'full' | 'puzzles'>('full');
   const pendingUpdates = useRef<ProgressUpdate[]>([]);
   const { pathname } = useLocation();
   const teamDocId = session?.teamDocId;
   const teamNumber = session?.teamId;
 
-  const refresh = useCallback((): Promise<void> => {
+  const runRefresh = useCallback(function runRefresh(mode: 'full' | 'puzzles'): Promise<void> {
     if (!teamDocId || teamNumber === undefined) return Promise.resolve();
-    if (inFlight.current) return inFlight.current;
+    if (inFlight.current) {
+      if (mode === 'full' && refreshMode.current === 'puzzles') {
+        return inFlight.current.then(() => runRefresh('full'));
+      }
+      return inFlight.current;
+    }
+    refreshMode.current = mode;
     pendingUpdates.current = [];
     const request = async () => {
       setLoading(true);
       try {
-        let next = await getTeamProgress(teamDocId, teamNumber);
+        let next = mode === 'puzzles'
+          ? await refreshPuzzleProgress(teamDocId)
+          : await getTeamProgress(teamDocId, teamNumber);
         for (const update of pendingUpdates.current) {
           next = projectTeamProgress(teamDocId, update) ?? next;
         }
         pendingUpdates.current = [];
         setProgress(next);
         setError(null);
+        if (mode === 'full') window.dispatchEvent(new Event('lostlight:puzzle-display-refresh'));
       } catch (err) {
         if (err instanceof TeamLoginError) signOut();
         setError(err instanceof Error ? err.message : 'Unknown error');
@@ -45,6 +55,8 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     inFlight.current = request();
     return inFlight.current;
   }, [teamDocId, teamNumber, signOut]);
+  const refresh = useCallback(() => runRefresh('full'), [runRefresh]);
+  const refreshPuzzles = useCallback(() => runRefresh('puzzles'), [runRefresh]);
 
   useEffect(() => {
     void refresh();
@@ -95,5 +107,5 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     });
   }, [progress, refresh, teamDocId, pathname]);
 
-  return <ProgressContext.Provider value={{ progress, error, loading, refresh }}>{children}</ProgressContext.Provider>;
+  return <ProgressContext.Provider value={{ progress, error, loading, refresh, refreshPuzzles }}>{children}</ProgressContext.Provider>;
 }

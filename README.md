@@ -116,9 +116,15 @@ Before the original Question III text, answer and hints are revealed, each team
 must replay its own eight-note melody with `A S D F G H J K L` or the on-screen
 piano. Listen replays are unlimited; an incorrect note restarts the attempt.
 Final teams and the four retained test teams have distinct, stable melodies
-based on their document IDs. Audio is synthesized locally without asset downloads.
+based on their document IDs. Audio is synthesized locally without asset downloads,
+using a warm fundamental and quieter, faster-decaying harmonics for a piano-like
+attack and ringing tail instead of a short triangle-wave beep.
 Completion is saved in Question III's progress record and survives refresh;
 resetting that progress also resets the gate. Already-solved questions remain solved.
+Question III's original text is downloaded on entry, retained in memory and hidden
+by the local piano UI until the Firebase melody save succeeds. Revealing it does
+not reload the question. This is a presentation gate, not secrecy for downloaded
+content; final answer and hint actions still validate the persisted melody gate.
 The original answer, scoring and release schedule are unchanged.
 
 No database provisioning is required. Using the local frontend with production Firebase still saves gameplay
@@ -155,6 +161,31 @@ The organiser overview loads once after sign-in; use **Refresh** to fetch newer
 data. Manual schedule changes are not pushed to already-open waiting rooms:
 players must refresh to receive them. The GitHub Pages deployment does not run
 database provisioning or migration commands.
+
+The dashboard's **Refresh puzzle progress** button performs a lighter in-app refresh:
+it reads only the team's puzzle progress and rewards for newly solved puzzles.
+The page and login stay in place, and existing puzzle definitions, earned fragments,
+team identity, schedule configuration and checkpoints are reused in memory.
+It does not detect schedule changes, removed devices, event resets or new checkpoint
+visits from another device; use `Ctrl+Shift+R` for a full data refresh.
+Answer and hint submissions still validate current Firebase state. F5 / Ctrl+R remains
+a normal browser reload. No persistent dashboard or login-validation cache is added.
+
+Puzzle page displays reuse the current signed-in session's team record, progress,
+public puzzle metadata and effective release state. They fetch only missing content,
+revealed hint text and rewards not already loaded. They do not reread identity,
+configuration or prerequisites on each navigation. `Ctrl+Shift+R` reloads the full
+model and refreshes the open puzzle display; submitting an answer, buying a hint,
+saving a melody or verifying a seal still validates fresh Firebase state.
+Private answer keys are not cached. Five Dawns checks remain button-triggered and
+the finale still requires a fresh server completion check.
+
+The Vault seeds its tower from the progress snapshot already used to load the puzzle,
+avoiding a second initial tower read. This never replaces an existing tab-local queue;
+final submission still synchronizes and validates the saved move history.
+Convergence seal verification returns the confirmed partner card and clue directly,
+so accepting a seal no longer reloads the entire circle. **Refresh arrivals** remains
+a deliberate fresh partner-state read, without polling.
 
 Public puzzle metadata, provisioned puzzle text, revealed hint text and earned reward documents are
 reused in memory for up to five minutes, shared between puzzle pages and the

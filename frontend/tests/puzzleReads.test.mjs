@@ -53,7 +53,10 @@ test('Convergence manual arrival refresh deduplicates concurrent requests and pe
     require: (name) => {
       if (name === 'react') return hooks;
       if (name === 'react/jsx-runtime') return require(name);
-      if (name === '../api/client') return { api: { convergence: () => {
+      if (name === '../api/client') return { api: { verifySeal: async () => ({
+        alreadyHeld: false, partnerName: 'Partner',
+        partner: { teamId: 'TEAM-002', name: 'Partner', verified: true, arrived: true, clue: null, card: null, clueIndex: 1 },
+      }), convergence: () => {
         reads++;
         return new Promise((success, failure) => { resolve = success; reject = failure; });
       } } };
@@ -92,6 +95,17 @@ test('Convergence manual arrival refresh deduplicates concurrent requests and pe
   await tick();
   tree = render();
   assert.equal(find(tree, (node) => node.props?.role === 'alert'), undefined);
+  find(tree, (node) => node.type === 'button' && node.props.children === 'Refresh arrivals').props.onClick();
+  assert.equal(reads, 4);
+  const sealForm = find(tree, (node) => node.type === 'form' && find(node, (child) => child.props?.id === 'seal'));
+  await sealForm.props.onSubmit({ preventDefault() {} });
+  tree = render();
+  assert.equal(reads, 4, 'verified card is patched directly, with no extra circle reload');
+  assert.equal(find(tree, (node) => node.props?.id === 'seal'), undefined);
+  resolve({ partners: [{ teamId: 'TEAM-002', name: 'Partner', verified: false, arrived: true }], seal: 'seal' });
+  await tick();
+  tree = render();
+  assert.equal(find(tree, (node) => node.props?.id === 'seal'), undefined, 'late arrival response cannot erase a confirmed seal');
 });
 
 test('dashboard marker claims rely on confirmed updates, never a full progress reload', () => {
@@ -147,4 +161,35 @@ test('asking for a hint updates its confirmed allowance and text without a secon
   assert.equal(hints.length, 1);
   assert.equal(hints[0].used, 1);
   assert.equal(refreshes, 0);
+});
+
+test('piano completion reveals the preloaded question without invoking the puzzle API again', async () => {
+  const exports = {};
+  const loaded = { id: 3, state: 'AVAILABLE', pianoUnlocked: false,
+    intro: 'Preloaded question', blocks: [{ type: 'text', text: 'Original text' }] };
+  let revealed;
+  runInNewContext(compile('../src/pages/PuzzlePage.tsx'), {
+    exports, Array,
+    require: (name) => {
+      if (name === 'react') return {
+        useState: (value) => [value, () => {}], useEffect() {}, useCallback: (callback) => callback,
+      };
+      if (name === 'react/jsx-runtime') return require(name);
+      if (name === 'react-router-dom') return { useParams: () => ({ id: '3' }), Link: 'link' };
+      if (name === '../store/team') return { useTeam: () => ({ session: { teamDocId: 'TEAM-001', teamId: 1 } }) };
+      if (name === '../store/usePuzzle') return { usePuzzle: () => ({
+        puzzle: loaded, setPuzzle: (value) => { revealed = value; }, loadError: null,
+      }) };
+      if (name === '../services/hiddenWords') return { countHiddenWordFields: () => 0, isHiddenWordField: () => true };
+      if (name === '../components/PianoGate') return { PianoGate: 'piano' };
+      if (name === '../api/client') return { api: { puzzle: () => assert.fail('No puzzle reload after piano completion') } };
+      return {};
+    },
+  });
+  const tree = exports.PuzzlePage();
+  assert.equal(find(tree, (node) => node.props?.children === 'Preloaded question'), undefined);
+  await find(tree, (node) => node.type === 'piano').props.onUnlocked();
+  assert.equal(revealed.pianoUnlocked, true);
+  assert.equal(revealed.intro, loaded.intro);
+  assert.equal(revealed.blocks, loaded.blocks);
 });

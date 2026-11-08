@@ -29,10 +29,11 @@ function fixture() {
       listeners.get(name).add(callback);
     },
     removeEventListener: (name, callback) => listeners.get(name)?.delete(callback),
+    dispatchEvent: (event) => listeners.get(event.type)?.forEach((callback) => callback(event)),
   };
   class Clock extends Date { static now() { return now; } }
   const globals = {
-    Date: Clock, Error, window, console: { warn: (...args) => warnings.push(args) },
+    Date: Clock, Error, Event, window, console: { warn: (...args) => warnings.push(args) },
     setTimeout: (callback, delay) => { const id = ++timerId; timers.set(id, { callback, at: now + delay }); return id; },
     clearTimeout: (id) => timers.delete(id),
     setInterval() { throw new Error('Recurring polling must not be installed'); },
@@ -109,7 +110,8 @@ function teamProvider(f, fetch, options = {}) {
   const session = { teamDocId: 'TEAM-001', teamId: 1 };
   const signOut = () => {};
   return mount(providerSource, 'ProgressProvider', f, {
-    '../services/progressService': { getTeamProgress: fetch, clearProgressModel() {}, projectTeamProgress: options.project ?? (() => null) },
+    '../services/progressService': { getTeamProgress: fetch, refreshPuzzleProgress: options.light ?? fetch,
+      clearProgressModel() {}, projectTeamProgress: options.project ?? (() => null) },
     'react-router-dom': { useLocation: () => ({ pathname: options.pathname ?? '/waiting' }) },
     '../services/teamService': { TeamLoginError: class TeamLoginError extends Error {} },
     './team': { useTeam: () => ({ session, signOut }) },
@@ -156,6 +158,34 @@ function teamProvider(f, fetch, options = {}) {
     provider.unmount();
   });
 const progress = (target) => ({ puzzles: [{ id: 1, state: 'LOCKED', unlockAt: new Date(target).toISOString() }] });
+
+test('light refresh keeps cached display, deduplicates clicks and queues a requested full refresh', async () => {
+  const f = fixture();
+  let fullReads = 0;
+  let lightReads = 0;
+  let finish;
+  const state = { puzzles: [{ id: 1, state: 'AVAILABLE', unlockAt: null }] };
+  const provider = teamProvider(f, async () => { fullReads++; return state; }, {
+    pathname: '/dashboard',
+    light: () => { lightReads++; return new Promise((resolve) => { finish = resolve; }); },
+  });
+  await tick(); provider.render();
+  const value = provider.tree.props.value;
+  const first = value.refreshPuzzles();
+  const second = value.refreshPuzzles();
+  provider.render();
+  assert.equal(first, second);
+  assert.equal(provider.tree.props.value.progress, state);
+  assert.equal(provider.tree.props.value.loading, true);
+  const full = value.refresh();
+  assert.equal(fullReads, 1);
+  finish(state);
+  await full; provider.render();
+  assert.equal(lightReads, 1);
+  assert.equal(fullReads, 2, 'full refresh must not be swallowed by an in-flight light refresh');
+  assert.equal(provider.tree.props.value.loading, false);
+  provider.unmount();
+});
 
 test('waiting progress fetches once on mount, stores its team/run time, and only fetches again at zero', async () => {
   const f = fixture();

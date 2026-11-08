@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
 import * as piano from '../src/services/piano.ts';
+import * as pianoAudio from '../src/services/pianoAudio.ts';
 
 const require = createRequire(import.meta.url);
 const source = ts.transpileModule(readFileSync(new URL('../src/components/PianoGate.tsx', import.meta.url), 'utf8'), {
@@ -49,7 +50,8 @@ function mount({ save = async () => {}, audioFails = false } = {}) {
     async close() { closes++; }
     createOscillator() {
       const frequency = { value: 0 };
-      return { frequency, connect() {}, disconnect() {}, start() { tones.push(frequency.value); }, stop() {} };
+      return { frequency, connect() {}, disconnect() {},
+        start() { tones.push(frequency.value); }, stop() {} };
     }
     createGain() {
       return { gain: { setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {} },
@@ -66,6 +68,7 @@ function mount({ save = async () => {}, audioFails = false } = {}) {
     require: (name) => {
       if (name === 'react') return hooks;
       if (name === '../services/piano') return piano;
+      if (name === '../services/pianoAudio') return pianoAudio;
       if (name === '../api/client') return { api: { unlockPiano: save } };
       return require(name);
     },
@@ -89,7 +92,7 @@ function mount({ save = async () => {}, audioFails = false } = {}) {
   const buttons = () => nodes((node) => node.type === 'button');
   render();
   return {
-    tones, buttons, get unlocks() { return unlocks; },
+    get tones() { return tones.filter((_, index) => index % 4 === 0); }, buttons, get unlocks() { return unlocks; },
     status: () => nodes((node) => node.props?.role === 'status')[0].props.children,
     async tap(key) { buttons()[1 + piano.PIANO_KEYS.indexOf(key)].props.onClick(); await tick(); render(); },
     async listen() { buttons()[0].props.onClick(); await tick(); render(); },

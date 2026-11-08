@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api/client';
 import { PIANO_FREQUENCIES, PIANO_KEYS, teamMelody, type PianoKey } from '../services/piano';
+import { playPianoTone } from '../services/pianoAudio';
 
 export function PianoGate({ teamDocId, onUnlocked }: { teamDocId: string; onUnlocked: () => Promise<void> }) {
   const melody = teamMelody(teamDocId);
@@ -27,20 +28,7 @@ export function PianoGate({ teamDocId, onUnlocked }: { teamDocId: string; onUnlo
     audio.current ??= new AudioContext();
     await audio.current.resume();
     if (!mounted.current) return;
-    const context = audio.current;
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    const now = context.currentTime;
-    oscillator.type = 'triangle';
-    oscillator.frequency.value = PIANO_FREQUENCIES[PIANO_KEYS.indexOf(key)];
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.18, now + 0.015);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-    oscillator.connect(gain);
-    gain.connect(context.destination);
-    oscillator.start(now);
-    oscillator.stop(now + 0.55);
-    oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
+    playPianoTone(audio.current, PIANO_FREQUENCIES[PIANO_KEYS.indexOf(key)]);
     setActive(key);
     timers.current.push(setTimeout(() => { if (mounted.current) setActive(null); }, 300));
   }

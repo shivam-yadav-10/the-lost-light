@@ -28,7 +28,7 @@ export class HanoiQueue {
     };
   }
 
-  static async restore(teamId: string): Promise<HanoiQueue> {
+  static async restore(teamId: string, initialDraft?: HanoiDraft): Promise<HanoiQueue> {
     const raw = sessionStorage.getItem(HanoiQueue.key(teamId));
     let data: QueueData;
     if (raw !== null) {
@@ -51,7 +51,7 @@ export class HanoiQueue {
       }
       data = { draft, pending };
     } else {
-      data = { draft: await loadHanoiProgress(teamId), pending: [] };
+      data = { draft: initialDraft ? parseHanoiDraft(initialDraft) : await loadHanoiProgress(teamId), pending: [] };
     }
     const queue = new HanoiQueue(teamId, data);
     queue.persist(data);
@@ -138,10 +138,10 @@ export class HanoiQueue {
 
 const queues = new Map<string, Promise<HanoiQueue>>();
 
-export function getHanoiQueue(teamId: string): Promise<HanoiQueue> {
+export function getHanoiQueue(teamId: string, initialDraft?: HanoiDraft): Promise<HanoiQueue> {
   let queue = queues.get(teamId);
   if (!queue) {
-    queue = HanoiQueue.restore(teamId).catch((error) => { queues.delete(teamId); throw error; });
+    queue = HanoiQueue.restore(teamId, initialDraft).catch((error) => { queues.delete(teamId); throw error; });
     queues.set(teamId, queue);
   }
   return queue;

@@ -302,6 +302,17 @@ function documents<K extends string | number>(entries: Map<K, Record<string, unk
   return [...entries].map(([id, data]) => ({ id: String(id), data: () => data }));
 }
 export function clearProgressModel(teamDocId: string) { models.delete(teamDocId); }
+export function cachedPuzzleState(teamDocId: string, puzzleId: number) {
+  const model = models.get(teamDocId);
+  if (!model) return null;
+  const summary = projectTeamProgress(teamDocId)?.puzzles.find((puzzle) => puzzle.id === puzzleId);
+  const metadata = model.puzzles.get(puzzleId);
+  if (!summary || !metadata) throw new GameServicesUnavailableError();
+  return {
+    team: model.team, metadata, progress: model.progress.get(puzzleId) ?? {},
+    reward: model.rewards.get(puzzleId) ?? null, summary,
+  };
+}
 export function projectTeamProgress(teamDocId: string, update?: ProgressUpdate): TeamProgress | null {
   const current = models.get(teamDocId);
   if (!current || (update && update.teamDocId !== teamDocId)) return null;
@@ -326,6 +337,35 @@ export function projectTeamProgress(teamDocId: string, update?: ProgressUpdate):
   const result = toTeamProgress(model.team, model.teamNumber, documents(model.puzzles),
     documents(model.progress), documents(model.visits), documents(model.rewards), model.config);
   models.set(teamDocId, model);
+  return result;
+}
+
+export async function refreshPuzzleProgress(teamDocId: string): Promise<TeamProgress> {
+  if (!models.has(teamDocId)) throw new Error('Load your team first. Use the full refresh to recover.');
+  const { firestore } = requireFirebaseServices();
+  await initializeSession();
+  const teamRef = doc(firestore, 'teams', teamDocId);
+  const snapshot = await getDocs(collection(teamRef, 'progress'));
+  const progress = new Map(snapshot.docs.map((entry) => [Number(entry.id), asRecord(entry.data())]));
+  const current = models.get(teamDocId);
+  if (!current) throw new Error('Your team session changed. Reload before refreshing progress.');
+  for (const [id, data] of progress) {
+    if (!current.puzzles.has(id)) throw new GameServicesUnavailableError();
+    parseProgress(data);
+  }
+  const missingRewards = [...progress].filter(([id, data]) => data.status === 'solved' && !current.rewards.has(id));
+  const fetchedRewards = await Promise.all(missingRewards.map(([id]) =>
+    readStableContent(doc(teamRef, 'puzzleRewards', String(id)))));
+  const latest = models.get(teamDocId);
+  if (!latest) throw new Error('Your team session changed. Reload before refreshing progress.');
+  const rewards = new Map(latest.rewards);
+  for (const reward of fetchedRewards) {
+    if (!reward.exists()) throw new GameServicesUnavailableError();
+    rewards.set(Number(reward.id), asRecord(reward.data()));
+  }
+  const result = toTeamProgress(latest.team, latest.teamNumber, documents(latest.puzzles),
+    documents(progress), documents(latest.visits), documents(rewards), latest.config);
+  models.set(teamDocId, { ...latest, progress, rewards });
   return result;
 }
 

@@ -127,6 +127,17 @@ test('reload restores unsynced operations and restarts locally without reading t
   assert.equal(observe(reloaded).current().pending, 0);
 });
 
+test('initial puzzle tower snapshot avoids a duplicate server read and never replaces a tab-local queue', async () => {
+  const f = fixture();
+  const queue = await f.service().getHanoiQueue('a', { ...initial(), moves: '01' });
+  assert.equal(f.reads(), 0);
+  assert.equal(observe(queue).current().moves, '01');
+  queue.enqueue('0102');
+  const restored = await f.service().getHanoiQueue('a', initial());
+  assert.equal(observe(restored).current().moves, '0102');
+  assert.equal(f.reads(), 0);
+});
+
 test('new moves during a slow sync remain queued and never start an overlapping transaction', async () => {
   const f = fixture();
   const queue = await f.service().getHanoiQueue('a');

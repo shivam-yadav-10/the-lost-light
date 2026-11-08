@@ -9,7 +9,7 @@ import { MAX_TEAM_HINTS } from '../services/gameRules';
 
 export function DashboardPage() {
   const { session } = useTeam();
-  const { progress, error, loading, refresh } = useProgress();
+  const { progress, error, loading, refresh, refreshPuzzles } = useProgress();
   const location = useLocation();
 
   const core = progress?.puzzles.filter((p) => p.kind === 'core') ?? [];
@@ -59,6 +59,15 @@ export function DashboardPage() {
                 </svg>
                 Replay the story
               </Link>
+              <div className="mt-4">
+                <button type="button" className="btn-ghost" disabled={loading}
+                  onClick={() => void refreshPuzzles()}>
+                  {loading ? 'Refreshing progress…' : 'Refresh puzzle progress'}
+                </button>
+                <p className="mt-2 text-xs text-parchment/50">
+                  Updates puzzles and newly earned fragments only. Use Ctrl+Shift+R for a full data refresh.
+                </p>
+              </div>
             </>
           )}
         </section>

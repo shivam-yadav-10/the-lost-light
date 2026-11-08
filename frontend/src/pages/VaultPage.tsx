@@ -75,7 +75,7 @@ function VaultOpen({ puzzleId, fragments }: { puzzleId: number; fragments: Earne
     setLoadingTower(true);
     setTowerError(null);
     try {
-      const saved = await getHanoiQueue(teamDocId);
+      const saved = await getHanoiQueue(teamDocId, puzzle?.savedTower);
       if (request !== loadRequest.current) return;
       unsubscribe.current?.();
       queue.current = saved;
@@ -89,7 +89,7 @@ function VaultOpen({ puzzleId, fragments }: { puzzleId: number; fragments: Earne
     } finally {
       if (request === loadRequest.current) setLoadingTower(false);
     }
-  }, [teamDocId]);
+  }, [teamDocId, puzzle?.savedTower]);
 
   useEffect(() => {
     if (puzzle && !solved) void restoreTower();

@@ -30,6 +30,9 @@ function fixture(id = 1) {
     ['gameConfig/main', { lightMessages: { partial: 'The circle awaits.' } }],
     [`privateTeamData/${team}`, { lanternKey: '123456' }],
   ]);
+  for (let puzzle = 1; puzzle <= 8; puzzle++) {
+    data.set(`teamPuzzleContent/${team}_${puzzle}`, { intro: `Question ${puzzle}`, blocks: [{ type: 'text', text: 'Puzzle text' }] });
+  }
   class Timestamp {
     constructor(value = '2026-11-10T09:00:00Z') { this.value = value; }
     toDate() { return new Date(this.value); }
@@ -108,7 +111,7 @@ function fixture(id = 1) {
     progressUpdates: { publishProgressUpdate: (update) => updates.push(update) },
     gameplayRun: { GAMEPLAY_RUN }, gameRules: rules, piano, hanoi, hiddenWords: hidden,
     riddleAnswers: riddles, convergenceOverlay: overlay, convergenceAnswer: convergence,
-    hanoiProgress: { parseHanoiDraft: (value) => value },
+    hanoiProgress: { parseHanoiDraft: (value) => value ?? { version: 1, disks: 6, revision: 0, moves: '' } },
     gameCrypto: { ...crypto, hashText: async (value) => `hash:${value}` },
   };
   function load(file) {
@@ -140,6 +143,91 @@ const cases = [
   [6, 'fixture', undefined, 11],
   [7, 'light unite', JSON.stringify([{ teamId: 'TEAM-002', x: 0, y: 0, rotation: 0 }]), 13],
 ];
+
+test('dashboard light refresh reads one progress query and only newly earned rewards, reusing all other state', async () => {
+  const f = fixture(2);
+  await f.progress.getTeamProgress(f.team, 1);
+  f.reads.length = 0;
+  await f.progress.refreshPuzzleProgress(f.team);
+  assert.deepEqual(f.reads, [{ path: `teams/${f.team}/progress`, type: 'query' }]);
+  f.data.set(f.path, { status: 'solved', hintsUsed: 1, solvedAt: new f.Timestamp() });
+  f.data.set('gameConfig/main', { unlockOverrides: { 3: new f.Timestamp('2099-01-01T00:00:00Z') } });
+  f.reads.length = 0;
+  const result = await f.progress.refreshPuzzleProgress(f.team);
+  assert.deepEqual(f.reads, [
+    { path: `teams/${f.team}/progress`, type: 'query' },
+    { path: `teams/${f.team}/puzzleRewards/2`, type: 'document' },
+  ]);
+  assert.equal(result.coreSolved, 2);
+  assert.equal(result.totalHintsUsed, 1);
+  assert.equal(result.penaltyMinutes, 5);
+  assert.equal(result.puzzles[2].state, 'AVAILABLE', 'light refresh retains the cached schedule');
+  f.reads.length = 0;
+  await f.progress.refreshPuzzleProgress(f.team);
+  assert.equal(f.reads.length, 1, 'earned rewards remain in the model across repeated light refreshes');
+});
+
+test('light refresh errors preserve the prior model and require an explicit retry', async () => {
+  const f = fixture(2);
+  await assert.rejects(f.progress.refreshPuzzleProgress(f.team), /Load your team/);
+  await f.progress.getTeamProgress(f.team, 1);
+  f.data.set(f.path, { status: 'solved', hintsUsed: 0, solvedAt: new f.Timestamp() });
+  f.data.delete(`teams/${f.team}/puzzleRewards/2`);
+  await assert.rejects(f.progress.refreshPuzzleProgress(f.team));
+  assert.equal(f.progress.projectTeamProgress(f.team).coreSolved, 1);
+  f.data.set(`teams/${f.team}/puzzleRewards/2`, { fragment: null });
+  assert.equal((await f.progress.refreshPuzzleProgress(f.team)).coreSolved, 2);
+  f.data.delete(f.path);
+  assert.equal((await f.progress.refreshPuzzleProgress(f.team)).coreSolved, 1, 'fresh progress replaces removed records');
+  f.data.set(`teams/${f.team}/progress/99`, { status: 'solved', hintsUsed: 0 });
+  await assert.rejects(f.progress.refreshPuzzleProgress(f.team));
+});
+
+test('all puzzle displays reuse session identity, metadata, progress and release gates; only content is fetched', async () => {
+  for (let id = 1; id <= 8; id++) {
+    const f = fixture(id);
+    await f.progress.getTeamProgress(f.team, 1);
+    f.reads.length = 0;
+    const detail = await f.api.puzzle(id, f.team, 1);
+    assert.equal(detail.intro, `Question ${id}`);
+    assert.deepEqual(f.reads, [{ path: `teamPuzzleContent/${f.team}_${id}`, type: 'document' }]);
+    if (id === 8) assert.equal(detail.savedTower.moves, '');
+    await assert.rejects(f.api.puzzle(id, f.team, 99), /linked/);
+  }
+});
+
+test('piano question is preloaded behind its local UI gate; completion saves once without a second detail load', async () => {
+  const f = fixture(3);
+  f.data.delete(f.path);
+  await f.progress.getTeamProgress(f.team, 1);
+  const locked = await f.api.puzzle(3, f.team, 1);
+  assert.equal(locked.pianoUnlocked, false);
+  assert.equal(locked.blocks[0].text, 'Puzzle text');
+  f.reads.length = 0;
+  await f.api.unlockPiano(f.team, piano.teamMelody(f.team));
+  assert.equal(f.writes.length, 1);
+  assert.equal(f.reads.length, 5, 'only fresh team, metadata, config, predecessor and own progress validation');
+  assert.ok(f.reads.every((read) => read.type === 'transaction'));
+  const unlocked = { ...locked, pianoUnlocked: true };
+  assert.equal(unlocked.intro, 'Question 3');
+  assert.equal(f.updates.length, 1);
+  f.progress.projectTeamProgress(f.team, f.updates[0]);
+  assert.equal(f.progress.cachedPuzzleState(f.team, 3).progress.pianoVersion, 1);
+});
+
+test('verified seal returns the exact partner card and clue without needing an arrival-state reload', async () => {
+  const f = fixture(7);
+  f.data.set(`teams/${f.partner}`, { teamName: 'Partner' });
+  f.data.set('convergenceSealLookups/hash:PARTNER', { ownerTeamId: f.partner });
+  const result = await f.api.verifySeal(f.team, 'PARTNER');
+  assert.equal(result.partner.teamId, f.partner);
+  assert.equal(result.partner.verified, true);
+  assert.equal(result.partner.arrived, true);
+  assert.equal(result.partner.clueIndex, 1);
+  assert.equal(result.partner.card.width, 31);
+  assert.equal(result.partnerName, 'Partner');
+  assert.ok(f.reads.every((read) => read.type !== 'query'), 'seal acceptance never scans all partners or seals');
+});
 for (const [id, answer, proof, expectedReads] of cases) {
   test(`Question ${id} reads each validation document once, confirms only its result and patches the dashboard`, async () => {
     const f = fixture(id);

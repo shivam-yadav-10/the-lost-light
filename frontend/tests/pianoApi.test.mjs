@@ -66,7 +66,9 @@ function fixture() {
         if (name === '../services/firestoreReads') return { readDocument: sdk.getDoc, readQuery: sdk.getDocs, recordTransactionRead() {} };
         if (name === '../services/progressUpdates') return { publishProgressUpdate() {} };
         if (name === '../services/gameplayRun') return { GAMEPLAY_RUN };
-        if (name === '../services/progressService') return { confirmedPuzzleSummary: (id, metadata) => ({ id, ...metadata }) };
+        if (name === '../services/progressService') return {
+          confirmedPuzzleSummary: (id, metadata) => ({ id, ...metadata }), cachedPuzzleState: () => null,
+        };
         if (name === '../services/gameRules') return rules;
         if (name === '../services/gameCrypto') return crypto;
         return {};
@@ -77,13 +79,13 @@ function fixture() {
   return { client, teamId, data, writes, progressPath, fail: () => { failure = true; } };
 }
 
-test('Question III hides text, answer submission and hints until its team melody has been replayed', async () => {
+test('Question III preloads its text for the UI gate but still validates the melody on answer and hint actions', async () => {
   const f = fixture();
   const api = f.client();
   const locked = await api.puzzle(3, f.teamId, 1);
   assert.equal(locked.pianoUnlocked, false);
-  assert.equal(locked.intro, '');
-  assert.equal(locked.blocks.length, 0);
+  assert.equal(locked.intro, 'Original question');
+  assert.equal(locked.blocks.length, 1);
   assert.equal(locked.revealedHints.length, 0);
   await assert.rejects(api.submit(3, f.teamId, 1, 'amavasya'), /melody/);
   await assert.rejects(api.hint(3, f.teamId), /melody/);

@@ -105,7 +105,7 @@ export function PuzzlePage() {
     return <div className="game-page-enter">
       <Link to="/dashboard" className="text-xs text-parchment/60 hover:text-ember-glow">← All fragments</Link>
       <PianoGate key={session.teamDocId} teamDocId={session.teamDocId} onUnlocked={async () => {
-        setPuzzle(await api.puzzle(3, session.teamDocId, session.teamId));
+        setPuzzle({ ...puzzle, pianoUnlocked: true });
       }} />
     </div>;
   }

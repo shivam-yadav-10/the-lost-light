@@ -1,3 +1,5 @@
+import type { HanoiDraft } from '../services/hanoiProgress';
+
 export type FragmentState = 'LOCKED' | 'AVAILABLE' | 'SOLVED';
 export type PuzzleKind = 'core' | 'convergence' | 'vault';
 
@@ -29,7 +31,7 @@ export interface MandalaCell {
   scale: number;
 }
 
-/** Player-facing content blocks rendered by PuzzleBlocks. Supplied by the API only after unlock. */
+/** Player-facing content; preloaded piano content remains hidden by the local UI gate. */
 export interface SceneLamp {
   x: number;
   y: number;
@@ -69,6 +71,7 @@ export interface EarnedFragment extends FragmentMeta {
 
 export interface PuzzleDetail extends PuzzleSummary {
   pianoUnlocked?: boolean;
+  savedTower?: HanoiDraft;
   intro: string;
   blocks: ContentBlock[];
   revealedHints: string[];
@@ -125,6 +128,7 @@ export interface ConvergenceState {
 export interface SealResult {
   partnerName: string;
   alreadyHeld: boolean;
+  partner: ConvergenceState['partners'][number];
 }
 
 export interface OverlayCard { width: number; height: number; lit: number[] }
