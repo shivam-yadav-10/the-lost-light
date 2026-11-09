@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
-import { GAMEPLAY_RUN } from '../src/services/gameplayRun.ts';
+import { GAMEPLAY_RUN, PUZZLE_SCHEDULE_VERSION } from '../src/services/gameplayRun.ts';
 
 const compile = (file) => ts.transpileModule(readFileSync(new URL(file, import.meta.url), 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
@@ -17,6 +17,7 @@ function fixture() {
   let wait = null;
   let release;
   let run = GAMEPLAY_RUN;
+  let scheduleVersion = PUZZLE_SCHEDULE_VERSION;
   class Timestamp {
     constructor(seconds, nanoseconds) {
       assert.ok(Number.isInteger(seconds) && Number.isInteger(nanoseconds) && nanoseconds >= 0 && nanoseconds < 1e9);
@@ -46,7 +47,8 @@ function fixture() {
     runInNewContext(compile('../src/services/sessionContent.ts'), {
       exports: session, Object, Array, JSON, Error, sessionStorage,
       console: { warn: (...args) => warnings.push(args) },
-      require: (name) => name === 'firebase/firestore' ? { Timestamp } : { ...gameplayRun, GAMEPLAY_RUN: run },
+      require: (name) => name === 'firebase/firestore' ? { Timestamp }
+        : { ...gameplayRun, GAMEPLAY_RUN: run, PUZZLE_SCHEDULE_VERSION: scheduleVersion },
     });
     const stable = {};
     runInNewContext(compile('../src/services/stableContent.ts'), {
@@ -67,6 +69,7 @@ function fixture() {
   }
   return { load, ref, data, storage, warnings, reads: () => reads, block: (value) => { blocked = value; },
     changeRun: () => { run = 'next-event'; },
+    changeSchedule: () => { scheduleVersion = 'next-schedule'; },
     hold() { wait = new Promise((resolve) => { release = resolve; }); },
     release() { wait = null; release(); },
   };
@@ -91,6 +94,19 @@ test('normal reload reuses all eight puzzle definitions and three earned rewards
   reloaded.clearStableContent();
   for (const path of paths) await reloaded.readStableContent(f.ref(path), 'TEAM-001');
   assert.equal(f.reads(), 22, 'Ctrl+Shift+R clears both caches and fetches all eleven documents');
+});
+
+test('schedule changes invalidate only puzzle metadata, preserving cached question text, rewards and purchased hints', async () => {
+  const f = fixture();
+  const paths = ['puzzles/2', 'teamPuzzleContent/TEAM-001_2',
+    'teams/TEAM-001/puzzleRewards/2', 'teams/TEAM-001/puzzleHints/2_1'];
+  const first = f.load();
+  for (const path of paths) await first.readStableContent(f.ref(path), 'TEAM-001');
+  assert.equal(f.reads(), 4);
+  f.changeSchedule();
+  const reloaded = f.load();
+  for (const path of paths) await reloaded.readStableContent(f.ref(path), 'TEAM-001');
+  assert.equal(f.reads(), 5, 'only changed schedule metadata is fetched again');
 });
 
 test('cached content is isolated by project, event and team; mutable and private records are never persisted', async () => {

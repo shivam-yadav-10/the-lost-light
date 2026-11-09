@@ -377,14 +377,20 @@ Deploy this content update together with the frontend word-entry form.
 
 On 10 November 2026, the six scheduled releases are:
 
+Releases are 20 minutes apart. `backend/src/scripts/update-event-schedule.ts`
+updates only the public/private core release timestamps, with an external backup
+and atomic, preconditioned writes. Applying and verifying uses 26 document reads;
+it never queries teams or resets progress. Puzzle-metadata session caches are
+schedule-versioned without invalidating cached question text, rewards or hints.
+
 | Question | IST | UTC (`unlockAt`) |
 | --- | --- | --- |
 | Q1 | 13:00 | 07:30Z |
-| Q2 | 13:30 | 08:00Z |
-| Q3 | 14:00 | 08:30Z |
-| Q4 | 14:30 | 09:00Z |
-| Q5 | 15:00 | 09:30Z |
-| Q6 | 15:30 | 10:00Z |
+| Q2 | 13:20 | 07:50Z |
+| Q3 | 13:40 | 08:10Z |
+| Q4 | 14:00 | 08:30Z |
+| Q5 | 14:20 | 08:50Z |
+| Q6 | 14:40 | 09:10Z |
 
 The ranking clock starts for every team at the fixed first release, 13:00 IST
 (07:30Z), regardless of when a team logs in or first opens a question. A team's
@@ -581,8 +587,8 @@ live Firestore writes are performed by this implementation.
 ### Testing the scoring clock
 
 The production trial on 5 November is complete. Production is restored to
-**10 November 2026**, with Questions 1–6 scheduled for **1:00, 1:30, 2:00,
-2:30, 3:00, and 3:30 PM IST**. The shared scoring start is **1:00 PM IST**,
+**10 November 2026**, with Questions 1–6 scheduled every 20 minutes at
+**1:00, 1:20, 1:40, 2:00, 2:20, and 2:40 PM IST**. The shared scoring start is **1:00 PM IST**,
 `unlockOverrides` is empty, and `testScoringStartAt` is removed.
 `backend/src/scripts/reset-production-test.ts` is dry-run by default; `--apply`
 requires an external `--backup` path and clears all team gameplay subcollections

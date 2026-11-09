@@ -44,11 +44,11 @@ test('invalid puzzle IDs are rejected', () => {
 test('questions I–VI unlock at the confirmed IST times and exact UTC boundaries', () => {
   assert.deepEqual(CORE_QUESTION_SCHEDULE.map(({ unlockAt }) => unlockAt), [
     '2026-11-10T07:30:00.000Z',
-    '2026-11-10T08:00:00.000Z',
+    '2026-11-10T07:50:00.000Z',
+    '2026-11-10T08:10:00.000Z',
     '2026-11-10T08:30:00.000Z',
-    '2026-11-10T09:00:00.000Z',
-    '2026-11-10T09:30:00.000Z',
-    '2026-11-10T10:00:00.000Z',
+    '2026-11-10T08:50:00.000Z',
+    '2026-11-10T09:10:00.000Z',
   ]);
   assert.equal(EVENT_START_AT, CORE_QUESTION_SCHEDULE[0].unlockAt);
   const q2 = Date.parse(CORE_QUESTION_SCHEDULE[1].unlockAt);

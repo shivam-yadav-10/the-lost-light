@@ -63,7 +63,7 @@ try {
     backup.push({ path: puzzle.ref.path, data: puzzle.data() });
   }
   const schedule = Object.fromEntries(Array.from({ length: 6 }, (_, index) => [
-    String(index + 1), Timestamp.fromMillis(Date.parse(START) + index * (event ? 30 : 10) * 60_000),
+    String(index + 1), Timestamp.fromMillis(Date.parse(START) + index * (event ? 20 : 10) * 60_000),
   ]));
   console.log(JSON.stringify({
     apply, teams: teams.docs.map((team) => ({ id: team.id, name: team.get('teamName') })),

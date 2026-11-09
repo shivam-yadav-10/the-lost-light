@@ -1,5 +1,6 @@
 export const GAMEPLAY_RUN = 'production-event-2026-11-10-1300-ist-final-2026-11-09';
 export const SESSION_CONTENT_PREFIX = 'lostlight.content.v1.';
+export const PUZZLE_SCHEDULE_VERSION = '2026-11-10-20-minutes';
 
 export function clearSessionContent() {
   try {

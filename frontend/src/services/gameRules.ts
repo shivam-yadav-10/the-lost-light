@@ -4,11 +4,11 @@ export const PUZZLE_IDS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
 export const EVENT_START_AT = '2026-11-10T07:30:00.000Z';
 export const CORE_QUESTION_SCHEDULE = [
   { id: 1, unlockAt: '2026-11-10T07:30:00.000Z' },
-  { id: 2, unlockAt: '2026-11-10T08:00:00.000Z' },
-  { id: 3, unlockAt: '2026-11-10T08:30:00.000Z' },
-  { id: 4, unlockAt: '2026-11-10T09:00:00.000Z' },
-  { id: 5, unlockAt: '2026-11-10T09:30:00.000Z' },
-  { id: 6, unlockAt: '2026-11-10T10:00:00.000Z' },
+  { id: 2, unlockAt: '2026-11-10T07:50:00.000Z' },
+  { id: 3, unlockAt: '2026-11-10T08:10:00.000Z' },
+  { id: 4, unlockAt: '2026-11-10T08:30:00.000Z' },
+  { id: 5, unlockAt: '2026-11-10T08:50:00.000Z' },
+  { id: 6, unlockAt: '2026-11-10T09:10:00.000Z' },
 ] as const;
 
 export function scoringStartAt(configuredStart: string | null, testStart: string | null): string {
